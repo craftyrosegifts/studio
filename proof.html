@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Your proof · Crafty Rose Gifts</title>
+<link rel="icon" href="rose64.png" type="image/png"><link rel="apple-touch-icon" href="rose180.png">
+<meta property="og:title" content="Your proof is ready · Crafty Rose Gifts">
+<meta property="og:description" content="Have a look at your design and approve it or ask for changes.">
+<meta property="og:image" content="https://studio.craftyrosegifts.ca/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--forest:#4C6D5E;--forest-700:#3D5A4D;--forest-800:#2F473C;--green:#88C4A9;--sage-50:#F4F8F5;--sage-100:#EAF3EE;--sage-200:#D3E5DA;--line:#E4ECE7;--ink:#2C3832;--muted:#74827A;--red:#A8464C}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:"Plus Jakarta Sans",system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--sage-50);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;display:block}
+button,textarea{font:inherit;color:inherit}
+.wrap{max-width:640px;margin:0 auto;padding:24px 16px 48px}
+.logo{width:96px;margin:0 auto 10px}
+.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:22px 18px;box-shadow:0 6px 22px rgba(47,71,60,.06)}
+h1{font-family:"Amatic SC",cursive;font-size:44px;line-height:1;margin:0 0 6px;color:var(--forest-800);text-align:center}
+.sub{text-align:center;color:var(--muted);margin:0 0 18px}
+.msg{background:var(--sage-100);border-radius:14px;padding:12px 14px;line-height:1.55;white-space:pre-line;margin-bottom:16px}
+.imgs{display:flex;flex-direction:column;gap:12px;margin-bottom:16px}
+.imgs img{width:100%;border-radius:14px;border:1px solid var(--line);background:var(--sage-100)}
+.items{border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+.it{padding:6px 0}
+.it b{display:block}
+.it span{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.tot{display:flex;justify-content:space-between;font-weight:700;font-size:18px;border-top:1px solid var(--line);padding-top:12px;margin-top:8px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;border:0;border-radius:14px;height:54px;font-weight:700;font-size:17px;cursor:pointer;text-decoration:none;margin-top:10px}
+.btn-p{background:var(--forest);color:#fff}.btn-p:hover{background:var(--forest-700)}
+.btn-s{background:#fff;color:var(--forest-800);border:1px solid var(--line)}
+.btn[disabled]{opacity:.6;cursor:wait}
+textarea{width:100%;min-height:110px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:16px;resize:vertical;margin-top:6px}
+textarea:focus{outline:2px solid var(--green);border-color:var(--green)}
+.err{color:var(--red);font-weight:600;font-size:14px;margin-top:10px;text-align:center}
+.status{text-align:center;border-radius:14px;padding:14px;font-weight:600;margin:16px 0 0;line-height:1.5}
+.status.ok{background:#E4F2EA;color:#2F6A4E}
+.status.ch{background:#FFF6E5;color:#5B4513}
+.actions{margin-top:18px}
+.state{text-align:center;padding:50px 10px;color:var(--muted)}
+.spin{width:34px;height:34px;border:3px solid var(--sage-200);border-top-color:var(--forest);border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 14px}
+@keyframes sp{to{transform:rotate(360deg)}}
+footer{text-align:center;color:var(--muted);font-size:13px;margin-top:22px}
+footer a{color:var(--forest)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <img class="logo" src="logo.png" alt="Crafty Rose Gifts">
+  <div id="app"><div class="card state"><div class="spin"></div>Loading your proof…</div></div>
+  <footer id="foot">Crafty Rose Gifts · Kentville, Nova Scotia</footer>
+</div>
+<script>
+var API = 'https://script.google.com/macros/s/AKfycbzg84RXS8672czlZKC7Y78cQ2ieEuD6-y3MO1_yFlNdU67Vxj4zXEDIMLaPXWYfZbo/exec';
+var TOKEN = (location.search.match(/[?&]t=([a-f0-9]{40})/) || [])[1] || '';
+var P = null, MODE = '';
+var $ = function (s) { return document.querySelector(s); };
+function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function api(params, body) {
+  var url = API + '?' + Object.keys(params).map(function (k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
+  var opt = body ? { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) } : {};
+  return fetch(url, opt).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) throw new Error(j.error || 'Something went wrong.'); return j.data; });
+}
+function fail(msg) { $('#app').innerHTML = '<div class="card state"><h1>Hmm…</h1><p>' + esc(msg) + '</p><p>Please message me on Facebook or Instagram and I\'ll sort it out.</p></div>'; }
+function render() {
+  var b = P.business || {};
+  if (b.email || b.instagram) $('#foot').innerHTML = esc(b.businessName || 'Crafty Rose Gifts') + (b.email ? ' · <a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a>' : '') + (b.instagram ? ' · Instagram ' + esc(b.instagram) : '');
+  var h = '<div class="card"><h1>Your proof is ready!</h1><p class="sub">Order ' + esc(P.number) + (P.firstName ? ' · for ' + esc(P.firstName) : '') + '</p>' +
+    (P.message ? '<div class="msg">' + esc(P.message) + '</div>' : '') +
+    '<div class="imgs">' + P.images.map(function (src, i) { return '<img src="' + src + '" alt="Proof ' + (i + 1) + '">'; }).join('') + '</div>' +
+    '<div class="items">' + P.items.map(function (it) { return '<div class="it"><b>' + esc(it.qty) + ' × ' + esc(it.name) + '</b><span>' + it.details.map(esc).join('<br>') + '</span></div>'; }).join('') + '</div>' +
+    '<div class="tot"><span>Total</span><span>$' + P.total.toFixed(2) + '</span></div>';
+  if (P.paid) h += '<div class="status ok">This order is paid. Thank you! I\'m working on it now.</div>';
+  else if (P.status === 'approved') {
+    h += '<div class="status ok">You approved this proof. Thank you!</div>' +
+      (P.paymentLink ? '<a class="btn btn-p" href="' + esc(P.paymentLink) + '">Pay now · $' + P.total.toFixed(2) + '</a><p class="sub" style="margin-top:8px;font-size:13px">Secure card payment by Stripe. You can also pay by e-transfer or cash. Just let me know.</p>'
+        : '<p class="sub" style="margin-top:10px">I\'ll send you payment details shortly.</p>');
+  } else if (MODE === 'changes') {
+    h += '<div class="actions"><label for="cmt"><b>What would you like changed?</b></label><textarea id="cmt" placeholder="e.g. Can the name be a bit bigger?"></textarea>' +
+      '<button class="btn btn-p" type="button" id="sendCh">Send my changes</button><button class="btn btn-s" type="button" id="back">Back</button><div class="err" id="err"></div></div>';
+  } else {
+    if (P.status === 'changes' && P.comment) h += '<div class="status ch">You asked for: "' + esc(P.comment) + '"<br>I\'ll send an updated proof soon.</div>';
+    h += '<div class="actions"><button class="btn btn-p" type="button" id="ok">Approve this proof</button><button class="btn btn-s" type="button" id="ch">Request changes</button><div class="err" id="err"></div>' +
+      '<p class="sub" style="margin-top:10px;font-size:13px">Please check spelling, names and dates carefully. Once approved, I\'ll start making it.</p></div>';
+  }
+  $('#app').innerHTML = h + '</div>';
+}
+document.addEventListener('click', function (e) {
+  if (e.target.closest('#ch')) { MODE = 'changes'; render(); $('#cmt').focus(); return; }
+  if (e.target.closest('#back')) { MODE = ''; render(); return; }
+  var ok = e.target.closest('#ok'), sc = e.target.closest('#sendCh');
+  if (!ok && !sc) return;
+  var comment = sc ? $('#cmt').value.trim() : '';
+  if (sc && !comment) { $('#err').textContent = 'Please tell me what you\'d like changed.'; return; }
+  var btn = ok || sc; btn.disabled = true; btn.textContent = 'Sending…';
+  api({ action: 'respond' }, { t: TOKEN, decision: ok ? 'approve' : 'changes', comment: comment }).then(function (r) {
+    P.status = r.status; P.paymentLink = r.paymentLink || ''; if (sc) P.comment = comment; MODE = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (sc) document.querySelector('.status').scrollIntoView({ block: 'center' });
+  }).catch(function (err) { btn.disabled = false; btn.textContent = ok ? 'Approve this proof' : 'Send my changes'; $('#err').textContent = err.message; });
+});
+if (!TOKEN) fail('This proof link looks incomplete.');
+else api({ action: 'proof', t: TOKEN }).then(function (d) { P = d; render(); }).catch(function (e) { fail(e.message); });
+</script>
+</body>
+</html>
