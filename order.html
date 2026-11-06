@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Order · Crafty Rose Gifts</title>
+<meta name="description" content="Order a handmade, personalized gift from Crafty Rose Gifts in Kentville, Nova Scotia.">
+<link rel="icon" href="rose64.png" type="image/png"><link rel="apple-touch-icon" href="rose180.png">
+<meta property="og:title" content="Order a custom gift · Crafty Rose Gifts">
+<meta property="og:description" content="Handmade & personalized gifts from Kentville, Nova Scotia. Pick a product, tell me how to personalize it, and approve your proof before you pay.">
+<meta property="og:image" content="https://studio.craftyrosegifts.ca/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--forest:#4C6D5E;--forest-700:#3D5A4D;--forest-800:#2F473C;--green:#88C4A9;--sage-25:#FAFCFA;--sage-50:#F4F8F5;--sage-100:#EAF3EE;--sage-200:#D3E5DA;--line:#E4ECE7;--ink:#2C3832;--muted:#74827A;--red:#A8464C;--amber:#94661A;--white:#fff;--r:16px;--shadow:0 6px 22px rgba(47,71,60,.08)}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:"Plus Jakarta Sans",system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--sage-50);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;display:block}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+header.top{background:var(--white);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:12px;padding-top:14px;padding-bottom:14px}
+header.top img{width:48px;height:48px;object-fit:contain}
+.brand{font-family:"Amatic SC",cursive;font-size:30px;line-height:1;color:var(--forest-800)}
+.brand small{display:block;font-family:"Plus Jakarta Sans",sans-serif;font-size:11px;letter-spacing:.14em;color:var(--muted);font-weight:600;margin-top:3px}
+.hero{padding:28px 0 8px}
+.hero h1{font-family:"Amatic SC",cursive;font-size:46px;line-height:1;margin:0 0 10px;color:var(--forest-800)}
+.hero p{margin:0 0 8px;max-width:680px;line-height:1.55}
+.steps{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0;padding:0;list-style:none}
+.steps li{background:var(--white);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--forest-700)}
+.steps b{color:var(--forest);margin-right:4px}
+.note{background:#FFF6E5;border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.5;margin:14px 0 0;color:#5B4513}
+.cats{display:flex;gap:8px;overflow-x:auto;padding:18px 0 4px;scrollbar-width:none}
+.cats::-webkit-scrollbar{display:none}
+.cat{flex:none;border:1px solid var(--line);background:var(--white);border-radius:999px;padding:8px 14px;font-weight:600;font-size:14px;cursor:pointer;color:var(--forest-700)}
+.cat.on{background:var(--forest);color:#fff;border-color:var(--forest)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;padding:14px 0 30px}
+.card{background:var(--white);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;cursor:pointer;text-align:left;padding:0;display:flex;flex-direction:column;transition:box-shadow .15s,transform .15s}
+.card:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
+.card .ph{aspect-ratio:1;background:var(--sage-100);overflow:hidden;position:relative}
+.card .ph img{width:100%;height:100%;object-fit:cover}
+.card .ph .noimg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:"Amatic SC",cursive;font-size:34px;color:var(--forest)}
+.card .bd{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px}
+.card .nm{font-weight:700;font-size:16px}
+.card .pr{color:var(--forest);font-weight:700}
+.card .pr small{color:var(--muted);font-weight:500}
+.card .ds{font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;height:48px;padding:0 20px;font-weight:700;cursor:pointer;font-size:16px;text-decoration:none}
+.btn-p{background:var(--forest);color:#fff}.btn-p:hover{background:var(--forest-700)}
+.btn-s{background:var(--white);color:var(--forest-800);border:1px solid var(--line)}
+.btn[disabled]{opacity:.6;cursor:wait}
+.btn-w{width:100%}
+/* sheet */
+.ov{position:fixed;inset:0;background:rgba(30,45,38,.45);z-index:20;display:none}
+.ov.on{display:block}
+.sheet{position:fixed;z-index:21;background:var(--sage-25);display:none;flex-direction:column;right:0;top:0;bottom:0;width:min(560px,100%);box-shadow:-10px 0 40px rgba(0,0,0,.12)}
+.sheet.on{display:flex}
+.sh-head{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--white);border-bottom:1px solid var(--line)}
+.sh-head h2{margin:0;font-family:"Amatic SC",cursive;font-size:32px;line-height:1;color:var(--forest-800);flex:1;min-width:0}
+.x{width:40px;height:40px;border-radius:50%;border:0;background:var(--sage-100);cursor:pointer;font-size:20px;line-height:1;flex:none}
+.sh-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;overscroll-behavior:contain}
+.sh-foot{padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:var(--white);border-top:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.sh-foot .tot{flex:1;font-size:13px;color:var(--muted)}
+.sh-foot .tot b{display:block;font-size:20px;color:var(--ink)}
+@media (max-width:640px){.sheet{top:auto;height:92vh;height:92dvh;width:100%;border-radius:20px 20px 0 0}}
+.gal{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -16px 6px;padding:0 16px 6px;scrollbar-width:thin}
+.gal figure{margin:0;flex:none;width:82%;max-width:380px;scroll-snap-align:start}
+.gal img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:14px;background:var(--sage-100)}
+.gal figcaption{font-size:12px;color:var(--muted);margin-top:4px}
+.gal .tag{display:inline-block;background:var(--sage-100);color:var(--forest-700);font-weight:700;font-size:11px;border-radius:6px;padding:2px 6px;margin-right:4px}
+.desc{line-height:1.55;margin:10px 0}
+.pnote{font-size:13px;background:var(--sage-100);border-radius:10px;padding:8px 12px;color:var(--forest-800)}
+.blk{margin-top:20px}
+.lbl{font-weight:700;margin-bottom:8px;display:block}
+.lbl .req{color:var(--red)}
+.lbl small{font-weight:500;color:var(--muted)}
+.input{width:100%;border:1px solid var(--line);background:var(--white);border-radius:12px;height:48px;padding:0 14px;font-size:16px}
+textarea.input{height:auto;min-height:90px;padding:12px 14px;resize:vertical}
+.input:focus{outline:2px solid var(--green);border-color:var(--green)}
+input[type=date].input{max-width:100%;-webkit-appearance:none;appearance:none}
+.dsearch{margin-bottom:10px}
+.designs{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+.dz{border:2px solid var(--line);background:var(--white);border-radius:14px;padding:6px;cursor:pointer;text-align:center;font-size:13px;font-weight:600}
+.dz img,.dz .ni{width:100%;aspect-ratio:1;object-fit:cover;border-radius:9px;background:var(--sage-100);margin-bottom:6px}
+.dz .ni{display:flex;align-items:center;justify-content:center;color:var(--forest);font-family:"Amatic SC",cursive;font-size:24px}
+.dz small{display:block;color:var(--forest);font-weight:700}
+.dz.on{border-color:var(--forest);box-shadow:0 0 0 3px var(--sage-200)}
+.sw{display:flex;flex-wrap:wrap;gap:10px}
+.swb{border:2px solid var(--line);background:var(--white);border-radius:12px;cursor:pointer;display:flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;font-weight:600;font-size:14px;min-height:44px}
+.swb img{width:34px;height:34px;border-radius:8px;object-fit:cover}
+.swb.np{padding-left:12px}
+.swb.on{border-color:var(--forest);box-shadow:0 0 0 3px var(--sage-200)}
+.none{font-size:13px;color:var(--red)}
+.chk{display:flex;gap:10px;align-items:center;background:var(--white);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;margin-bottom:8px}
+.chk input{width:20px;height:20px;accent-color:var(--forest);flex:none}
+.chk span{flex:1}
+.chk b{color:var(--forest)}
+.qty{display:flex;align-items:center;gap:6px}
+.qty button{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--white);font-size:20px;cursor:pointer}
+.qty input{width:64px;text-align:center}
+.upl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.upl img{width:64px;height:64px;border-radius:10px;object-fit:cover}
+.tips{background:#FCEFF2;border:1px solid #F3C9D3;border-radius:14px;padding:14px 16px;margin-top:20px;font-size:14px;line-height:1.55;color:#4A2A33}
+.tips .t-head{font-weight:700;margin-bottom:6px;color:#7A3446}
+.tips ol{margin:0;padding-left:20px}
+.tips li{margin:4px 0}
+.tips .t-foot{margin-top:8px;font-weight:600}
+.upl .ok{font-size:13px;color:var(--forest);font-weight:600}
+.err{color:var(--red);font-size:14px;font-weight:600;margin-top:10px}
+/* cart */
+.cartbar{position:sticky;bottom:0;z-index:10;background:var(--white);border-top:1px solid var(--line);box-shadow:0 -6px 20px rgba(47,71,60,.07);display:none}
+.cartbar.on{display:block}
+.cartbar .wrap{display:flex;align-items:center;gap:12px;padding-top:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+.cartbar .t{flex:1;font-size:14px;color:var(--muted)}
+.cartbar .t b{display:block;color:var(--ink);font-size:18px}
+.line{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px;display:flex;gap:12px}
+.line img{width:56px;height:56px;border-radius:10px;object-fit:cover;flex:none;background:var(--sage-100)}
+.line .m{flex:1;min-width:0}
+.line .n{font-weight:700}
+.line .d{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.line .p{font-weight:700;color:var(--forest);white-space:nowrap}
+.line .rm{border:0;background:none;color:var(--red);font-weight:600;cursor:pointer;padding:4px 0;font-size:13px}
+.sum{display:flex;justify-content:space-between;font-weight:700;font-size:18px;padding:8px 2px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.seg label{border:2px solid var(--line);background:var(--white);border-radius:12px;padding:10px 6px;text-align:center;cursor:pointer;font-weight:600;font-size:14px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label.on{border-color:var(--forest);background:var(--sage-100)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:520px){.row2{grid-template-columns:1fr}}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.state{text-align:center;padding:60px 16px;color:var(--muted)}
+.state h2{font-family:"Amatic SC",cursive;font-size:42px;color:var(--forest-800);margin:0 0 8px}
+.spin{width:34px;height:34px;border:3px solid var(--sage-200);border-top-color:var(--forest);border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 14px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (max-width:520px){.grid{grid-template-columns:1fr 1fr;gap:10px}.card .bd{padding:10px}.card .nm{font-size:14px}.card .ds{display:none}}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:24px 16px 40px}
+footer a{color:var(--forest)}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <img src="logo.png" alt="">
+  <div class="brand">Crafty Rose Gifts<small>HANDMADE &amp; PERSONALIZED</small></div>
+</div></header>
+
+<main class="wrap" id="app"><div class="state"><div class="spin"></div>Loading products…</div></main>
+
+<div class="cartbar" id="cartbar"><div class="wrap">
+  <div class="t" id="cartTxt"></div>
+  <button class="btn btn-p" type="button" id="cartBtn">Review order</button>
+</div></div>
+
+<div class="ov" id="ov"></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle">
+  <div class="sh-head"><h2 id="shTitle"></h2><button class="x" type="button" id="shClose" aria-label="Close">×</button></div>
+  <div class="sh-body" id="shBody"></div>
+  <div class="sh-foot" id="shFoot"></div>
+</section>
+
+<footer id="foot">Crafty Rose Gifts · Kentville, Nova Scotia</footer>
+
+<script>
+var API = 'https://script.google.com/macros/s/AKfycbzg84RXS8672czlZKC7Y78cQ2ieEuD6-y3MO1_yFlNdU67Vxj4zXEDIMLaPXWYfZbo/exec';
+var CAT = null, CART = [], FILTER = 'All', CUR = null;
+var $ = function (s, r) { return (r || document).querySelector(s); };
+function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function money(n) { n = Number(n) || 0; return '$' + (n % 1 ? n.toFixed(2) : n.toFixed(0)); }
+function money2(n) { return '$' + (Number(n) || 0).toFixed(2); }
+function api(params, body) {
+  var url = API + '?' + Object.keys(params).map(function (k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
+  var opt = body ? { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) } : {};
+  return fetch(url, opt).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) throw new Error(j.error || 'Something went wrong.'); return j.data; });
+}
+function saveCart() { try { localStorage.setItem('crg_cart', JSON.stringify(CART, function (k, v) { return k === 'data' || k === 'preview' ? undefined : v; })); } catch (e) {} }
+function loadCart() { try { CART = JSON.parse(localStorage.getItem('crg_cart') || '[]') || []; } catch (e) { CART = []; } }
+function prod(id) { return CAT.products.filter(function (p) { return p.id === id; })[0]; }
+function firstPhoto(p) { var x = p.photos.filter(function (f) { return f.kind !== 'example'; })[0] || p.photos[0]; return x ? x.url : ''; }
+
+/* ---------- catalog ---------- */
+function load() {
+  loadCart();
+  api({ action: 'catalog' }).then(function (d) {
+    CAT = d;
+    // drop cart items that no longer exist
+    CART = CART.filter(function (c) { return prod(c.productId); }); saveCart();
+    render();
+  }).catch(function (e) {
+    $('#app').innerHTML = '<div class="state"><h2>Oh no!</h2><p>The order form couldn\'t load right now. Please try again in a minute, or message me on Facebook or Instagram.</p><p style="font-size:13px">' + esc(e.message) + '</p></div>';
+  });
+}
+function render() {
+  var s = CAT.settings || {};
+  if (s.instagram || s.facebook || s.email) $('#foot').innerHTML = esc(s.businessName || 'Crafty Rose Gifts') + ' · Kentville, Nova Scotia' +
+    (s.email ? '<br><a href="mailto:' + esc(s.email) + '">' + esc(s.email) + '</a>' : '') +
+    (s.instagram ? ' · Instagram ' + esc(s.instagram) : '') + (s.facebook ? ' · Facebook ' + esc(s.facebook) : '');
+  if (CAT.closed) {
+    $('#app').innerHTML = '<div class="state"><h2>Taking a little break</h2><p>The order form is closed right now. Please message me on Facebook or Instagram and I\'ll help you out!</p></div>';
+    return;
+  }
+  var cats = ['All'].concat(CAT.products.map(function (p) { return p.category; }).filter(function (c, i, a) { return c && a.indexOf(c) === i; }));
+  var list = CAT.products.filter(function (p) { return FILTER === 'All' || p.category === FILTER; });
+  $('#app').innerHTML =
+    '<section class="hero"><h1>Order a custom gift</h1>' +
+    (s.intro ? '<p>' + esc(s.intro) + '</p>' : '') +
+    '<ul class="steps"><li><b>1</b>Pick your items</li><li><b>2</b>Tell me how to personalize them</li><li><b>3</b>Approve your proof</li><li><b>4</b>Pay &amp; I make it</li></ul>' +
+    (s.note ? '<div class="note">' + esc(s.note) + '</div>' : '') + '</section>' +
+    (cats.length > 2 ? '<div class="cats">' + cats.map(function (c) { return '<button class="cat' + (c === FILTER ? ' on' : '') + '" type="button" data-cat="' + esc(c) + '">' + esc(c) + '</button>'; }).join('') + '</div>' : '') +
+    (list.length ? '<div class="grid">' + list.map(function (p) {
+      var ph = firstPhoto(p);
+      return '<button class="card" type="button" data-p="' + esc(p.id) + '"><div class="ph">' + (ph ? '<img src="' + esc(ph) + '" alt="" loading="lazy">' : '<div class="noimg">' + esc(p.name) + '</div>') + '</div>' +
+        '<div class="bd"><div class="nm">' + esc(p.name) + '</div><div class="pr">' + money(p.price) + (p.addons.length || p.designs.some(function (d) { return d.price; }) ? ' <small>+ options</small>' : '') + '</div>' +
+        (p.description ? '<div class="ds">' + esc(p.description) + '</div>' : '') + '</div></button>';
+    }).join('') + '</div>' : '<div class="state"><p>New products are coming soon!</p></div>');
+  cartBar();
+}
+document.addEventListener('click', function (e) {
+  var c = e.target.closest('[data-cat]'); if (c) { FILTER = c.getAttribute('data-cat'); render(); return; }
+  var p = e.target.closest('[data-p]'); if (p) openProduct(p.getAttribute('data-p'));
+});
+
+/* ---------- sheet ---------- */
+function openSheet(title, body, foot) {
+  $('#shTitle').textContent = title; $('#shBody').innerHTML = body; $('#shFoot').innerHTML = foot;
+  $('#shBody').scrollTop = 0;
+  $('#ov').classList.add('on'); $('#sheet').classList.add('on'); document.body.style.overflow = 'hidden';
+}
+function closeSheet() { $('#ov').classList.remove('on'); $('#sheet').classList.remove('on'); document.body.style.overflow = ''; CUR = null; }
+$('#ov').addEventListener('click', closeSheet); $('#shClose').addEventListener('click', closeSheet);
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
+
+/* ---------- product ---------- */
+function openProduct(id, editIdx) {
+  var p = prod(id); if (!p) return;
+  var old = editIdx != null ? CART[editIdx] : null;
+  CUR = { p: p, editIdx: editIdx, qty: old ? old.qty : 1, design: old ? old.design : '', variants: old ? JSON.parse(JSON.stringify(old.variants)) : {}, addons: old ? old.addons.slice() : [], answers: old ? JSON.parse(JSON.stringify(old.answers)) : {} };
+  var gal = p.photos.length ? '<div class="gal">' + p.photos.map(function (f) {
+    return '<figure><img src="' + esc(f.url) + '" alt="' + esc(f.caption || p.name) + '" loading="lazy"><figcaption>' + (f.kind === 'example' ? '<span class="tag">Finished example</span>' : '') + esc(f.caption) + '</figcaption></figure>';
+  }).join('') + '</div>' : '';
+  var h = gal + '<div class="pr" style="font-weight:700;color:var(--forest);font-size:20px">' + money(p.price) + ' <span style="font-size:13px;color:var(--muted);font-weight:500">each</span></div>' +
+    (p.description ? '<p class="desc">' + esc(p.description) + '</p>' : '') +
+    (p.note ? '<div class="pnote">' + esc(p.note) + '</div>' : '');
+  if (p.designs.length) {
+    h += '<div class="blk"><span class="lbl">Choose a design <span class="req">*</span> <small>(' + p.designs.length + ' to choose from)</small></span>' +
+      (p.designs.length > 12 ? '<input class="input dsearch" id="dSearch" placeholder="Search designs…" autocomplete="off">' : '') +
+      '<div class="designs" id="designs">' + p.designs.map(function (d) {
+        return '<button class="dz' + (CUR.design === d.id ? ' on' : '') + '" type="button" data-d="' + esc(d.id) + '" data-name="' + esc(d.name.toLowerCase()) + '">' +
+          (d.photo ? '<img src="' + esc(d.photo) + '" alt="" loading="lazy">' : '<div class="ni">' + esc(d.name.slice(0, 1)) + '</div>') + esc(d.name) + (d.price ? '<small>+' + money(d.price) + '</small>' : '') + '</button>';
+      }).join('') + '</div></div>';
+  }
+  p.choices.forEach(function (ch) {
+    h += '<div class="blk"><span class="lbl">' + esc(ch.label) + ' <span class="req">*</span>' + (CUR.variants[ch.materialId] ? ' <small id="chosen-' + esc(ch.materialId) + '">' + esc((ch.options.filter(function (o) { return o.id === CUR.variants[ch.materialId]; })[0] || {}).name || '') + '</small>' : ' <small id="chosen-' + esc(ch.materialId) + '"></small>') + '</span>' +
+      (ch.options.length ? '<div class="sw">' + ch.options.map(function (o) {
+        return '<button class="swb' + (o.photo ? '' : ' np') + (CUR.variants[ch.materialId] === o.id ? ' on' : '') + '" type="button" data-ch="' + esc(ch.materialId) + '" data-o="' + esc(o.id) + '">' + (o.photo ? '<img src="' + esc(o.photo) + '" alt="">' : '') + esc(o.name) + '</button>';
+      }).join('') + '</div>' : '<div class="none">Sorry, this is sold out right now. Message me and I\'ll let you know when it\'s back!</div>') + '</div>';
+  });
+  var tipsShown = false;
+  p.questions.forEach(function (q) {
+    var v = CUR.answers[q.id];
+    if (q.type === 'photo' && !tipsShown) { h += tipsHtml(); tipsShown = true; }
+    h += '<div class="blk"><label class="lbl" for="q_' + esc(q.id) + '">' + esc(q.label) + (q.required ? ' <span class="req">*</span>' : ' <small>(optional)</small>') + '</label>';
+    if (q.type === 'longtext') h += '<textarea class="input" id="q_' + esc(q.id) + '" data-q="' + esc(q.id) + '">' + esc(v || '') + '</textarea>';
+    else if (q.type === 'date') h += '<input class="input" type="date" id="q_' + esc(q.id) + '" data-q="' + esc(q.id) + '" value="' + esc(v || '') + '">';
+    else if (q.type === 'select') h += '<select class="input" id="q_' + esc(q.id) + '" data-q="' + esc(q.id) + '"><option value="">Choose…</option>' + String(q.options || '').split(',').map(function (o) { o = o.trim(); return o ? '<option' + (v === o ? ' selected' : '') + '>' + esc(o) + '</option>' : ''; }).join('') + '</select>';
+    else if (q.type === 'photo') h += '<div class="upl" id="up_' + esc(q.id) + '">' + (v && v.preview ? '<img src="' + v.preview + '" alt=""><span class="ok">' + esc(v.note || 'Photo added') + '</span>' : '') + '<label class="btn btn-s" style="height:44px">' + (v ? 'Change photo' : 'Add a photo') + '<input type="file" accept="image/*" hidden data-qp="' + esc(q.id) + '"></label></div>';
+    else h += '<input class="input" id="q_' + esc(q.id) + '" data-q="' + esc(q.id) + '" value="' + esc(v || '') + '" autocomplete="off">';
+    h += '</div>';
+  });
+  if (p.addons.length) {
+    h += '<div class="blk"><span class="lbl">Extras <small>(optional)</small></span>' + p.addons.map(function (a) {
+      return '<label class="chk"><input type="checkbox" data-a="' + esc(a.id) + '"' + (CUR.addons.indexOf(a.id) >= 0 ? ' checked' : '') + '><span>' + esc(a.label) + '</span><b>+' + money(a.price) + '</b></label>';
+    }).join('') + '</div>';
+  }
+  h += '<div class="blk"><span class="lbl">How many?</span><div class="qty"><button type="button" data-qty="-1" aria-label="Less">−</button><input class="input" id="qty" type="number" min="1" max="50" inputmode="numeric" value="' + CUR.qty + '"><button type="button" data-qty="1" aria-label="More">+</button></div></div>' +
+    '<div class="err" id="pErr"></div>';
+  openSheet(p.name, h, '<div class="tot">Item total<b id="lineTot"></b></div><button class="btn btn-p" type="button" id="addBtn">' + (old ? 'Update item' : 'Add to order') + '</button>');
+  lineTotal();
+}
+function tipsHtml() {
+  var t = String((CAT.settings || {}).photoTips || '').trim(); if (!t) return '';
+  var lines = t.split(/\n+/).map(function (l) { return l.trim(); }).filter(Boolean);
+  var head = [], items = [], foot = [];
+  lines.forEach(function (l) { var m = l.match(/^\d+[.)]\s*(.*)$/); if (m) items.push(m[1]); else (items.length ? foot : head).push(l); });
+  var bold = function (x) { var i = x.indexOf('. '); return i > 0 && i < 60 ? '<b>' + esc(x.slice(0, i + 1)) + '</b>' + esc(x.slice(i + 1)) : esc(x); };
+  return '<div class="tips">' + head.map(function (l) { return '<div class="t-head">' + esc(l) + '</div>'; }).join('') +
+    (items.length ? '<ol>' + items.map(function (x) { return '<li>' + bold(x) + '</li>'; }).join('') + '</ol>' : '') +
+    foot.map(function (l) { return '<div class="t-foot">' + esc(l) + '</div>'; }).join('') + '</div>';
+}
+function unitPrice(p, c) {
+  var u = p.price;
+  var d = p.designs.filter(function (x) { return x.id === c.design; })[0]; if (d) u += d.price;
+  p.addons.forEach(function (a) { if (c.addons.indexOf(a.id) >= 0) u += a.price; });
+  return u;
+}
+function lineTotal() { if (!CUR) return; $('#lineTot').textContent = money2(unitPrice(CUR.p, CUR) * CUR.qty); }
+$('#sheet').addEventListener('click', function (e) {
+  if (!CUR) return;
+  var t;
+  if ((t = e.target.closest('[data-d]'))) { CUR.design = t.getAttribute('data-d'); Array.prototype.forEach.call(document.querySelectorAll('.dz'), function (b) { b.classList.toggle('on', b === t); }); lineTotal(); return; }
+  if ((t = e.target.closest('[data-o]'))) {
+    var ch = t.getAttribute('data-ch'); CUR.variants[ch] = t.getAttribute('data-o');
+    Array.prototype.forEach.call(document.querySelectorAll('[data-ch="' + ch + '"]'), function (b) { b.classList.toggle('on', b === t); });
+    var lab = document.getElementById('chosen-' + ch); if (lab) lab.textContent = t.textContent; return;
+  }
+  if ((t = e.target.closest('[data-qty]'))) { CUR.qty = Math.max(1, Math.min(50, CUR.qty + Number(t.getAttribute('data-qty')))); $('#qty').value = CUR.qty; lineTotal(); return; }
+  if (e.target.closest('#addBtn')) addToCart();
+});
+$('#sheet').addEventListener('input', function (e) {
+  var t = e.target;
+  if (t.id === 'dSearch') { var q = t.value.trim().toLowerCase(); Array.prototype.forEach.call(document.querySelectorAll('.dz'), function (b) { b.style.display = !q || b.getAttribute('data-name').indexOf(q) >= 0 ? '' : 'none'; }); return; }
+  if (!CUR) return;
+  if (t.id === 'qty') { CUR.qty = Math.max(1, Math.min(50, Math.round(Number(t.value) || 1))); lineTotal(); return; }
+  if (t.hasAttribute('data-q')) CUR.answers[t.getAttribute('data-q')] = t.value;
+});
+$('#sheet').addEventListener('change', function (e) {
+  var t = e.target;
+  if (CUR && t.hasAttribute('data-a')) { var id = t.getAttribute('data-a'); CUR.addons = CUR.addons.filter(function (x) { return x !== id; }); if (t.checked) CUR.addons.push(id); lineTotal(); return; }
+  if (CUR && t.hasAttribute('data-q')) { CUR.answers[t.getAttribute('data-q')] = t.value; return; }
+  if (CUR && t.hasAttribute('data-qp')) {
+    var f = t.files && t.files[0], qid = t.getAttribute('data-qp'); if (!f) return;
+    shrink(f).then(function (r) {
+      CUR.answers[qid] = r;
+      var box = document.getElementById('up_' + qid);
+      box.innerHTML = '<img src="' + r.preview + '" alt=""><span class="ok">' + esc(r.note) + '</span><label class="btn btn-s" style="height:44px">Change photo<input type="file" accept="image/*" hidden data-qp="' + esc(qid) + '"></label>';
+    }).catch(function () { $('#pErr').textContent = 'That photo couldn\'t be read. Please try a different one.'; });
+  }
+});
+// Keep the photo as close to the original as possible (engraving needs detail).
+// Originals up to 8 MB are sent as-is; bigger ones are resized to 3000px at high quality.
+function shrink(file) {
+  return new Promise(function (res, rej) {
+    var fr = new FileReader();
+    fr.onerror = rej;
+    fr.onload = function () {
+      var img = new Image();
+      img.onerror = rej;
+      img.onload = function () {
+        var w = img.width, h = img.height;
+        var pv = document.createElement('canvas'), pk = Math.min(1, 160 / Math.max(w, h)); pv.width = Math.round(w * pk); pv.height = Math.round(h * pk);
+        pv.getContext('2d').drawImage(img, 0, 0, pv.width, pv.height);
+        var preview = pv.toDataURL('image/jpeg', 0.8);
+        var small = Math.min(w, h) < 800 ? 'This photo is quite small, so it may engrave less sharply. A bigger original works best!' : 'Photo added (' + w + ' × ' + h + ')';
+        var okType = /^image\/(jpeg|png|webp)$/.test(file.type);
+        if (okType && file.size <= 8 * 1024 * 1024) {
+          res({ name: file.name || 'photo.jpg', mime: file.type, data: String(fr.result).split(',')[1], preview: preview, note: small });
+          return;
+        }
+        var k = Math.min(1, 3000 / Math.max(w, h));
+        var c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        res({ name: String(file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg', mime: 'image/jpeg', data: c.toDataURL('image/jpeg', 0.92).split(',')[1], preview: preview, note: small });
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+function addToCart() {
+  var p = CUR.p, err = '';
+  if (p.designs.length && !CUR.design) err = 'Please choose a design.';
+  p.choices.forEach(function (ch) { if (!err && !CUR.variants[ch.materialId]) err = ch.options.length ? 'Please choose a ' + ch.label.toLowerCase() + '.' : 'Sorry, this item is sold out right now.'; });
+  p.questions.forEach(function (q) { var v = CUR.answers[q.id]; if (!err && q.required && !(q.type === 'photo' ? v && v.data : String(v || '').trim())) err = 'Please fill in "' + q.label + '".'; });
+  if (err) { $('#pErr').textContent = err; $('#pErr').scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+  var item = { productId: p.id, qty: CUR.qty, design: CUR.design, variants: CUR.variants, addons: CUR.addons, answers: CUR.answers };
+  if (CUR.editIdx != null) CART[CUR.editIdx] = item; else CART.push(item);
+  saveCart(); cartBar(); openCart();
+}
+function itemDetails(c) {
+  var p = prod(c.productId), out = [];
+  var d = p.designs.filter(function (x) { return x.id === c.design; })[0]; if (d) out.push('Design: ' + d.name);
+  p.choices.forEach(function (ch) { var o = ch.options.filter(function (x) { return x.id === c.variants[ch.materialId]; })[0]; if (o) out.push(ch.label + ': ' + o.name); });
+  p.questions.forEach(function (q) { var v = c.answers[q.id]; if (q.type === 'photo') { if (v && v.data) out.push(q.label + ': photo added'); } else if (String(v || '').trim()) out.push(q.label + ': ' + String(v).trim()); });
+  p.addons.forEach(function (a) { if (c.addons.indexOf(a.id) >= 0) out.push('+ ' + a.label); });
+  return out;
+}
+function cartTotal() { return CART.reduce(function (s, c) { var p = prod(c.productId); return s + (p ? unitPrice(p, c) * c.qty : 0); }, 0); }
+function cartBar() {
+  var n = CART.reduce(function (s, c) { return s + c.qty; }, 0);
+  $('#cartbar').classList.toggle('on', n > 0);
+  $('#cartTxt').innerHTML = n + ' item' + (n === 1 ? '' : 's') + '<b>' + money2(cartTotal()) + '</b>';
+}
+$('#cartBtn').addEventListener('click', openCart);
+
+/* ---------- checkout ---------- */
+var CONTACT = { name: '', email: '', phone: '', delivery: 'pickup', address: '', neededBy: '', notes: '' };
+try { Object.assign(CONTACT, JSON.parse(localStorage.getItem('crg_contact') || '{}')); } catch (e) {}
+function openCart() {
+  if (!CART.length) { closeSheet(); return; }
+  var s = CAT.settings || {};
+  var h = CART.map(function (c, i) {
+    var p = prod(c.productId), ph = firstPhoto(p);
+    return '<div class="line">' + (ph ? '<img src="' + esc(ph) + '" alt="">' : '') + '<div class="m"><div class="n">' + c.qty + ' × ' + esc(p.name) + '</div><div class="d">' + itemDetails(c).map(esc).join('<br>') + '</div>' +
+      '<button class="rm" type="button" data-edit="' + i + '" style="color:var(--forest);margin-right:14px">Edit</button><button class="rm" type="button" data-rm="' + i + '">Remove</button></div><div class="p">' + money2(unitPrice(p, c) * c.qty) + '</div></div>';
+  }).join('') +
+    '<button class="btn btn-s btn-w" type="button" id="more">+ Add another item</button>' +
+    '<div class="sum" style="margin-top:14px"><span>Estimated total</span><span>' + money2(cartTotal()) + '</span></div>' +
+    '<div class="note" style="margin-top:4px">' + esc(s.note || 'Additional customization may cost extra. I\'ll confirm the final price with your proof.') + ' Shipping is added after your proof if needed. You don\'t pay anything until you approve your proof.</div>' +
+    '<h3 style="margin:24px 0 4px;font-family:\'Amatic SC\',cursive;font-size:30px;color:var(--forest-800)">Your details</h3>' +
+    '<div class="blk" style="margin-top:8px"><label class="lbl" for="cName">Your name <span class="req">*</span></label><input class="input" id="cName" autocomplete="name" value="' + esc(CONTACT.name) + '"></div>' +
+    '<div class="row2"><div class="blk"><label class="lbl" for="cEmail">Email <span class="req">*</span></label><input class="input" id="cEmail" type="email" autocomplete="email" inputmode="email" value="' + esc(CONTACT.email) + '"></div>' +
+    '<div class="blk"><label class="lbl" for="cPhone">Phone <small>(optional)</small></label><input class="input" id="cPhone" type="tel" autocomplete="tel" value="' + esc(CONTACT.phone) + '"></div></div>' +
+    '<div class="blk"><span class="lbl">How would you like to get it?</span><div class="seg" id="seg">' + [['pickup', 'Pickup in Kentville'], ['local', 'Local delivery'], ['shipping', 'Shipping']].map(function (o) {
+      return '<label class="' + (CONTACT.delivery === o[0] ? 'on' : '') + '"><input type="radio" name="del" value="' + o[0] + '"' + (CONTACT.delivery === o[0] ? ' checked' : '') + '>' + o[1] + '</label>';
+    }).join('') + '</div></div>' +
+    '<div class="blk" id="addrBlk" style="' + (CONTACT.delivery === 'pickup' ? 'display:none' : '') + '"><label class="lbl" for="cAddr">Address <span class="req">*</span></label><textarea class="input" id="cAddr" autocomplete="street-address" style="min-height:70px">' + esc(CONTACT.address) + '</textarea></div>' +
+    '<div class="blk"><label class="lbl" for="cNeed">Need it by? <small>(optional)</small></label><input class="input" id="cNeed" type="date" value="' + esc(CONTACT.neededBy) + '"></div>' +
+    '<div class="blk"><label class="lbl" for="cNotes">Anything else? <small>(optional)</small></label><textarea class="input" id="cNotes" placeholder="Colours, special requests, gift message…">' + esc(CONTACT.notes) + '</textarea></div>' +
+    '<div class="hp" aria-hidden="true"><label>Website<input id="cWeb" tabindex="-1" autocomplete="off"></label></div>' +
+    '<div class="err" id="cErr"></div>';
+  CUR = null;
+  openSheet('Your order', h, '<div class="tot">Estimated total<b>' + money2(cartTotal()) + '</b></div><button class="btn btn-p" type="button" id="sendBtn">Send my order</button>');
+  var t = new Date(); t.setDate(t.getDate() + 1); $('#cNeed').min = t.toISOString().slice(0, 10);
+}
+function readContact() {
+  if (!$('#cName')) return;
+  CONTACT = { name: $('#cName').value.trim(), email: $('#cEmail').value.trim(), phone: $('#cPhone').value.trim(), delivery: (document.querySelector('input[name=del]:checked') || {}).value || 'pickup', address: $('#cAddr').value.trim(), neededBy: $('#cNeed').value, notes: $('#cNotes').value.trim() };
+  try { localStorage.setItem('crg_contact', JSON.stringify({ name: CONTACT.name, email: CONTACT.email, phone: CONTACT.phone, delivery: CONTACT.delivery, address: CONTACT.address })); } catch (e) {}
+}
+$('#sheet').addEventListener('click', function (e) {
+  var t;
+  if ((t = e.target.closest('[data-rm]'))) { readContact(); CART.splice(+t.getAttribute('data-rm'), 1); saveCart(); cartBar(); openCart(); return; }
+  if ((t = e.target.closest('[data-edit]'))) { readContact(); var i = +t.getAttribute('data-edit'); openProduct(CART[i].productId, i); return; }
+  if (e.target.closest('#more')) { readContact(); closeSheet(); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+  if (e.target.closest('#sendBtn')) submit();
+});
+$('#sheet').addEventListener('change', function (e) {
+  if (e.target.name === 'del') {
+    Array.prototype.forEach.call(document.querySelectorAll('#seg label'), function (l) { l.classList.toggle('on', l.contains(e.target)); });
+    $('#addrBlk').style.display = e.target.value === 'pickup' ? 'none' : '';
+  }
+});
+function submit() {
+  readContact();
+  var err = '';
+  if (!CONTACT.name) err = 'Please enter your name.';
+  else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(CONTACT.email)) err = 'Please enter a valid email address so I can send your proof.';
+  else if (CONTACT.delivery !== 'pickup' && !CONTACT.address) err = 'Please enter your address.';
+  if (err) { $('#cErr').textContent = err; $('#cErr').scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
+  var btn = $('#sendBtn'); btn.disabled = true; btn.textContent = 'Sending…'; $('#cErr').textContent = '';
+  var body = {
+    website: $('#cWeb').value, contact: { name: CONTACT.name, email: CONTACT.email, phone: CONTACT.phone, address: CONTACT.address },
+    delivery: CONTACT.delivery, neededBy: CONTACT.neededBy, notes: CONTACT.notes,
+    items: CART.map(function (c) {
+      var ans = {}; Object.keys(c.answers).forEach(function (k) { var v = c.answers[k]; ans[k] = v && typeof v === 'object' ? { name: v.name, mime: v.mime, data: v.data } : v; });
+      return { productId: c.productId, qty: c.qty, design: c.design, variants: c.variants, addons: c.addons, answers: ans };
+    })
+  };
+  api({ action: 'submit' }, body).then(function (r) {
+    CART = []; saveCart(); cartBar();
+    openSheet('Thank you!', '<div class="state" style="padding:30px 6px"><h2>Order sent!</h2><p style="color:var(--ink);font-size:16px;line-height:1.6">Your order number is <b>' + esc(r.number) + '</b>.<br>I\'ll email you a proof to approve before anything is made or paid for.</p><p>A copy of your order is on its way to <b>' + esc(CONTACT.email) + '</b>.</p></div>',
+      '<button class="btn btn-p btn-w" type="button" id="doneBtn">Done</button>');
+    $('#doneBtn').addEventListener('click', closeSheet);
+  }).catch(function (e) {
+    btn.disabled = false; btn.textContent = 'Send my order';
+    $('#cErr').textContent = e.message; $('#cErr').scrollIntoView({ block: 'center', behavior: 'smooth' });
+  });
+}
+load();
+</script>
+</body>
+</html>
