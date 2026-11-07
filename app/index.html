@@ -712,9 +712,48 @@ html[data-theme="pastel"][data-mode="dark"] {
 }
 
 /* ---------------- Theme decorations (work in light and dark) ---------------- */
-/* Holiday */
-html[data-theme="holiday"] .sidebar { background-image: linear-gradient(180deg, rgba(31, 94, 63, .07), rgba(179, 52, 63, .05)); }
-html[data-theme="holiday"] .c6-bar.now, html[data-theme="holiday"] .stage-bar .fill { background: var(--rose); }
+/* Holiday: buffalo plaid, pine garland with berries & baubles, gift-ribbon cards, gold sparkle */
+html[data-theme="holiday"] {
+  --plaid: repeating-linear-gradient(90deg, rgba(179, 52, 63, .9) 0 8px, rgba(31, 94, 63, .9) 8px 16px),
+           repeating-linear-gradient(0deg, rgba(0, 0, 0, .18) 0 8px, transparent 8px 16px);
+  --hello-bg: radial-gradient(circle at 92% 18%, rgba(217, 180, 90, .28), transparent 34%), linear-gradient(120deg, var(--white) 0%, #F3F6EE 50%, #FBEDEC 100%);
+}
+html[data-theme="holiday"][data-mode="dark"] {
+  --plaid: repeating-linear-gradient(90deg, rgba(226, 85, 99, .85) 0 8px, rgba(38, 119, 78, .85) 8px 16px),
+           repeating-linear-gradient(0deg, rgba(0, 0, 0, .28) 0 8px, transparent 8px 16px);
+  --hello-bg: radial-gradient(circle at 92% 18%, rgba(232, 198, 111, .16), transparent 34%), linear-gradient(120deg, #1A2A1F 0%, #172019 50%, #2B1A1D 100%);
+}
+html[data-theme="holiday"] .sidebar { background-image: linear-gradient(180deg, rgba(31, 94, 63, .09), rgba(179, 52, 63, .07)); }
+html[data-theme="holiday"] .sidebar::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 8px; background: var(--plaid); z-index: 1; }
+html[data-theme="holiday"] .topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -9px; height: 14px; pointer-events: none;
+  background: radial-gradient(circle at 18px 7px, #B3343F 3.5px, transparent 4.5px) 0 0 / 96px 14px,
+              radial-gradient(circle at 26px 9px, #D9434F 2.5px, transparent 3.5px) 0 0 / 96px 14px,
+              radial-gradient(circle at 66px 8px, #E8C66F 4.5px, transparent 5.5px) 0 0 / 96px 14px,
+              radial-gradient(ellipse 12px 4px at 42px 4px, #2F7A55 98%, transparent) 0 0 / 96px 14px,
+              radial-gradient(ellipse 12px 4px at 90px 5px, #1F5E3F 98%, transparent) 0 0 / 96px 14px,
+              linear-gradient(#2A6B48, #2A6B48) 0 3px / 100% 3px no-repeat; }
+html[data-theme="holiday"] .nav-item.active { background: color-mix(in srgb, var(--rose) 12%, var(--white)); color: var(--rose); box-shadow: inset 3px 0 0 var(--gold); }
+html[data-theme="holiday"] .nav-item.active .ico { color: var(--rose); }
+html[data-theme="holiday"] .card.kpi { position: relative; border-top: 4px solid #1F5E3F; overflow: hidden; }
+html[data-theme="holiday"] .card.kpi:nth-child(2) { border-top-color: #B3343F; }
+html[data-theme="holiday"] .card.kpi:nth-child(3) { border-top-color: #D9B45A; }
+html[data-theme="holiday"] .card.kpi:nth-child(4) { border-top-color: #B3343F; }
+html[data-theme="holiday"] .card.kpi::after { content: ""; position: absolute; top: 0; right: 22px; width: 10px; height: 100%; background: color-mix(in srgb, var(--gold) 22%, transparent); pointer-events: none; }
+html[data-theme="holiday"] .pcard { border-top: 3px solid #1F5E3F; }
+html[data-theme="holiday"] .grid-cards > .pcard:nth-child(3n+2) { border-top-color: #B3343F; }
+html[data-theme="holiday"] .grid-cards > .pcard:nth-child(3n+3) { border-top-color: #D9B45A; }
+html[data-theme="holiday"] .tag { background: var(--gold-50); color: color-mix(in srgb, var(--gold) 45%, var(--ink)); }
+html[data-theme="holiday"] .section-title { color: var(--rose); }
+html[data-theme="holiday"] .col { background: color-mix(in srgb, var(--sage-100) 70%, var(--rose-50)); }
+html[data-theme="holiday"] .col:nth-child(even) { background: color-mix(in srgb, var(--sage-100) 60%, var(--gold-50)); }
+html[data-theme="holiday"] .stage-bar .fill, html[data-theme="holiday"] .hst-fill { background: repeating-linear-gradient(-45deg, #B3343F 0 8px, #1F5E3F 8px 16px); }
+html[data-theme="holiday"] .c6-col:nth-child(3n+1) .c6-bar { background: #2F7A55; }
+html[data-theme="holiday"] .c6-col:nth-child(3n+2) .c6-bar { background: #B3343F; }
+html[data-theme="holiday"] .c6-col:nth-child(3n+3) .c6-bar { background: #D9B45A; }
+html[data-theme="holiday"] .c6-col:hover .c6-bar, html[data-theme="holiday"] .c6-col.on .c6-bar { filter: brightness(1.12); }
+html[data-theme="holiday"] .hello h2::after { content: " ❄️"; }
+html[data-theme="holiday"] .topbar-title h1, html[data-theme="holiday"] #pageTitle { color: var(--forest-800); text-shadow: 0 1px 0 color-mix(in srgb, var(--gold) 45%, transparent); }
+html[data-theme="holiday"] .drawer-head { border-bottom: 0; box-shadow: inset 0 -4px 0 0 transparent; background-image: var(--plaid); background-size: 100% 5px; background-repeat: no-repeat; background-position: bottom; }
 /* Christmas: candy canes + twinkle lights (the sidebar is already positioned, so no position change here) */
 html[data-theme="christmas"] .sidebar::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 6px; background: var(--cane); z-index: 1; }
 html[data-theme="christmas"] .topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -7px; height: 10px; pointer-events: none;
@@ -749,7 +788,62 @@ html[data-theme="rgb"] .c6-bar.now { background: linear-gradient(0deg, #7B61FF, 
 html[data-theme="rgb"] .sidebar { box-shadow: inset -1px 0 0 rgba(123, 97, 255, .25); }
 @keyframes rgbflow { to { background-position: 300% 0; } }
 /* Pastel Rainbow (the sidebar is already positioned, so no position change here) */
-html[data-theme="pastel"] .sidebar::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 5px; background: var(--rainbow); z-index: 1; }
+html[data-theme="pastel"] {
+  --p1: #FFB3C7; --p2: #FFD48A; --p3: #FFF1A8; --p4: #B9F0C9; --p5: #A8D8FF; --p6: #C9B8FF;
+  --rainbow-soft: linear-gradient(180deg, rgba(255, 179, 199, .22), rgba(255, 212, 138, .18) 22%, rgba(255, 241, 168, .16) 40%, rgba(185, 240, 201, .18) 60%, rgba(168, 216, 255, .2) 80%, rgba(201, 184, 255, .24));
+  --hello-bg: linear-gradient(120deg, #FFE6EE 0%, #FFF3DC 25%, #FFFBE0 45%, #E5F8EC 65%, #E3F1FF 82%, #EEE8FF 100%);
+  --on-accent: #39344F;
+}
+html[data-theme="pastel"][data-mode="dark"] {
+  --rainbow-soft: linear-gradient(180deg, rgba(255, 179, 199, .10), rgba(255, 212, 138, .08) 22%, rgba(255, 241, 168, .07) 40%, rgba(185, 240, 201, .08) 60%, rgba(168, 216, 255, .09) 80%, rgba(201, 184, 255, .12));
+  --hello-bg: linear-gradient(120deg, #2C1F2B 0%, #2C2620 25%, #2A2A20 45%, #1D2B24 65%, #1C2533 82%, #251F38 100%);
+  --on-accent: #1E1B2B;
+}
+html[data-theme="pastel"] .sidebar { background-image: var(--rainbow-soft); }
+html[data-theme="pastel"] .sidebar::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 6px; background: var(--rainbow); z-index: 1; }
+html[data-theme="pastel"] .topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--rainbow); opacity: .85; pointer-events: none; }
+html[data-theme="pastel"] .nav .nav-item:nth-child(6n+1) .ico, html[data-theme="pastel"] .sidebar-foot .nav-item:nth-child(6n+1) .ico { color: #E57BA5; }
+html[data-theme="pastel"] .nav .nav-item:nth-child(6n+2) .ico, html[data-theme="pastel"] .sidebar-foot .nav-item:nth-child(6n+2) .ico { color: #E0A23A; }
+html[data-theme="pastel"] .nav .nav-item:nth-child(6n+3) .ico, html[data-theme="pastel"] .sidebar-foot .nav-item:nth-child(6n+3) .ico { color: #C9AE2E; }
+html[data-theme="pastel"] .nav .nav-item:nth-child(6n+4) .ico, html[data-theme="pastel"] .sidebar-foot .nav-item:nth-child(6n+4) .ico { color: #4FBF83; }
+html[data-theme="pastel"] .nav .nav-item:nth-child(6n+5) .ico, html[data-theme="pastel"] .sidebar-foot .nav-item:nth-child(6n+5) .ico { color: #4EA3E6; }
+html[data-theme="pastel"] .nav .nav-item:nth-child(6n+6) .ico, html[data-theme="pastel"] .sidebar-foot .nav-item:nth-child(6n+6) .ico { color: #8F79F0; }
+html[data-theme="pastel"] .nav-item.active { background: linear-gradient(90deg, color-mix(in srgb, var(--p1) 45%, var(--white)), color-mix(in srgb, var(--p5) 40%, var(--white)), color-mix(in srgb, var(--p6) 45%, var(--white))); color: var(--ink); }
+html[data-theme="pastel"] .btn-primary { background: linear-gradient(90deg, #FFB3C7, #FFD48A 30%, #B9F0C9 60%, #A8D8FF 80%, #C9B8FF); border-color: transparent; color: #39344F; }
+html[data-theme="pastel"] .btn-primary:hover { filter: saturate(1.25) brightness(.98); }
+html[data-theme="pastel"] .btn-primary .ico { color: #39344F; }
+html[data-theme="pastel"] #pageTitle { width: fit-content; max-width: 100%; }
+html[data-theme="pastel"] #pageTitle, html[data-theme="pastel"] .drawer-head h2 { background: linear-gradient(90deg, #E57BA5, #E0A23A, #4FBF83, #4EA3E6, #8F79F0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+html[data-theme="pastel"] .drawer-head { border-bottom: 0; background-image: var(--rainbow); background-size: 100% 3px; background-repeat: no-repeat; background-position: bottom; }
+html[data-theme="pastel"] .section-title { color: var(--forest); }
+html[data-theme="pastel"] .grid-cards > .card { border-top: 4px solid var(--p1); }
+html[data-theme="pastel"] .grid-cards > .card:nth-child(6n+2) { border-top-color: var(--p2); }
+html[data-theme="pastel"] .grid-cards > .card:nth-child(6n+3) { border-top-color: var(--p3); }
+html[data-theme="pastel"] .grid-cards > .card:nth-child(6n+4) { border-top-color: var(--p4); }
+html[data-theme="pastel"] .grid-cards > .card:nth-child(6n+5) { border-top-color: var(--p5); }
+html[data-theme="pastel"] .grid-cards > .card:nth-child(6n+6) { border-top-color: var(--p6); }
+html[data-theme="pastel"] .grid-cards > .card .tag { background: color-mix(in srgb, var(--p1) 35%, var(--white)); color: #A3456E; }
+html[data-theme="pastel"] .grid-cards > .card:nth-child(6n+2) .tag { background: color-mix(in srgb, var(--p2) 40%, var(--white)); color: #94621A; }
+html[data-theme="pastel"] .grid-cards > .card:nth-child(6n+3) .tag { background: color-mix(in srgb, var(--p3) 55%, var(--white)); color: #7D6A12; }
+html[data-theme="pastel"] .grid-cards > .card:nth-child(6n+4) .tag { background: color-mix(in srgb, var(--p4) 45%, var(--white)); color: #2D7A50; }
+html[data-theme="pastel"] .grid-cards > .card:nth-child(6n+5) .tag { background: color-mix(in srgb, var(--p5) 45%, var(--white)); color: #2D6C9E; }
+html[data-theme="pastel"] .grid-cards > .card:nth-child(6n+6) .tag { background: color-mix(in srgb, var(--p6) 45%, var(--white)); color: #5E4BB6; }
+html[data-theme="pastel"][data-mode="dark"] .grid-cards > .card .tag { color: var(--ink); }
+html[data-theme="pastel"] .col { background: color-mix(in srgb, var(--p1) 22%, var(--sage-50)); }
+html[data-theme="pastel"] .col:nth-child(6n+2) { background: color-mix(in srgb, var(--p2) 24%, var(--sage-50)); }
+html[data-theme="pastel"] .col:nth-child(6n+3) { background: color-mix(in srgb, var(--p4) 26%, var(--sage-50)); }
+html[data-theme="pastel"] .col:nth-child(6n+4) { background: color-mix(in srgb, var(--p5) 26%, var(--sage-50)); }
+html[data-theme="pastel"] .col:nth-child(6n+5) { background: color-mix(in srgb, var(--p6) 26%, var(--sage-50)); }
+html[data-theme="pastel"][data-mode="dark"] .col { background: color-mix(in srgb, var(--p1) 9%, var(--sage-50)); }
+html[data-theme="pastel"][data-mode="dark"] .col:nth-child(6n+2) { background: color-mix(in srgb, var(--p2) 9%, var(--sage-50)); }
+html[data-theme="pastel"][data-mode="dark"] .col:nth-child(6n+3) { background: color-mix(in srgb, var(--p4) 9%, var(--sage-50)); }
+html[data-theme="pastel"][data-mode="dark"] .col:nth-child(6n+4) { background: color-mix(in srgb, var(--p5) 9%, var(--sage-50)); }
+html[data-theme="pastel"][data-mode="dark"] .col:nth-child(6n+5) { background: color-mix(in srgb, var(--p6) 10%, var(--sage-50)); }
+html[data-theme="pastel"] .kpi .k-label .ico { color: #E57BA5; }
+html[data-theme="pastel"] .card.kpi:nth-child(2) .k-label .ico { color: #E0A23A; }
+html[data-theme="pastel"] .card.kpi:nth-child(3) .k-label .ico { color: #4EA3E6; }
+html[data-theme="pastel"] .card.kpi:nth-child(4) .k-label .ico { color: #4FBF83; }
+html[data-theme="pastel"] .toast.happy { background: linear-gradient(90deg, #E57BA5, #8F79F0, #4EA3E6); }
 html[data-theme="pastel"] .card.kpi { border-top: 4px solid #FFB3C7; }
 html[data-theme="pastel"] .card.kpi:nth-child(2) { border-top-color: #FFD48A; }
 html[data-theme="pastel"] .card.kpi:nth-child(3) { border-top-color: #A8D8FF; }
@@ -813,7 +907,7 @@ html[data-mode="dark"] input[type="date"].input { color-scheme: dark; }
 .tp-extra { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--sage-50); border-radius: 12px; padding: 10px 12px; font-weight: 600; }
 #snowCanvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 15; }
 @media (prefers-reduced-motion: reduce) {
-  html[data-theme="christmas"] .topbar::after,
+  html[data-theme="christmas"] .topbar::after, html[data-theme="pastel"] .btn-primary,
   html[data-theme="rgb"] .btn-primary, html[data-theme="rgb"] .card.kpi::before, html[data-theme="rgb"] #pageTitle, html[data-theme="rgb"] .hello h2 { animation: none; }
 }
 </style>
@@ -830,7 +924,7 @@ var THEMES = [
   { key: 'pastel', name: 'Pastel Rainbow', sub: 'Every colour, softly', L: ['#F8F5FE', '#FFFFFF', '#8C7AE6', '#FFB3C7'], D: ['#13111C', '#1E1B2B', '#9D8BF0', '#FFB3C7'] }
 ];
 var SNOW = { raf: 0, flakes: [], mode: '' };
-var FX_MODES = { holiday: 'snow', christmas: 'snow', halloween: 'bats' };
+var FX_MODES = { holiday: 'sparkle', christmas: 'snow', halloween: 'bats', pastel: 'bubbles' };
 function lsg(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lss(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 /* Older versions stored one value (auto/light/dark/theme). Convert it once. */
@@ -870,10 +964,32 @@ function snowUpdate() {
   var size = function () { c.width = innerWidth * dpr; c.height = innerHeight * dpr; };
   size(); window.addEventListener('resize', size);
   SNOW.flakes = [];
-  var n = mode === 'snow' ? Math.round(Math.min(70, innerWidth / 18)) : Math.round(Math.min(7, 3 + innerWidth / 400));
+  var n = mode === 'snow' ? Math.round(Math.min(70, innerWidth / 18)) : mode === 'sparkle' ? Math.round(Math.min(46, innerWidth / 26)) : mode === 'bubbles' ? Math.round(Math.min(22, 6 + innerWidth / 70)) : Math.round(Math.min(7, 3 + innerWidth / 400));
+  var PASTELS = ['255, 179, 199', '255, 212, 138', '255, 236, 140', '160, 230, 185', '150, 205, 255', '190, 170, 255'];
   for (var i = 0; i < n; i++) SNOW.flakes.push(mode === 'snow'
     ? { x: Math.random() * innerWidth, y: Math.random() * innerHeight, r: 1 + Math.random() * 2.6, s: .3 + Math.random() * .7, p: Math.random() * 6 }
+    : mode === 'sparkle'
+    ? { x: Math.random() * innerWidth, y: Math.random() * innerHeight, r: 1.2 + Math.random() * 2.4, s: .25 + Math.random() * .55, p: Math.random() * 6, kind: i % 3 === 0 ? 'star' : i % 3 === 1 ? 'crystal' : 'dot', rot: Math.random() * 6 }
+    : mode === 'bubbles'
+    ? { x: Math.random() * innerWidth, y: Math.random() * innerHeight, r: 5 + Math.random() * 13, s: .18 + Math.random() * .35, p: Math.random() * 6, col: PASTELS[i % PASTELS.length] }
     : { x: Math.random() * innerWidth, y: 60 + Math.random() * innerHeight * .7, r: 9 + Math.random() * 9, s: .4 + Math.random() * .6, p: Math.random() * 6, dir: Math.random() < .5 ? -1 : 1 });
+  var gold = dark ? '240, 205, 120' : '201, 160, 60';
+  var star = function (f, t) {
+    var tw = .45 + .55 * Math.abs(Math.sin(t / 600 + f.p * 3)), r = f.r * 2.2;
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot);
+    ctx.fillStyle = 'rgba(' + gold + ', ' + (.35 + .55 * tw) + ')';
+    ctx.beginPath();
+    for (var k = 0; k < 4; k++) { ctx.rotate(Math.PI / 2); ctx.moveTo(0, 0); ctx.quadraticCurveTo(r * .18, r * .18, 0, r * tw); ctx.quadraticCurveTo(-r * .18, r * .18, 0, 0); }
+    ctx.fill(); ctx.restore();
+  };
+  var crystal = function (f) {
+    var r = f.r * 2.4;
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot);
+    ctx.strokeStyle = 'rgba(' + flake + ', ' + (dark ? .75 : .85) + ')'; ctx.lineWidth = 1.1; ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (var k = 0; k < 6; k++) { ctx.rotate(Math.PI / 3); ctx.moveTo(0, 0); ctx.lineTo(0, r); ctx.moveTo(0, r * .55); ctx.lineTo(r * .22, r * .75); ctx.moveTo(0, r * .55); ctx.lineTo(-r * .22, r * .75); }
+    ctx.stroke(); ctx.restore();
+  };
   var flake = dark ? '225, 236, 242' : '160, 190, 205';
   var batCol = dark ? 'rgba(176, 132, 230, .45)' : 'rgba(60, 30, 90, .35)';
   var bat = function (f, t) {
@@ -899,7 +1015,22 @@ function snowUpdate() {
     var dt = Math.min(50, t - last) / 16.7; last = t;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, innerWidth, innerHeight);
     SNOW.flakes.forEach(function (f) {
-      if (mode === 'snow') {
+      if (mode === 'sparkle') {
+        f.y += f.s * dt; f.p += .01 * dt; f.x += Math.sin(f.p) * .25 * dt; f.rot += .004 * dt;
+        if (f.y > innerHeight + 10) { f.y = -10; f.x = Math.random() * innerWidth; }
+        if (f.kind === 'star') star(f, t);
+        else if (f.kind === 'crystal') crystal(f);
+        else { ctx.beginPath(); ctx.arc(f.x, f.y, f.r * .9, 0, 7); ctx.fillStyle = 'rgba(' + flake + ', ' + (0.4 + f.r / 8) + ')'; ctx.fill(); }
+      } else if (mode === 'bubbles') {
+        f.y -= f.s * dt; f.p += .008 * dt; f.x += Math.sin(f.p) * .35 * dt;
+        if (f.y < -f.r - 10) { f.y = innerHeight + f.r + 10; f.x = Math.random() * innerWidth; }
+        var g = ctx.createRadialGradient(f.x - f.r * .35, f.y - f.r * .35, f.r * .1, f.x, f.y, f.r);
+        g.addColorStop(0, dark ? 'rgba(255, 255, 255, .22)' : 'rgba(255, 255, 255, .7)');
+        g.addColorStop(.35, 'rgba(' + f.col + ', ' + (dark ? .12 : .32) + ')');
+        g.addColorStop(1, 'rgba(' + f.col + ', ' + (dark ? .03 : .12) + ')');
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 7); ctx.fillStyle = g; ctx.fill();
+        ctx.strokeStyle = 'rgba(' + f.col + ', ' + (dark ? .7 : .55) + ')'; ctx.lineWidth = 1; ctx.stroke();
+      } else if (mode === 'snow') {
         f.y += f.s * dt; f.p += .01 * dt; f.x += Math.sin(f.p) * .3 * dt;
         if (f.y > innerHeight + 5) { f.y = -5; f.x = Math.random() * innerWidth; }
         ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 7);
@@ -915,7 +1046,7 @@ function snowUpdate() {
   };
   SNOW.raf = requestAnimationFrame(tick);
 }
-function fxLabel(k) { return FX_MODES[k] === 'bats' ? '🦇 Flying bats' : '❄️ Gentle snowfall'; }
+function fxLabel(k) { return { bats: '🦇 Flying bats', sparkle: '✨ Snowflakes & gold sparkles', bubbles: '🫧 Floating rainbow bubbles' }[FX_MODES[k]] || '❄️ Gentle snowfall'; }
 
 document.addEventListener('DOMContentLoaded', function () {
   snowUpdate();
