@@ -515,6 +515,12 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .ends-seg { display: flex; width: 100%; }
 .ends-seg button { flex: 1; white-space: nowrap; justify-content: center; }
 @media (max-width: 420px) { .ends-seg button { font-size: 12px; padding-left: 4px; padding-right: 4px; } }
+.auto-note { margin: 10px 0 2px; padding: 10px 12px; border-radius: 12px; background: var(--st-green-bg); color: var(--ink); font-size: 13px; line-height: 1.45; }
+.auto-note.reading { background: var(--sage-100); color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+.auto-note.warn { background: var(--st-amber-bg); }
+.auto-spin { width: 14px; height: 14px; border: 2px solid var(--sage-200); border-top-color: var(--forest); border-radius: 50%; animation: autospin .8s linear infinite; flex: none; }
+@keyframes autospin { to { transform: rotate(360deg); } }
+.input.autofilled { border-color: var(--green); background: color-mix(in srgb, var(--green) 12%, var(--white)); }
 .qm-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .stripe-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
 .ship-help { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: -4px 0 14px; font-size: 13px; }
@@ -3346,6 +3352,14 @@ function wireEnds(box, getStart, getFreq) {
   box._upd = upd; upd();
   return end;
 }
+function guessCategory(t) {
+  t = String(t || '').toLowerCase();
+  var rules = [[/canada post|purolator|\bups\b|fedex|shipping|postage|uline|stamps/, 'shipping'], [/canva|shopify|adobe|lightburn|subscription|software|namecheap|github|etsy fees|app store|google one/, 'software'],
+    [/bell|rogers|eastlink|telus|fido|koodo|internet|mobile/, 'phone'], [/gas|petro|irving|esso|shell|ultramar|parking/, 'vehicle'], [/staples|paper|ink|toner|printer/, 'supplies'],
+    [/facebook|meta|instagram|ads|advert|vistaprint|business cards|sticker mule/, 'advertising']];
+  for (var i = 0; i < rules.length; i++) if (rules[i][0].test(t) && expCats().some(function (c) { return c.key === rules[i][1]; })) return rules[i][1];
+  return '';
+}
 function monthlyEquivalent(r) { var a = num(r.amount); var f = String(r.frequency).toLowerCase(); return f === 'yearly' ? a / 12 : f === 'weekly' ? a * 52 / 12 : a; }
 function vendorList() {
   var seen = {};
@@ -3485,6 +3499,7 @@ function openExpense(id) {
     '<div class="receipts" id="exReceipts"></div>' +
     '<label class="receipt-drop" for="exFile" id="exDrop">' + ico('camera') + '<strong>Add a receipt photo or PDF</strong><span class="muted small">Take a picture, choose from Photos, or pick a file</span></label>' +
     '<input type="file" id="exFile" accept="image/*,application/pdf" multiple hidden>' +
+    '<div id="exAuto"></div>' +
     '<div class="section-title">Details</div>' +
     '<div class="row"><div class="field"><label>Date</label><input class="input" type="date" id="exDate" value="' + esc(D.date) + '"></div>' +
     '<div class="field"><label>Amount (total paid)</label><div class="money-in"><input class="input" type="number" inputmode="decimal" step="0.01" min="0" id="exAmount" value="' + esc(D.amount) + '" placeholder="0.00"></div></div></div>' +
@@ -3533,9 +3548,42 @@ function openExpense(id) {
           D.receipts.push(saved); renderReceipts();
         });
       });
-    }, Promise.resolve()).then(function () { if (files.length) toast(files.length === 1 ? 'Receipt added' : files.length + ' receipts added'); $('#exAmount').focus(); })
-      .catch(function (err) { renderReceipts(); fail(err); });
+    }, Promise.resolve()).then(function () {
+      if (!files.length) return;
+      var target = D.receipts[D.receipts.length - files.length];
+      if (target && !$('#exAmount').value) autoFillFromReceipt(target.id); else { toast(files.length === 1 ? 'Receipt added' : files.length + ' receipts added'); $('#exAmount').focus(); }
+    }).catch(function (err) { renderReceipts(); fail(err); });
   });
+  var touched = {};
+  ['#exDate', '#exAmount', '#exVendor', '#exTax', '#exPay', '#exCat'].forEach(function (sel) {
+    $(sel).addEventListener('input', function () { touched[sel] = 1; this.classList.remove('autofilled'); });
+    $(sel).addEventListener('change', function () { touched[sel] = 1; this.classList.remove('autofilled'); });
+  });
+  var autoFillFromReceipt = function (fileId) {
+    var box = $('#exAuto');
+    box.innerHTML = '<div class="auto-note reading"><span class="auto-spin"></span>Reading your receipt…</div>';
+    call('readReceipt', fileId, vendorList()).then(function (g) {
+      if (!$('#exAuto')) return;
+      var filled = [];
+      var setIf = function (sel, val, label, force) {
+        var el = $(sel); if (!el || val === '' || val === null || val === undefined) return;
+        if (touched[sel] || (!force && el.value !== '')) return;
+        el.value = val; el.classList.add('autofilled'); filled.push(label);
+      };
+      setIf('#exVendor', g.vendor, 'company');
+      if (g.date) setIf('#exDate', g.date, 'date', true);
+      setIf('#exAmount', g.amount === '' ? '' : Number(g.amount).toFixed(2), 'total');
+      setIf('#exTax', g.tax === '' ? '' : Number(g.tax).toFixed(2), 'HST/GST');
+      if (g.payment && PAY_METHODS.indexOf(g.payment) >= 0) setIf('#exPay', g.payment, 'payment', true);
+      var v = $('#exVendor').value;
+      if (v && !$('#exCat').value) { var c = lastCategoryFor(v) || guessCategory(v + ' ' + (g.text || '')); if (c) { $('#exCat').value = c; $('#exCat').classList.add('autofilled'); filled.push('category'); } }
+      if (typeof exRefresh === 'function') exRefresh();
+      if (filled.length) box.innerHTML = '<div class="auto-note">✨ Filled in the ' + filled.join(', ').replace(/, ([^,]*)$/, ' and $1') + ' from your receipt. <b>Please double-check</b> the highlighted boxes before saving.</div>';
+      else box.innerHTML = '<div class="auto-note warn">I couldn\'t read the details on this one. Please fill them in below.</div>';
+    }).catch(function () {
+      if ($('#exAuto')) $('#exAuto').innerHTML = '<div class="auto-note warn">I couldn\'t read this receipt automatically. Please fill in the details below.</div>';
+    });
+  };
   $('#exVendor').addEventListener('change', function () {
     if (!$('#exCat').value) { var c = lastCategoryFor(this.value); if (c) $('#exCat').value = c; }
   });
