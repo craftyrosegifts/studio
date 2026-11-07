@@ -512,6 +512,9 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .restock { display: flex; align-items: center; gap: 8px; margin: -4px 0 10px; flex-wrap: wrap; }
 .restock .input { width: 90px; height: 32px; }
 .qm { margin-top: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--sage-25); padding: 12px 12px 10px; }
+.ends-seg { display: flex; width: 100%; }
+.ends-seg button { flex: 1; white-space: nowrap; justify-content: center; }
+@media (max-width: 420px) { .ends-seg button { font-size: 12px; padding-left: 4px; padding-right: 4px; } }
 .qm-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .stripe-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
 .ship-help { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: -4px 0 14px; font-size: 13px; }
@@ -3292,6 +3295,57 @@ function expYearList() {
   return Object.keys(ys).sort().reverse();
 }
 function yearExpenses(y) { return (S.data.Expenses || []).filter(function (e) { return String(e.date || '').slice(0, 4) === String(y); }); }
+/* ---- Recurring end dates ---- */
+function addPeriodC(dateStr, freq, anchorStr) {
+  var p = String(dateStr).slice(0, 10).split('-').map(Number), y = p[0], m = p[1], d = p[2];
+  var anchorDay = anchorStr ? Number(String(anchorStr).slice(8, 10)) || d : d, f = String(freq || 'Monthly').toLowerCase();
+  if (f === 'weekly') return new Date(Date.UTC(y, m - 1, d + 7)).toISOString().slice(0, 10);
+  if (f === 'yearly') y += 1; else { m += 1; if (m > 12) { m = 1; y += 1; } }
+  var day = Math.min(anchorDay, new Date(Date.UTC(y, m, 0)).getUTCDate());
+  return y + '-' + pad(m) + '-' + pad(day);
+}
+function nthPaymentDate(start, freq, n) { var d = start; for (var i = 1; i < n && i < 600; i++) d = addPeriodC(d, freq, start); return d; }
+function paymentCount(start, freq, end) { var n = 0, d = start; while (d <= end && n < 600) { n++; d = addPeriodC(d, freq, start); } return n; }
+function recDone(r) { return !!(r.endDate && r.nextDate && String(r.nextDate) > String(r.endDate)); }
+/* "Ends" picker used by the expense form and the recurring editor */
+function endsHtml(endDate, start, freq) {
+  var mode = endDate ? 'count' : 'never', n = endDate && start ? paymentCount(start, freq, endDate) : 12;
+  return '<div class="field ends"><label>Ends</label><div class="seg ends-seg">' +
+    [['never', 'Never'], ['count', 'After # payments'], ['date', 'On a date']].map(function (o) { return '<button type="button" data-ends="' + o[0] + '" class="' + (mode === o[0] ? 'on' : '') + '">' + o[1] + '</button>'; }).join('') + '</div>' +
+    '<div class="ends-count" style="margin-top:8px;' + (mode === 'count' ? '' : 'display:none') + '"><label class="small muted">Number of payments (including the first)</label><input class="input" type="number" min="1" step="1" inputmode="numeric" data-ends-n value="' + (n || 12) + '"></div>' +
+    '<div class="ends-date" style="margin-top:8px;display:none"><label class="small muted">Last payment on or before</label><input class="input" type="date" data-ends-d value="' + esc(endDate || '') + '"></div>' +
+    '<p class="hint ends-hint" style="margin:6px 0 0"></p></div>';
+}
+/* Wires up an endsHtml block. getStart/getFreq read the current form; returns a function that gives the end date ('' = never). */
+function wireEnds(box, getStart, getFreq) {
+  var mode = (box.querySelector('[data-ends].on') || {}).getAttribute ? box.querySelector('[data-ends].on').getAttribute('data-ends') : 'never';
+  var nIn = box.querySelector('[data-ends-n]'), dIn = box.querySelector('[data-ends-d]'), hint = box.querySelector('.ends-hint');
+  var end = function () {
+    var s = getStart(), f = getFreq();
+    if (mode === 'count') { var n = Math.max(1, Math.round(num(nIn.value))); return s ? nthPaymentDate(s, f, n) : ''; }
+    if (mode === 'date') return dIn.value || '';
+    return '';
+  };
+  var upd = function () {
+    box.querySelectorAll('[data-ends]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-ends') === mode); });
+    box.querySelector('.ends-count').style.display = mode === 'count' ? '' : 'none';
+    box.querySelector('.ends-date').style.display = mode === 'date' ? '' : 'none';
+    var e = end(), s = getStart(), f = getFreq();
+    if (mode === 'never') { hint.textContent = 'Keeps going until you pause or delete it.'; return; }
+    if (!e || !s) { hint.textContent = ''; return; }
+    if (e < s) { hint.textContent = 'The end date is before the first charge.'; return; }
+    var c = paymentCount(s, f, e);
+    hint.textContent = c + (c === 1 ? ' payment' : ' payments') + ' · last one ' + niceDate(nthPaymentDate(s, f, c)) + ' · ' + money(c * num(box.getAttribute('data-amt') || 0)) + ' in total';
+  };
+  box.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-ends]'); if (!b) return;
+    if (mode === 'count' && b.getAttribute('data-ends') === 'date' && !dIn.value) dIn.value = end();
+    mode = b.getAttribute('data-ends'); upd();
+  });
+  box.addEventListener('input', upd); box.addEventListener('change', upd);
+  box._upd = upd; upd();
+  return end;
+}
 function monthlyEquivalent(r) { var a = num(r.amount); var f = String(r.frequency).toLowerCase(); return f === 'yearly' ? a / 12 : f === 'weekly' ? a * 52 / 12 : a; }
 function vendorList() {
   var seen = {};
@@ -3318,7 +3372,7 @@ function renderExpenses() {
   var tax = list.reduce(function (t, e) { return t + num(e.tax); }, 0);
   var now = new Date(), mKey = now.getFullYear() + '-' + pad(now.getMonth() + 1);
   var month = list.filter(function (e) { return String(e.date).slice(0, 7) === mKey; }).reduce(function (t, e) { return t + num(e.amount); }, 0);
-  var activeRec = (S.data.Recurring || []).filter(function (r) { return r.active; });
+  var activeRec = (S.data.Recurring || []).filter(function (r) { return r.active && !recDone(r); });
   var recMonthly = activeRec.reduce(function (t, r) { return t + monthlyEquivalent(r); }, 0);
   var sales = S.data.Orders.filter(function (o) { return o.stage !== 'Inquiry' && String(o.created).slice(0, 4) === y; })
     .reduce(function (t, o) { return t + num(o.total); }, 0);
@@ -3377,18 +3431,19 @@ function listTab(list) {
   return filters + '<div class="card table-wrap"><table class="tbl exp-tbl"><thead><tr><th>Date</th><th>Company</th><th class="hide-sm">Category</th><th class="hide-sm">Receipt</th><th class="num">Amount</th></tr></thead><tbody>' + html + '</tbody></table></div>';
 }
 function recurringTab() {
-  var list = (S.data.Recurring || []).slice().sort(function (a, b) { return (b.active - a.active) || String(a.vendor).localeCompare(String(b.vendor)); });
+  var list = (S.data.Recurring || []).slice().sort(function (a, b) { var ka = a.active && !recDone(a), kb = b.active && !recDone(b); return (kb - ka) || String(a.vendor).localeCompare(String(b.vendor)); });
   var add = '<div class="toolbar"><p class="muted" style="margin:0">Set these up once. Each charge is added to your expenses automatically on its date.</p><span class="spacer"></span>' +
     '<button class="btn btn-primary btn-sm" type="button" data-act="new-recurring">' + ico('plus') + 'Add recurring</button></div>';
   if (!list.length) return add + '<div class="card">' + emptyState('No recurring expenses', 'Add subscriptions like Canva, your phone plan or website hosting, and they\'ll be tracked every month or year.', 'new-recurring', 'Add recurring') + '</div>';
   return add + '<div class="grid-cards">' + list.map(function (r) {
     var paid = (S.data.Expenses || []).filter(function (e) { return e.recurringId === r.id && String(e.date).slice(0, 4) === S.exp.year; });
     return '<div class="card pcard" data-recurring="' + r.id + '">' +
-      '<div style="display:flex;gap:6px;align-items:center"><span class="tag">' + esc(r.frequency) + '</span>' + (r.active ? '<span class="chip green">Active</span>' : '<span class="chip gray">Paused</span>') + '</div>' +
+      '<div style="display:flex;gap:6px;align-items:center"><span class="tag">' + esc(r.frequency) + '</span>' + (recDone(r) ? '<span class="chip blue">Finished</span>' : r.active ? '<span class="chip green">Active</span>' : '<span class="chip gray">Paused</span>') + '</div>' +
       '<div class="p-name">' + esc(r.vendor) + '</div>' +
       '<div class="p-price">' + money(r.amount) + '<span class="muted" style="font-size:13px;font-weight:600"> / ' + esc(String(r.frequency).replace('ly', '').replace('Dai', 'day').toLowerCase()) + '</span></div>' +
       '<div class="muted small">' + esc(catLabel(r.category)) + '</div>' +
-      '<div class="p-meta"><span>' + (r.active ? 'Next: ' + esc(niceDate(r.nextDate)) : 'Paused') + '</span><span>' + money(paid.reduce(function (t, e) { return t + num(e.amount); }, 0)) + ' in ' + esc(S.exp.year) + '</span></div></div>';
+      (r.endDate && !recDone(r) ? '<div class="muted small">Ends ' + esc(niceDate(r.endDate)) + ' · ' + paymentCount(r.startDate || r.nextDate, r.frequency, r.endDate) + ' payments</div>' : '') +
+      '<div class="p-meta"><span>' + (recDone(r) ? 'Ended ' + esc(niceDate(r.endDate)) : r.active ? 'Next: ' + esc(niceDate(r.nextDate)) : 'Paused') + '</span><span>' + money(paid.reduce(function (t, e) { return t + num(e.amount); }, 0)) + ' in ' + esc(S.exp.year) + '</span></div></div>';
   }).join('') + '</div>';
 }
 function catTab(list, total) {
@@ -3441,7 +3496,8 @@ function openExpense(id) {
     '<div class="field"><label>Notes</label><textarea class="input" id="exNotes" style="min-height:60px" placeholder="What was it for?">' + esc(D.notes || '') + '</textarea></div>' +
     (!src ? '<label class="feat" style="margin-top:4px"><span class="feat-ico">' + ico('repeat') + '</span><span class="feat-txt"><strong>This repeats</strong><span class="muted small">Add it automatically every month or year</span></span>' +
       '<span class="switch"><input type="checkbox" id="exRepeat"><span></span></span></label>' +
-      '<div class="field" id="exFreqWrap" style="display:none;margin-top:10px"><label>How often</label><select class="input" id="exFreq">' + FREQS.map(function (f) { return '<option>' + f + '</option>'; }).join('') + '</select></div>' : '');
+      '<div id="exFreqWrap" style="display:none;margin-top:10px"><div class="field"><label>How often</label><select class="input" id="exFreq">' + FREQS.map(function (f) { return '<option>' + f + '</option>'; }).join('') + '</select></div>' +
+      '<div id="exEnds">' + endsHtml('', '', 'Monthly') + '</div></div>' : '');
   openDrawer(src ? (src.vendor || 'Expense') : 'Add expense', body,
     (src ? '<button class="btn btn-danger" type="button" id="dDelete">' + ico('trash') + 'Delete</button>' : '') +
     '<span class="spacer"></span><button class="btn btn-secondary" type="button" data-close>Cancel</button><button class="btn btn-primary" type="button" id="dSave">Save expense</button>');
@@ -3485,6 +3541,13 @@ function openExpense(id) {
   });
   var rep = $('#exRepeat');
   if (rep) rep.addEventListener('change', function () { $('#exFreqWrap').style.display = rep.checked ? 'block' : 'none'; });
+  var exEnd = null, exEnds = $('#exEnds');
+  if (exEnds) {
+    exEnd = wireEnds(exEnds, function () { var d = $('#exDate'); return d ? d.value : todayStr(); }, function () { return $('#exFreq').value; });
+    var exRefresh = function () { var a = $('#exAmount'); exEnds.setAttribute('data-amt', a ? a.value : 0); exEnds._upd(); };
+    ['#exFreq', '#exDate', '#exAmount'].forEach(function (sel) { var el = $(sel); if (el) { el.addEventListener('change', exRefresh); el.addEventListener('input', exRefresh); } });
+    exRefresh();
+  }
   $('#dSave').addEventListener('click', function () {
     var btn = this;
     D.date = $('#exDate').value || todayStr();
@@ -3496,7 +3559,7 @@ function openExpense(id) {
     D.notes = $('#exNotes').value.trim();
     if (!D.vendor) { toast('Please enter the company.', true); $('#exVendor').focus(); return; }
     if (!D.amount) { toast('Please enter the amount.', true); $('#exAmount').focus(); return; }
-    var repeat = rep && rep.checked ? { frequency: $('#exFreq').value } : null;
+    var repeat = rep && rep.checked ? { frequency: $('#exFreq').value, endDate: exEnd ? exEnd() : '' } : null;
     var trash = D._trash || []; delete D._trash;
     busy(btn, 'Saving…');
     call('saveExpense', D, repeat).then(function (saved) {
@@ -3539,8 +3602,8 @@ function openRecurring(id) {
     '<div class="row"><div class="field"><label>Amount each time</label><div class="money-in"><input class="input" type="number" inputmode="decimal" step="0.01" min="0" id="rcAmount" value="' + esc(r.amount) + '" placeholder="0.00"></div></div>' +
     '<div class="field"><label>How often</label><select class="input" id="rcFreq">' + FREQS.map(function (f) { return '<option' + (f === r.frequency ? ' selected' : '') + '>' + f + '</option>'; }).join('') + '</select></div></div>' +
     '<div class="field"><label>Category</label><select class="input" id="rcCat">' + catOptions(r.category) + '</select></div>' +
-    '<div class="row"><div class="field"><label>' + (src ? 'Next charge date' : 'First charge date') + '</label><input class="input" type="date" id="rcNext" value="' + esc(src ? r.nextDate : r.startDate) + '"></div>' +
-    '<div class="field"><label>End date <span class="muted">(optional)</span></label><input class="input" type="date" id="rcEnd" value="' + esc(r.endDate || '') + '"></div></div>' +
+    '<div class="field"><label>' + (src ? 'Next charge date' : 'First charge date') + '</label><input class="input" type="date" id="rcNext" value="' + esc(src ? r.nextDate : r.startDate) + '"></div>' +
+    '<div id="rcEnds" data-amt="' + esc(r.amount) + '">' + endsHtml(r.endDate || '', r.startDate || r.nextDate, r.frequency) + '</div>' +
     '<p class="hint">' + (src ? 'Charges up to today are already in your expenses.' : 'If the first charge date is in the past, the charges since then are added right away.') + '</p>' +
     '<div class="row"><div class="field"><label>HST/GST each time <span class="muted">(optional)</span></label><div class="money-in"><input class="input" type="number" inputmode="decimal" step="0.01" min="0" id="rcTax" value="' + esc(r.tax) + '"></div></div>' +
     '<div class="field"><label>Paid with</label><select class="input" id="rcPay">' + PAY_METHODS.map(function (p) { return '<option' + (p === r.payment ? ' selected' : '') + '>' + p + '</option>'; }).join('') + '</select></div></div>' +
@@ -3553,11 +3616,14 @@ function openRecurring(id) {
     (src ? '<button class="btn btn-danger" type="button" id="dDelete">' + ico('trash') + 'Delete</button>' : '') +
     '<span class="spacer"></span><button class="btn btn-secondary" type="button" data-close>Cancel</button><button class="btn btn-primary" type="button" id="dSave">Save</button>');
   $('#rcVendor').addEventListener('change', function () { var c = lastCategoryFor(this.value); if (c && !src) $('#rcCat').value = c; });
+  var rcBox = $('#rcEnds');
+  var rcEnd = wireEnds(rcBox, function () { return src && r.startDate ? r.startDate : ($('#rcNext').value || todayStr()); }, function () { return $('#rcFreq').value; });
+  ['#rcFreq', '#rcNext', '#rcAmount'].forEach(function (sel) { var el = $(sel); var f = function () { rcBox.setAttribute('data-amt', $('#rcAmount').value); rcBox._upd(); }; el.addEventListener('change', f); el.addEventListener('input', f); });
   $('#dSave').addEventListener('click', function () {
     var btn = this;
     r.vendor = $('#rcVendor').value.trim(); r.amount = num($('#rcAmount').value); r.frequency = $('#rcFreq').value;
     r.category = $('#rcCat').value || 'other'; r.tax = $('#rcTax').value === '' ? '' : num($('#rcTax').value); r.payment = $('#rcPay').value;
-    r.endDate = $('#rcEnd').value; r.active = $('#rcActive').checked;
+    r.endDate = rcEnd(); r.active = $('#rcActive').checked;
     var next = $('#rcNext').value || todayStr();
     if (src) r.nextDate = next; else { r.startDate = next; r.nextDate = next; }
     if (!r.vendor) { toast('Please enter the company or service.', true); return; }
