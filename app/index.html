@@ -511,6 +511,8 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .p-suggest { font-size: 12px; color: var(--forest-700); background: var(--sage-50); border-radius: 8px; padding: 6px 10px; }
 .restock { display: flex; align-items: center; gap: 8px; margin: -4px 0 10px; flex-wrap: wrap; }
 .restock .input { width: 90px; height: 32px; }
+.qm { margin-top: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--sage-25); padding: 12px 12px 10px; }
+.qm-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .stripe-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
 .ship-help { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: -4px 0 14px; font-size: 13px; }
 .ship-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
@@ -1874,8 +1876,10 @@ function openProduct(id, preset) {
     '<div class="field"><label>Description</label><textarea class="input" id="pDesc">' + esc(D.description || '') + '</textarea></div>' +
     '<div class="field"><label class="check"><input type="checkbox" id="pActive"' + (D.active !== false ? ' checked' : '') + '> Show in the order item list</label></div>' +
     '<div class="section-title">Materials per item</div>' +
-    (S.data.Materials.length ? '<div id="pMats" class="items"></div><div style="margin-top:10px"><button class="btn btn-secondary btn-sm" type="button" id="pAddMat">' + ico('plus') + 'Add material</button></div>'
-      : '<p class="muted">Add your supplies on the Materials page first, then come back to work out this product\'s cost.</p>') +
+    '<div id="pMats" class="items"></div><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
+    (S.data.Materials.length ? '<button class="btn btn-secondary btn-sm" type="button" id="pAddMat">' + ico('plus') + 'Add material</button>' : '') +
+    '<button class="btn btn-secondary btn-sm" type="button" id="pNewMat">' + ico('plus') + 'New material</button></div>' +
+    '<div class="qm" id="pQuickMat" style="display:none"></div>' +
     '<div class="summary" style="margin-top:14px" id="pSum"></div>';
   openDrawer(p ? p.name : 'New product', body + extrasHtml(D),
     (p ? '<button class="btn btn-danger" type="button" id="dDelete">' + ico('trash') + 'Delete</button>' : '') +
@@ -1884,8 +1888,24 @@ function openProduct(id, preset) {
   var matOptions = function (sel) {
     return '<option value="">Choose material…</option>' + S.data.Materials.slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function (m) {
       return '<option value="' + m.id + '"' + (m.id === sel ? ' selected' : '') + '>' + esc(m.name) + ' (' + money(m.costPerUnit) + '/' + esc(m.unit || 'unit') + ')</option>';
-    }).join('');
+    }).join('') + '<option value="__new">+ New material…</option>';
   };
+  var quickMat = function (slot) {
+    var box = $('#pQuickMat'); if (!box) return;
+    var sups = typeof supplierNames === 'function' ? supplierNames() : [];
+    box.innerHTML = '<div class="qm-head"><b>New material</b><span class="muted small">Saved to your Materials list too</span></div>' +
+      '<div class="field"><label>Material name</label><input class="input" id="qmName" placeholder="e.g. 4 inch cork coaster blank"></div>' +
+      '<div class="row"><div class="field"><label>Cost per unit</label><div class="money-in"><input class="input" type="number" min="0" step="0.0001" inputmode="decimal" id="qmCost"></div></div>' +
+      '<div class="field"><label>Unit</label><input class="input" id="qmUnit" list="qmUnits" value="each"><datalist id="qmUnits"><option value="each"><option value="sheet"><option value="ft"><option value="m"><option value="yard"><option value="oz"><option value="g"><option value="ml"><option value="pack"></datalist></div></div>' +
+      '<p class="hint" style="margin-top:-4px">Tip: if a 12-pack costs $18, enter $1.50 per "each".</p>' +
+      '<div class="row"><div class="field"><label>Used per item</label><input class="input" type="number" min="0" step="any" inputmode="decimal" id="qmQty" value="1"></div>' +
+      (sups.length ? '<div class="field"><label>Supplier <span class="muted">(optional)</span></label><select class="input" id="qmSup"><option value="">No supplier</option>' + sups.map(function (n) { return '<option>' + esc(n) + '</option>'; }).join('') + '</select></div>' : '') + '</div>' +
+      '<div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-secondary btn-sm" type="button" id="qmCancel">Cancel</button><button class="btn btn-primary btn-sm" type="button" id="qmSave">' + ico('check') + 'Add material</button></div>';
+    box.style.display = 'block'; box.setAttribute('data-slot', slot === undefined ? '' : slot);
+    var nb = $('#pNewMat'); if (nb) nb.style.display = 'none';
+    $('#qmName').focus(); box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  };
+  var closeQuick = function () { var box = $('#pQuickMat'); if (box) { box.style.display = 'none'; box.innerHTML = ''; } var nb = $('#pNewMat'); if (nb) nb.style.display = ''; };
   var renderMats = function () {
     var w = $('#pMats');
     if (w) w.innerHTML = D.materials.map(function (m, i) {
@@ -1906,12 +1926,30 @@ function openProduct(id, preset) {
   $('#pPrice').addEventListener('input', renderMats);
   var add = $('#pAddMat');
   if (add) add.addEventListener('click', function () { D.materials.push({ materialId: '', qty: 1 }); renderMats(); });
+  $('#pNewMat').addEventListener('click', function () { quickMat(); });
+  $('#pQuickMat').addEventListener('click', function (e) {
+    if (e.target.closest('#qmCancel')) { closeQuick(); renderMats(); return; }
+    var sv = e.target.closest('#qmSave'); if (!sv) return;
+    var name = $('#qmName').value.trim(); if (!name) { toast('Please enter a name.', true); $('#qmName').focus(); return; }
+    var rec = { name: name, costPerUnit: num($('#qmCost').value), unit: $('#qmUnit').value.trim() || 'each', supplier: $('#qmSup') ? $('#qmSup').value : '', notes: '' };
+    var qty = $('#qmQty').value === '' ? 1 : num($('#qmQty').value);
+    var slot = $('#pQuickMat').getAttribute('data-slot');
+    busy(sv, 'Saving…');
+    call('saveRecord', 'Materials', rec).then(function (saved) {
+      var list = S.data.Materials, i = list.findIndex(function (r) { return r.id === saved.id; });
+      if (i >= 0) list[i] = saved; else list.push(saved);
+      if (slot !== '' && D.materials[+slot]) { D.materials[+slot].materialId = saved.id; D.materials[+slot].qty = qty; }
+      else D.materials.push({ materialId: saved.id, qty: qty });
+      closeQuick(); renderMats(); $('#pMats').dispatchEvent(new Event('change', { bubbles: true })); toast(saved.name + ' added');
+    }).catch(function (err) { unbusy(sv); fail(err); });
+  });
   var w = $('#pMats');
   if (w) {
     w.addEventListener('change', function (e) {
       var el = e.target.closest('.item'); if (!el) return;
       var m = D.materials[+el.getAttribute('data-i')];
       var k = e.target.getAttribute('data-m');
+      if (k === 'materialId' && e.target.value === '__new') { e.target.value = m.materialId || ''; quickMat(+el.getAttribute('data-i')); return; }
       m[k] = k === 'qty' ? num(e.target.value) : e.target.value;
       renderMats();
     });
