@@ -521,6 +521,43 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .auto-spin { width: 14px; height: 14px; border: 2px solid var(--sage-200); border-top-color: var(--forest); border-radius: 50%; animation: autospin .8s linear infinite; flex: none; }
 @keyframes autospin { to { transform: rotate(360deg); } }
 .input.autofilled { border-color: var(--green); background: color-mix(in srgb, var(--green) 12%, var(--white)); }
+.lf { margin: -4px 0 14px; display: flex; flex-direction: column; gap: 10px; }
+.lf-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.lf-chips::-webkit-scrollbar { display: none; }
+.lf-chip { flex: none; border: 1px solid var(--line); background: var(--white); color: var(--ink-2); border-radius: 999px; padding: 7px 14px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.lf-chip b { margin-left: 4px; color: var(--muted); font-weight: 700; }
+.lf-chip:hover { border-color: var(--sage-200); }
+.lf-chip.on { background: var(--forest); border-color: var(--forest); color: var(--on-accent, #fff); }
+.lf-chip.on b { color: inherit; opacity: .8; }
+.lf-more > summary { display: none; }
+@media (max-width: 820px) {
+  .lf-more > summary { display: inline-flex; align-items: center; gap: 6px; list-style: none; cursor: pointer; font-weight: 600; font-size: 13px; color: var(--forest-800); background: var(--white); border: 1px solid var(--line); border-radius: 10px; padding: 7px 12px; }
+  .lf-more > summary::-webkit-details-marker { display: none; }
+  .lf-more > summary .ico { width: 15px; height: 15px; }
+  .lf-more > summary b { background: var(--forest); color: var(--on-accent, #fff); border-radius: 999px; padding: 0 7px; font-size: 11px; }
+  .lf-more[open] > summary { margin-bottom: 8px; }
+  .lf-sel { flex: 1 1 100%; }
+  .lf-sel .input { flex: 1; }
+}
+.lf-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.lf-sel { display: flex; align-items: center; gap: 6px; background: var(--white); border: 1px solid var(--line); border-radius: 10px; padding: 0 0 0 10px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.lf-sel.on { border-color: var(--forest); color: var(--forest-800); }
+.lf-sel .input { border: 0; background: transparent; height: 34px; padding: 0 28px 0 4px; font-size: 13px; width: auto; min-width: 0; box-shadow: none; }
+.sc-group { margin-bottom: 22px; }
+.sc-h { font-family: var(--font-head); font-size: 28px; font-weight: 700; color: var(--forest-800); margin: 0 0 10px 2px; line-height: 1; }
+.sc-h span { font-family: inherit; font-size: 14px; font-family: var(--font); color: var(--muted); font-weight: 600; vertical-align: middle; margin-left: 4px; }
+.sc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.sc { padding: 14px; cursor: pointer; display: flex; flex-direction: column; gap: 9px; }
+.sc:hover { box-shadow: var(--shadow-lg); }
+.sc .t-photo { width: 100%; aspect-ratio: 16/10; border-radius: 10px; object-fit: cover; background: var(--sage-100); }
+.sc-title { font-weight: 700; font-size: 15px; line-height: 1.3; }
+.sc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sc-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(54px, 1fr)); gap: 6px; }
+.sc-stats > div { background: var(--sage-50); border-radius: 10px; padding: 7px 4px 6px; text-align: center; min-width: 0; }
+.sc-stats b { display: block; font-size: 18px; color: var(--forest-800); line-height: 1.1; }
+.sc-stats span { display: block; font-size: 10.5px; color: var(--muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sc-note { font-size: 12px; color: var(--ink-2); background: var(--note-bg, #FFF6E5); border-radius: 10px; padding: 7px 9px; line-height: 1.4; }
+@media (max-width: 520px) { .sc-grid { grid-template-columns: 1fr; } .sc-h { font-size: 24px; } }
 .qm-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .stripe-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
 .ship-help { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: -4px 0 14px; font-size: 13px; }
@@ -2464,6 +2501,7 @@ var STAGE_COLORS = ['blue', 'purple', 'amber', 'green', 'gray', 'red'];
 var SELECT_COLORS = ['blue', 'purple', 'amber', 'green', 'red', 'gray'];
 
 Object.assign(ICONS, {
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   star: '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9L12 3Z"/>',
   heart: '<path d="M12 20s-7.5-4.6-9-9.3C2 7.4 4.1 4.5 7.3 4.5c2 0 3.6 1.1 4.7 2.7 1.1-1.6 2.7-2.7 4.7-2.7 3.2 0 5.3 2.9 4.3 6.2C19.5 15.4 12 20 12 20Z"/>',
   clip: '<path d="m20 11.5-8.2 8.2a5 5 0 0 1-7.1-7.1l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.4 8.4a1.7 1.7 0 0 1-2.4-2.4l7.7-7.7"/>',
@@ -2592,12 +2630,15 @@ function renderListView() {
   renderNav();
   $('#topActions').innerHTML = '<button class="btn btn-secondary" data-act="edit-list" data-list="' + l.id + '" title="Change this list\'s features">' + ico('gear') + '<span class="label">Edit list</span></button>' +
     '<button class="btn btn-primary" data-act="new-item" data-list="' + l.id + '">' + ico('plus') + '<span class="label">New item</span></button>';
-  var mode = l.board && (l.stages || []).length ? (S.listModes[l.id] || 'board') : 'table';
+  var hasBoard = l.board && (l.stages || []).length, feat = l.features || {};
+  var mode = S.listModes[l.id] || (hasBoard ? 'board' : (feat.view === 'cards' ? 'cards' : 'table'));
+  if (mode === 'board' && !hasBoard) mode = 'table';
+  var modes = (hasBoard ? [['board', 'board', 'Board']] : []).concat([['cards', 'grid', 'Cards'], ['table', 'list', 'Table']]);
   var toolbar = '<div class="toolbar">' + searchBox('Search ' + l.name.toLowerCase() + '…') + '<span class="spacer"></span>' +
-    (l.board && (l.stages || []).length ? '<div class="seg">' +
-      '<button type="button" data-list-mode="board" class="' + (mode === 'board' ? 'on' : '') + '">' + ico('board') + 'Board</button>' +
-      '<button type="button" data-list-mode="table" class="' + (mode === 'table' ? 'on' : '') + '">' + ico('list') + 'Table</button></div>' : '') + '</div>';
+    '<div class="seg">' + modes.map(function (m) { return '<button type="button" data-list-mode="' + m[0] + '" class="' + (mode === m[0] ? 'on' : '') + '">' + ico(m[1]) + m[2] + '</button>'; }).join('') + '</div></div>';
+  var lf = listFilterState(l);
   var items = listItems(l.id).filter(function (it) {
+    for (var fk in lf.f) { if (lf.f[fk] !== '' && String((it.values || {})[fk] || '') !== lf.f[fk]) return false; }
     if (!S.q) return true;
     var q = S.q.toLowerCase();
     var hay = [it.title].concat((l.fields || []).map(function (f) {
@@ -2610,10 +2651,100 @@ function renderListView() {
   });
   var html;
   if (!count && mode !== 'board') html = '<div class="card">' + emptyState('Nothing in ' + l.name + ' yet', 'Add your first item. You can change this list\'s features anytime with Edit list.', 'new-item', 'New item').replace('data-act="new-item"', 'data-act="new-item" data-list="' + l.id + '"') + '</div>';
-  else html = mode === 'board' ? listBoard(l, items) : listTable(l, items);
+  else html = (count ? listFilterBar(l, lf, mode) : '') + (mode === 'board' ? listBoard(l, items) : mode === 'cards' ? listCards(l, items, lf) : listTable(l, items));
   $('#view').innerHTML = toolbar + html;
   afterRender();
 }
+/* ---------------- Filters, grouping and cards ---------------- */
+var LIST_PREFS = {};
+try { LIST_PREFS = JSON.parse(localStorage.getItem('os.listPrefs') || '{}'); } catch (e) {}
+function saveListPrefs() { try { localStorage.setItem('os.listPrefs', JSON.stringify(LIST_PREFS)); } catch (e) {} }
+function groupableFields(l) { return (l.fields || []).filter(function (f) { return f.type === 'select' || f.type === 'text' || f.type === 'tags' || f.type === 'customer' || f.type === 'product' || f.type === 'checkbox'; }); }
+function filterFields(l) { return (l.fields || []).filter(function (f) { return f.type === 'select'; }); }
+function listFilterState(l) {
+  var p = LIST_PREFS[l.id] || (LIST_PREFS[l.id] = {});
+  var feat = l.features || {};
+  var gb = p.groupBy !== undefined ? p.groupBy : (feat.groupBy || '');
+  if (gb && !(l.fields || []).some(function (f) { return f.id === gb; })) gb = '';
+  p.f = p.f || {};
+  return { groupBy: gb, f: p.f, p: p };
+}
+function valuesFor(l, fid) {
+  var f = (l.fields || []).find(function (x) { return x.id === fid; }); if (!f) return [];
+  var seen = {}, out = [];
+  listItems(l.id).forEach(function (it) { var v = (it.values || {})[fid]; if (v !== undefined && v !== '' && v !== null && !seen[v]) { seen[v] = 1; out.push(String(v)); } });
+  var opts = f.type === 'select' ? splitOpts(f.options) : [];
+  return out.sort(function (a, b) { var ia = opts.indexOf(a), ib = opts.indexOf(b); if (ia < 0) ia = 999; if (ib < 0) ib = 999; return (ia - ib) || a.localeCompare(b); });
+}
+function listFilterBar(l, lf, mode) {
+  var all = listItems(l.id), h = '';
+  // Big buttons for the main group (e.g. product type)
+  if (lf.groupBy) {
+    var cur = lf.f[lf.groupBy] || '';
+    var vals = valuesFor(l, lf.groupBy);
+    var cnt = function (v) { return all.filter(function (it) { return String((it.values || {})[lf.groupBy] || '') === v; }).length; };
+    h += '<div class="lf-chips">' + '<button type="button" class="lf-chip' + (!cur ? ' on' : '') + '" data-lf="' + esc(lf.groupBy) + '" data-lv="">All <b>' + all.length + '</b></button>' +
+      vals.map(function (v) { return '<button type="button" class="lf-chip' + (cur === v ? ' on' : '') + '" data-lf="' + esc(lf.groupBy) + '" data-lv="' + esc(v) + '">' + esc(v) + ' <b>' + cnt(v) + '</b></button>'; }).join('') + '</div>';
+  }
+  // Smaller dropdown filters for the other pick-list fields, plus "Group by"
+  var others = filterFields(l).filter(function (f) { return f.id !== lf.groupBy && valuesFor(l, f.id).length > 1; });
+  var any = others.some(function (f) { return lf.f[f.id]; }) || (lf.groupBy && lf.f[lf.groupBy]);
+  var nOn = others.filter(function (f) { return lf.f[f.id]; }).length;
+  var openMore = nOn || !(window.matchMedia && window.matchMedia('(max-width: 820px)').matches);
+  h += '<details class="lf-more"' + (openMore ? ' open' : '') + '><summary>' + ico('list') + 'Filters' + (nOn ? ' <b>' + nOn + '</b>' : '') + '</summary><div class="lf-row">' + others.map(function (f) {
+    var v = lf.f[f.id] || '';
+    return '<label class="lf-sel' + (v ? ' on' : '') + '"><span>' + esc(f.name) + '</span><select class="input" data-lfsel="' + esc(f.id) + '"><option value="">Any</option>' +
+      valuesFor(l, f.id).map(function (o) { return '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></label>';
+  }).join('') +
+    (mode !== 'board' ? '<label class="lf-sel"><span>Group by</span><select class="input" data-lgroup><option value="">No groups</option>' + groupableFields(l).map(function (f) {
+      return '<option value="' + esc(f.id) + '"' + (f.id === lf.groupBy ? ' selected' : '') + '>' + esc(f.name) + '</option>'; }).join('') + '</select></label>' : '') +
+    (any ? '<button type="button" class="link-btn" data-lfclear>Clear filters</button>' : '') + '</div></details>';
+  return '<div class="lf">' + h + '</div>';
+}
+function settingCard(l, it, skipId) {
+  var fields = l.fields || [], vals = it.values || {};
+  var imgs = (it.attachments || []).filter(isImage);
+  var chips = fields.filter(function (f) { return f.type === 'select' && f.id !== skipId && vals[f.id]; })
+    .map(function (f) { return fieldDisplay(f, vals[f.id], it, l); }).join('');
+  var stats = fields.filter(function (f) { return f.type === 'number' && vals[f.id] !== undefined && vals[f.id] !== ''; }).slice(0, 6);
+  var rows = fields.filter(function (f) { return f.type !== 'number' && f.type !== 'select' && f.card && f.id !== skipId && vals[f.id] !== undefined && vals[f.id] !== ''; })
+    .map(function (f) { return '<div class="t-field"><span class="muted">' + esc(f.name) + '</span><span>' + fieldDisplay(f, vals[f.id], it, l) + '</span></div>'; }).join('');
+  var notes = (it.log || []).slice().sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
+  var note = notes.filter(function (n) { return !/^From your Zoho sheet/.test(n.text) || n.text.split('".').slice(1).join('".').trim(); })[0];
+  var noteText = note ? String(note.text).replace(/^From your Zoho sheet "[^"]*"\.\s*/, '') : '';
+  return '<article class="sc card" data-item="' + it.id + '">' +
+    (imgs.length ? '<img class="t-photo" data-photo="' + esc(imgs[0].id) + '" alt="">' : '') +
+    '<div class="sc-title">' + esc(it.title || 'Untitled') + '</div>' +
+    (chips ? '<div class="sc-chips">' + chips + '</div>' : '') +
+    (stats.length ? '<div class="sc-stats">' + stats.map(function (f) {
+      return '<div><b>' + esc(num(vals[f.id]).toLocaleString('en-CA')) + '</b><span>' + esc(f.name.replace(/\s*\((mm\/s|mm)\)/, '').replace('Height / focus offset', 'Focus').replace(/^Lines per cm$/, 'Lines/cm').replace(/^Power %$/, 'Power %')) + '</span></div>'; }).join('') + '</div>' : '') +
+    rows + (noteText ? '<div class="sc-note">' + ico('note').replace('class="ico"', 'class="ico" style="width:13px;height:13px;vertical-align:-2px"') + ' ' + esc(noteText.slice(0, 140)) + (noteText.length > 140 ? '…' : '') + '</div>' : '') +
+    '</article>';
+}
+function listCards(l, items, lf) {
+  if (!items.length) return '<div class="card"><p class="empty">No items match.</p></div>';
+  items = items.slice().sort(function (a, b) { return String(a.title).localeCompare(String(b.title), undefined, { numeric: true }); });
+  if (!lf.groupBy) return '<div class="sc-grid">' + items.map(function (it) { return settingCard(l, it, ''); }).join('') + '</div>';
+  var f = (l.fields || []).find(function (x) { return x.id === lf.groupBy; });
+  var order = valuesFor(l, lf.groupBy), groups = {};
+  items.forEach(function (it) { var v = String((it.values || {})[lf.groupBy] || ''); (groups[v] = groups[v] || []).push(it); });
+  var keys = order.filter(function (v) { return groups[v]; }); if (groups['']) keys.push('');
+  return keys.map(function (k) {
+    return '<section class="sc-group"><h3 class="sc-h">' + (k ? esc(f.type === 'customer' || f.type === 'product' ? stripTags(fieldDisplay(f, k, {}, l)) : k) : 'Not set') + ' <span>' + groups[k].length + '</span></h3>' +
+      '<div class="sc-grid">' + groups[k].map(function (it) { return settingCard(l, it, lf.groupBy); }).join('') + '</div></section>';
+  }).join('');
+}
+function stripTags(h) { var d = document.createElement('div'); d.innerHTML = h; return d.textContent; }
+document.addEventListener('click', function (e) {
+  var c = e.target.closest('[data-lf]');
+  if (c) { var l = getList(S.view.slice(5)); if (!l) return; var lf = listFilterState(l); lf.f[c.getAttribute('data-lf')] = c.getAttribute('data-lv'); saveListPrefs(); render(); return; }
+  if (e.target.closest('[data-lfclear]')) { var l2 = getList(S.view.slice(5)); if (!l2) return; listFilterState(l2).p.f = {}; saveListPrefs(); render(); }
+});
+document.addEventListener('change', function (e) {
+  var t = e.target, l = S.view && S.view.indexOf('list:') === 0 ? getList(S.view.slice(5)) : null; if (!l) return;
+  if (t.hasAttribute('data-lfsel')) { listFilterState(l).f[t.getAttribute('data-lfsel')] = t.value; saveListPrefs(); render(); }
+  else if (t.hasAttribute('data-lgroup')) { var lf = listFilterState(l); if (lf.groupBy && lf.groupBy !== t.value) delete lf.f[lf.groupBy]; lf.p.groupBy = t.value; saveListPrefs(); render(); }
+});
 function cardFields(l) { return (l.fields || []).filter(function (f) { return f.card; }); }
 function firstMoney(l) { return (l.fields || []).find(function (f) { return f.type === 'money'; }); }
 function listBoard(l, items) {
