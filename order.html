@@ -403,6 +403,9 @@ $('#cartBtn').addEventListener('click', openCart);
 /* ---------- checkout ---------- */
 var CONTACT = { name: '', email: '', phone: '', delivery: 'pickup', address: '', neededBy: '', notes: '' };
 try { Object.assign(CONTACT, JSON.parse(localStorage.getItem('crg_contact') || '{}')); } catch (e) {}
+CONTACT.delivery = 'pickup'; CONTACT.address = '';   // pickup only: arranged with Sara
+var CONTACT_WAYS = [['messenger', 'Facebook Messenger', 'Your Facebook name'], ['instagram', 'Instagram', 'Your Instagram username'], ['text', 'Text', ''], ['email', 'Email', '']];
+function wayOf(k) { return CONTACT_WAYS.filter(function (w) { return w[0] === k; })[0]; }
 function openCart() {
   if (!CART.length) { closeSheet(); return; }
   var s = CAT.settings || {};
@@ -413,15 +416,16 @@ function openCart() {
   }).join('') +
     '<button class="btn btn-s btn-w" type="button" id="more">+ Add another item</button>' +
     '<div class="sum" style="margin-top:14px"><span>Estimated total</span><span>' + money2(cartTotal()) + '</span></div>' +
-    '<div class="note" style="margin-top:4px">' + esc(s.note || 'Additional customization may cost extra. I\'ll confirm the final price with your proof.') + ' Shipping is added after your proof if needed. You don\'t pay anything until you approve your proof.</div>' +
+    '<div class="note" style="margin-top:4px">' + esc(s.note || 'Additional customization may cost extra. I\'ll confirm the final price with your proof.') + ' You don\'t pay anything until you approve your proof.</div>' +
     '<h3 style="margin:24px 0 4px;font-family:\'Amatic SC\',cursive;font-size:30px;color:var(--forest-800)">Your details</h3>' +
     '<div class="blk" style="margin-top:8px"><label class="lbl" for="cName">Your name <span class="req">*</span></label><input class="input" id="cName" autocomplete="name" value="' + esc(CONTACT.name) + '"></div>' +
     '<div class="row2"><div class="blk"><label class="lbl" for="cEmail">Email <span class="req">*</span></label><input class="input" id="cEmail" type="email" autocomplete="email" inputmode="email" value="' + esc(CONTACT.email) + '"></div>' +
-    '<div class="blk"><label class="lbl" for="cPhone">Phone <small>(optional)</small></label><input class="input" id="cPhone" type="tel" autocomplete="tel" value="' + esc(CONTACT.phone) + '"></div></div>' +
-    '<div class="blk"><span class="lbl">How would you like to get it?</span><div class="seg" id="seg">' + [['pickup', 'Pickup in Kentville'], ['local', 'Local delivery'], ['shipping', 'Shipping']].map(function (o) {
-      return '<label class="' + (CONTACT.delivery === o[0] ? 'on' : '') + '"><input type="radio" name="del" value="' + o[0] + '"' + (CONTACT.delivery === o[0] ? ' checked' : '') + '>' + o[1] + '</label>';
+    '<div class="blk"><label class="lbl" for="cPhone">Phone <small>(optional, needed for Text)</small></label><input class="input" id="cPhone" type="tel" autocomplete="tel" value="' + esc(CONTACT.phone) + '"></div></div>' +
+    '<div class="blk"><span class="lbl">Best way to contact you <span class="req">*</span></span><div class="seg" id="waySeg" style="grid-template-columns:repeat(2,1fr)">' + CONTACT_WAYS.map(function (w) {
+      return '<label class="' + (CONTACT.contactBy === w[0] ? 'on' : '') + '"><input type="radio" name="way" value="' + w[0] + '"' + (CONTACT.contactBy === w[0] ? ' checked' : '') + '>' + w[1] + '</label>';
     }).join('') + '</div></div>' +
-    '<div class="blk" id="addrBlk" style="' + (CONTACT.delivery === 'pickup' ? 'display:none' : '') + '"><label class="lbl" for="cAddr">Address <span class="req">*</span></label><textarea class="input" id="cAddr" autocomplete="street-address" style="min-height:70px">' + esc(CONTACT.address) + '</textarea></div>' +
+    '<div class="blk" id="handleBlk" style="' + (wayOf(CONTACT.contactBy) && wayOf(CONTACT.contactBy)[2] ? '' : 'display:none') + '"><label class="lbl" for="cHandle" id="handleLbl">' + esc((wayOf(CONTACT.contactBy) || [])[2] || '') + ' <span class="req">*</span></label><input class="input" id="cHandle" autocomplete="off" value="' + esc(CONTACT.handle || '') + '"></div>' +
+    '<div class="blk"><span class="lbl">Pickup</span><div class="note" style="margin-top:4px">Once your items are ready, I\'ll get in touch to arrange pickup with you. – Sara</div></div>' +
     '<div class="blk"><label class="lbl" for="cNeed">Need it by? <small>(optional)</small></label><input class="input" id="cNeed" type="date" value="' + esc(CONTACT.neededBy) + '"></div>' +
     '<div class="blk"><label class="lbl" for="cNotes">Anything else? <small>(optional)</small></label><textarea class="input" id="cNotes" placeholder="Colours, special requests, gift message…">' + esc(CONTACT.notes) + '</textarea></div>' +
     '<div class="hp" aria-hidden="true"><label>Website<input id="cWeb" tabindex="-1" autocomplete="off"></label></div>' +
@@ -432,8 +436,9 @@ function openCart() {
 }
 function readContact() {
   if (!$('#cName')) return;
-  CONTACT = { name: $('#cName').value.trim(), email: $('#cEmail').value.trim(), phone: $('#cPhone').value.trim(), delivery: (document.querySelector('input[name=del]:checked') || {}).value || 'pickup', address: $('#cAddr').value.trim(), neededBy: $('#cNeed').value, notes: $('#cNotes').value.trim() };
-  try { localStorage.setItem('crg_contact', JSON.stringify({ name: CONTACT.name, email: CONTACT.email, phone: CONTACT.phone, delivery: CONTACT.delivery, address: CONTACT.address })); } catch (e) {}
+  CONTACT = { name: $('#cName').value.trim(), email: $('#cEmail').value.trim(), phone: $('#cPhone').value.trim(), delivery: 'pickup', address: '', neededBy: $('#cNeed').value, notes: $('#cNotes').value.trim(),
+    contactBy: (document.querySelector('input[name=way]:checked') || {}).value || '', handle: $('#cHandle').value.trim() };
+  try { localStorage.setItem('crg_contact', JSON.stringify({ name: CONTACT.name, email: CONTACT.email, phone: CONTACT.phone, delivery: CONTACT.delivery, address: CONTACT.address, contactBy: CONTACT.contactBy, handle: CONTACT.handle })); } catch (e) {}
 }
 $('#sheet').addEventListener('click', function (e) {
   var t;
@@ -443,22 +448,30 @@ $('#sheet').addEventListener('click', function (e) {
   if (e.target.closest('#sendBtn')) submit();
 });
 $('#sheet').addEventListener('change', function (e) {
-  if (e.target.name === 'del') {
-    Array.prototype.forEach.call(document.querySelectorAll('#seg label'), function (l) { l.classList.toggle('on', l.contains(e.target)); });
-    $('#addrBlk').style.display = e.target.value === 'pickup' ? 'none' : '';
-  }
+  if (e.target.name !== 'way') return;
+  Array.prototype.forEach.call(document.querySelectorAll('#waySeg label'), function (l) { l.classList.toggle('on', l.contains(e.target)); });
+  var w = wayOf(e.target.value);
+  $('#handleBlk').style.display = w && w[2] ? '' : 'none';
+  if (w && w[2]) $('#handleLbl').innerHTML = esc(w[2]) + ' <span class="req">*</span>';
 });
+/** Added to the start of the order notes, so it shows on the order and in the new-order email. */
+function contactLine() {
+  var w = wayOf(CONTACT.contactBy);
+  return 'Best way to contact: ' + w[1] + (w[2] ? ' – ' + CONTACT.handle : CONTACT.contactBy === 'text' ? ' – ' + CONTACT.phone : CONTACT.contactBy === 'email' ? ' – ' + CONTACT.email : '');
+}
 function submit() {
   readContact();
   var err = '';
   if (!CONTACT.name) err = 'Please enter your name.';
   else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(CONTACT.email)) err = 'Please enter a valid email address so I can send your proof.';
-  else if (CONTACT.delivery !== 'pickup' && !CONTACT.address) err = 'Please enter your address.';
+  else if (!wayOf(CONTACT.contactBy)) err = 'Please choose the best way to contact you.';
+  else if (wayOf(CONTACT.contactBy)[2] && !CONTACT.handle) err = 'Please enter ' + wayOf(CONTACT.contactBy)[2].replace(/^Your/, 'your') + '.';
+  else if (CONTACT.contactBy === 'text' && !CONTACT.phone) err = 'Please enter your phone number so I can text you.';
   if (err) { $('#cErr').textContent = err; $('#cErr').scrollIntoView({ block: 'center', behavior: 'smooth' }); return; }
   var btn = $('#sendBtn'); btn.disabled = true; btn.textContent = 'Sending…'; $('#cErr').textContent = '';
   var body = {
     website: $('#cWeb').value, contact: { name: CONTACT.name, email: CONTACT.email, phone: CONTACT.phone, address: CONTACT.address },
-    delivery: CONTACT.delivery, neededBy: CONTACT.neededBy, notes: CONTACT.notes,
+    delivery: CONTACT.delivery, neededBy: CONTACT.neededBy, notes: contactLine() + (CONTACT.notes ? '\n\n' + CONTACT.notes : ''),
     items: CART.map(function (c) {
       var ans = {}; Object.keys(c.answers).forEach(function (k) { var v = c.answers[k]; ans[k] = v && typeof v === 'object' ? { name: v.name, mime: v.mime, data: v.data } : v; });
       return { productId: c.productId, qty: c.qty, design: c.design, variants: c.variants, addons: c.addons, answers: ans };
