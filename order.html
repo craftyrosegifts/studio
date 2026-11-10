@@ -172,6 +172,25 @@ function api(params, body) {
   var opt = body ? { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) } : {};
   return fetch(url, opt).then(function (r) { return r.json(); }).then(function (j) { if (!j.ok) throw new Error(j.error || 'Something went wrong.'); return j.data; });
 }
+/* Each new order gets its own submission ID. A retry of the SAME order (after an error or a lost
+   connection) re-sends the same ID, so it can't be saved twice. Any change to the order, or a
+   successful send, starts a new ID. */
+var PENDING = null;
+function newSubmissionId() {
+  try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
+  return 'S' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 12);
+}
+function sigOf(t) { var h = 0; for (var i = 0; i < t.length; i++) h = ((h << 5) - h + t.charCodeAt(i)) | 0; return t.length + ':' + h; }
+function submissionFor(body) {
+  var sig = sigOf(JSON.stringify(body));
+  if (!PENDING) { try { PENDING = JSON.parse(localStorage.getItem('crg_pending') || 'null'); } catch (e) { PENDING = null; } }
+  if (!PENDING || PENDING.sig !== sig) {
+    PENDING = { id: newSubmissionId(), sig: sig };
+    try { localStorage.setItem('crg_pending', JSON.stringify(PENDING)); } catch (e) {}
+  }
+  return PENDING.id;
+}
+function submissionDone() { PENDING = null; try { localStorage.removeItem('crg_pending'); } catch (e) {} }
 function saveCart() { try { localStorage.setItem('crg_cart', JSON.stringify(CART, function (k, v) { return k === 'data' || k === 'preview' ? undefined : v; })); } catch (e) {} }
 function loadCart() { try { CART = JSON.parse(localStorage.getItem('crg_cart') || '[]') || []; } catch (e) { CART = []; } }
 function prod(id) { return CAT.products.filter(function (p) { return p.id === id; })[0]; }
@@ -445,7 +464,9 @@ function submit() {
       return { productId: c.productId, qty: c.qty, design: c.design, variants: c.variants, addons: c.addons, answers: ans };
     })
   };
+  body.submissionId = submissionFor(body);
   api({ action: 'submit' }, body).then(function (r) {
+    submissionDone();
     CART = []; saveCart(); cartBar();
     openSheet('Thank you!', '<div class="state" style="padding:30px 6px"><h2>Order sent!</h2><p style="color:var(--ink);font-size:16px;line-height:1.6">Your order number is <b>' + esc(r.number) + '</b>.<br>I\'ll email you a proof to approve before anything is made or paid for.</p><p>A copy of your order is on its way to <b>' + esc(CONTACT.email) + '</b>.</p></div>',
       '<button class="btn btn-p btn-w" type="button" id="doneBtn">Done</button>');
