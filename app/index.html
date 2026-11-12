@@ -641,6 +641,13 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .cust-opt.on, .cust-opt:hover { background: var(--sage-100); }
 .cust-opt.new { font-weight: 600; color: var(--forest); border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; }
 .cust-more { padding: 8px 10px; }
+
+/* Phase 2 Step 2A-4: Trash */
+.toast.undo { pointer-events: auto; display: flex; align-items: center; gap: 12px; }
+.toast-undo { background: none; border: 1px solid currentColor; color: inherit; border-radius: 8px; padding: 4px 10px; font: inherit; cursor: pointer; }
+.trash-row { gap: 8px; flex-wrap: wrap; cursor: default; }
+.trash-row .btn { flex: 0 0 auto; }
+.trash-forever { color: var(--st-red); }
 </style>
 
   <style>
@@ -1567,7 +1574,7 @@ function fail(e) {
   console.error(e);
   var msg = (e && e.message) || 'Something went wrong. Please try again.';
   toast(msg, true);
-  if (/changed on another device|deleted on another device/.test(msg)) { clearTimeout(toast._t); toast._t = setTimeout(function () { $('#toast').className = 'toast'; }, 15000); }
+  if (/changed on another device|deleted on another device|moved to Trash on another device/.test(msg)) { clearTimeout(toast._t); toast._t = setTimeout(function () { $('#toast').className = 'toast'; }, 15000); }
 }
 
 function save(table, rec) {
@@ -1575,7 +1582,7 @@ function save(table, rec) {
   var send = Object.assign({}, rec), base = baseFor(rec);
   if (base) send._base = base;
   return call('saveRecord', table, send).catch(function (e) {
-    if (e && /changed on another device|deleted on another device/.test(e.message || '')) reloadAfterConflict(table, rec);
+    if (e && /changed on another device|deleted on another device|moved to Trash on another device/.test(e.message || '')) reloadAfterConflict(table, rec);
     throw e;
   }).then(function (saved) {
     trash.forEach(function (fid) { call('trashPhoto', fid).catch(function () {}); });
@@ -1597,6 +1604,7 @@ function reloadAfterConflict(table, rec) {
   }).catch(function () {});
 }
 function remove(table, id) {
+  if (TRASHABLE[table]) return moveToTrash(table, id);          // Phase 2 Step 2A-4: photos stay until it is deleted for good
   var rec = byId(table, id);
   return call('deleteRecord', table, id).then(function () {
     ((rec && rec.attachments) || []).forEach(function (a) { if (a.kind === 'file') call('trashPhoto', a.id).catch(function () {}); });
@@ -1649,7 +1657,7 @@ function render() {
   };
   $('#topActions').innerHTML = actions[S.view] || '';
   var fn = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers,
-             catalog: renderCatalog, materials: renderMaterials, ideas: renderIdeas }[S.view];
+             catalog: renderCatalog, materials: renderMaterials, ideas: renderIdeas, trash: renderTrash }[S.view];
   if (!fn && S.view === 'expenses' && typeof renderExpenses === 'function') { fn = renderExpenses; $('#topActions').innerHTML = expenseActions(); }
   if (!fn) { S.view = 'dashboard'; fn = renderDashboard; }
   $('#view').innerHTML = fn();
@@ -1857,6 +1865,7 @@ function openOrder(id, stage) {
 function orderForm() {
   var custOpts = S.data.Customers.slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); })
     .map(function (c) { return '<option value="' + c.id + '"' + (c.id === D.customerId ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('');
+  if (D.customerId && !byId('Customers', D.customerId)) custOpts += '<option value="' + esc(D.customerId) + '" selected>' + esc(D.customerName || 'Customer') + ' (in Trash)</option>';   // Phase 2 Step 2A-4
   return '<div class="section-title">Customer</div>' +
     '<div class="field cust-pick"><input class="input" id="oCustSearch" type="text" autocomplete="off" placeholder="Start typing a customer name…" value="' + esc(D.customerName || '') + '">' +
       '<div class="cust-list" id="oCustList" role="listbox" hidden></div>' +
@@ -2028,7 +2037,7 @@ function saveOrder(after) {
   } else {
     D.customerId = custSel;
     var cu = byId('Customers', custSel);
-    D.customerName = cu ? cu.name : '';
+    D.customerName = cu ? cu.name : (custSel && custSel === D.customerId ? D.customerName : '');   // a customer in Trash keeps their name on the order
   }
   var rec = Object.assign({}, D); delete rec._newCustomer;
   step.then(function () { rec.customerId = D.customerId; rec.customerName = D.customerName; return save('Orders', rec); })
@@ -2083,10 +2092,10 @@ function openCustomer(id) {
   if (nb) nb.addEventListener('click', function () { openOrder(null); setOrderCustomer(c.id); });
   var del = $('#dDelete');
   if (del) del.addEventListener('click', function () {
-    if (st.orders.length && !confirm(c.name + ' has ' + st.orders.length + ' order(s). The orders will keep the name but lose the link. Delete anyway?')) return;
-    if (!st.orders.length && !confirm('Delete ' + c.name + '?')) return;
+    if (st.orders.length && !confirm(c.name + ' has ' + st.orders.length + ' order(s): ' + st.orders.map(function (o) { return o.number; }).join(', ') +
+      '.\n\nMove ' + c.name + ' to Trash? The orders stay exactly as they are and keep the customer\'s name; restoring brings the customer back with every order still linked.')) return;
     busy(del, 'Deleting…');
-    remove('Customers', c.id).then(function () { closeDrawer(); render(); toast('Customer deleted'); }).catch(function (e) { unbusy(del); fail(e); });
+    remove('Customers', c.id).then(function () { closeDrawer(); render(); }).catch(function (e) { unbusy(del); fail(e); });
   });
 }
 
@@ -2221,9 +2230,9 @@ function openProduct(id, preset) {
   });
   var del = $('#dDelete');
   if (del) del.addEventListener('click', function () {
-    if (!confirm('Delete ' + p.name + ' from your catalog? Past orders keep their items.')) return;
+    if (!confirm('Move ' + p.name + ' to Trash? It disappears from your catalog and the order form; past orders keep their items. You can restore it for 30 days.')) return;
     busy(del, 'Deleting…');
-    remove('Products', p.id).then(function () { closeDrawer(); render(); toast('Product deleted'); }).catch(function (e) { unbusy(del); fail(e); });
+    remove('Products', p.id).then(function () { closeDrawer(); render(); }).catch(function (e) { unbusy(del); fail(e); });
   });
 }
 
@@ -2264,9 +2273,9 @@ function openMaterial(id) {
   });
   var del = $('#dDelete');
   if (del) del.addEventListener('click', function () {
-    if (!confirm('Delete ' + m.name + '? Products using it will no longer count its cost.')) return;
+    if (!confirm('Move ' + m.name + ' to Trash? While it is in Trash, products using it don\'t count its cost. Stock already taken by orders is kept. You can restore it for 30 days.')) return;
     busy(del, 'Deleting…');
-    remove('Materials', m.id).then(function () { closeDrawer(); render(); toast('Material deleted'); }).catch(function (e) { unbusy(del); fail(e); });
+    remove('Materials', m.id).then(function () { closeDrawer(); render(); }).catch(function (e) { unbusy(del); fail(e); });
   });
 }
 
@@ -2523,13 +2532,90 @@ $('#collapseBtn').addEventListener('click', function () {
   try { localStorage.setItem('os.sidebar', next); } catch (err) {}
 });
 
+/* ---------------- Trash (Phase 2 Step 2A-4) ----------------
+   Deleting a customer, product, material, expense, supplier, list or list item moves it here for 30 days.
+   Restore puts it back exactly as it was; "Delete forever" removes it (and its photos/receipts) for good. */
+var TRASHABLE = { Customers: 1, Products: 1, Materials: 1, Expenses: 1, Suppliers: 1, Lists: 1, ListItems: 1 };
+var TRASH_TYPES = { Customers: 'Customer', Products: 'Product', Materials: 'Material', Expenses: 'Expense', Suppliers: 'Supplier', Lists: 'List', ListItems: 'List item' };
+function trashLabel(t, r) {
+  if (t === 'Expenses') return (r.vendor || 'Expense') + ' · ' + money(r.amount) + (r.date ? ' · ' + niceDate(r.date) : '');
+  if (t === 'ListItems') { var l = byId('Lists', r.listId); return (r.title || 'Untitled') + (l ? ' (' + l.name + ')' : ''); }
+  return r.name || r.title || 'Untitled';
+}
+function trashSub(t, r) {
+  if (t === 'Customers') { var n = S.data.Orders.filter(function (o) { return o.customerId === r.id; }).length; return [r.email, r.phone, n ? n + ' order(s) still linked' : ''].filter(Boolean).join(' · '); }
+  if (t === 'Products') return [r.category, money(r.price)].filter(Boolean).join(' · ');
+  if (t === 'Lists') { var e = (S.trash || []).filter(function (x) { return x.table === 'Lists' && x.record.id === r.id; })[0]; var k = e ? e.items : 0; return k ? k + ' item(s) went with it' : ''; }
+  return '';
+}
+function trashGoneDay(iso) { var d = new Date(String(iso).slice(0, 24)); d.setDate(d.getDate() + 30); return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' }); }
+function renderTrash() {
+  var items = S.trash || [];
+  if (!items.length) return emptyState('Trash is empty', 'Deleted customers, products, materials, expenses, suppliers and lists are kept here for 30 days so you can restore them.');
+  return '<p class="muted" style="margin:0 0 12px">Items stay here for 30 days, then they are removed for good. Your daily backups keep older copies.</p>' +
+    '<div class="card">' + items.map(function (it) {
+      var key = esc(it.table + '|' + it.record.id);
+      return '<div class="list-row trash-row"><div class="grow"><div class="title">' + esc(trashLabel(it.table, it.record)) + '</div>' +
+        '<div class="sub">' + esc(TRASH_TYPES[it.table] || it.table) + ' · deleted ' + esc(niceDate(String(it.deleted).slice(0, 10))) + ' · removed for good ' + esc(trashGoneDay(it.deleted)) +
+        (trashSub(it.table, it.record) ? ' · ' + esc(trashSub(it.table, it.record)) : '') + '</div></div>' +
+        '<button class="btn btn-secondary btn-sm" type="button" data-trash-restore="' + key + '">Restore</button>' +
+        '<button class="btn btn-ghost btn-sm trash-forever" type="button" data-trash-forever="' + key + '">Delete forever</button></div>';
+    }).join('') + '</div>';
+}
+function moveToTrash(table, id) {
+  return call('trashRecord', table, id).then(function (res) {
+    S.data[table] = S.data[table].filter(function (r) { return r.id !== id; });
+    if (table === 'Lists') S.data.ListItems = S.data.ListItems.filter(function (x) { return x.listId !== id; });
+    S.trash = (S.trash || []).filter(function (x) { return !(x.table === table && x.record.id === id); });
+    S.trash.unshift({ table: table, deleted: res.deleted, record: res.record, items: (res.items || []).length });
+    renderNav();
+    toastUndo((TRASH_TYPES[table] || 'Item') + ' moved to Trash', function () { restoreFromTrash(table, id); });
+    return res;
+  });
+}
+function restoreFromTrash(table, id) {
+  return call('restoreRecord', table, id).then(function (res) {
+    var list = S.data[table]; if (!list.some(function (r) { return r.id === id; })) list.push(res.record);
+    (res.items || []).forEach(function (it) { if (!S.data.ListItems.some(function (x) { return x.id === it.id; })) S.data.ListItems.push(it); });
+    S.trash = (S.trash || []).filter(function (x) { return !(x.table === table && x.record.id === id); });
+    render(); toast((TRASH_TYPES[table] || 'Item') + ' restored');
+  }).catch(fail);
+}
+function deleteForeverFromTrash(table, id) {
+  var it = (S.trash || []).filter(function (x) { return x.table === table && x.record.id === id; })[0];
+  if (!confirm('Delete "' + (it ? trashLabel(table, it.record) : 'this item') + '" for good? This can\'t be undone (only your daily backups will still have it). Its photos/receipts go to your Google Drive trash, unless another record also uses them.')) return;
+  call('deleteForever', table, id).then(function (res) {
+    S.trash = (S.trash || []).filter(function (x) { return !(x.table === table && x.record.id === id); });
+    var k = res && res.kept ? res.kept.length : 0;
+    render(); toast('Deleted for good' + (k ? ' · ' + k + ' file(s) kept in Google Drive because another record uses them' : ''));
+  }).catch(fail);
+}
+function toastUndo(msg, undo) {
+  var t = $('#toast');
+  t.innerHTML = esc(msg) + ' <button type="button" class="toast-undo">Undo</button>';
+  t.className = 'toast show undo';
+  var b = t.querySelector('.toast-undo');
+  b.addEventListener('click', function () { t.className = 'toast'; undo(); }, { once: true });
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function () { t.className = 'toast'; }, 7000);
+}
+document.addEventListener('DOMContentLoaded', function () {   // added last, so Trash sits at the end of the menu
+  if (!VIEWS.some(function (v) { return v.key === 'trash'; })) VIEWS.push({ key: 'trash', label: 'Trash', icon: 'trash', sub: 'Deleted items are kept here for 30 days' });
+  try { renderNav(); } catch (e) {}
+});
+document.addEventListener('click', function (e) {
+  var r = e.target.closest('[data-trash-restore]'), f = e.target.closest('[data-trash-forever]');
+  if (r) { var a = r.getAttribute('data-trash-restore').split('|'); restoreFromTrash(a[0], a[1]); }
+  if (f) { var b = f.getAttribute('data-trash-forever').split('|'); deleteForeverFromTrash(b[0], b[1]); }
+});
+
 /* ---------------- Customer picker on the order form ----------------
    Type to find a customer (name, phone or email); "+ Add a new customer" is always first.
    The hidden select keeps holding the choice, so saving works exactly as before. */
 function setOrderCustomer(id, newName) {
   var sel = $('#oCustomer'), inp = $('#oCustSearch'); if (!sel) return;
   sel.value = id || '';
-  if (inp) { var c = id && id !== '__new' ? byId('Customers', id) : null; inp.value = c ? c.name : (id === '__new' ? '' : inp.value); }
+  if (inp) { var opt = sel.options[sel.selectedIndex]; inp.value = id && id !== '__new' && opt ? opt.text.replace(/ \(in Trash\)$/, '') : (id === '__new' ? '' : inp.value); }
   sel.dispatchEvent(new Event('change', { bubbles: true }));
   if (id === '__new' && newName && $('#ncName')) $('#ncName').value = newName;
 }
@@ -2578,8 +2664,8 @@ function bindCustomerPicker() {
     setTimeout(function () {
       list.hidden = true;
       var sel = $('#oCustomer'); if (!sel) return;
-      var c = byId('Customers', sel.value);
-      if (sel.value !== '__new') inp.value = c ? c.name : '';                    // never leave text that isn't the chosen customer
+      var opt = sel.options[sel.selectedIndex];
+      if (sel.value !== '__new') inp.value = sel.value && opt ? opt.text.replace(/ \(in Trash\)$/, '') : '';   // never leave text that isn't the chosen customer
     }, 150);
   });
 }
@@ -2716,7 +2802,7 @@ function openGlobalSearch() {
   paintIcons();
   try {
     var sb = localStorage.getItem('os.sidebar'); if (sb) $('#app').setAttribute('data-sidebar', sb);
-    var v = localStorage.getItem('os.view'); if (v && (VIEWS.some(function (x) { return x.key === v; }) || v.indexOf('list:') === 0 || v === 'expenses')) S.view = v;
+    var v = localStorage.getItem('os.view'); if (v && (VIEWS.some(function (x) { return x.key === v; }) || v.indexOf('list:') === 0 || v === 'expenses' || v === 'trash')) S.view = v;
   } catch (e) {}
   call('getAll').then(function (data) {
     Object.keys(S.data).forEach(function (k) { S.data[k] = data[k] || []; });
@@ -2724,6 +2810,7 @@ function openGlobalSearch() {
     S.settings = data.settings || {};
     S.expenseCategories = data.expenseCategories || [];
     S.stripe = data.stripe || null;
+    S.trash = data.trash || [];
     $('#sheetLink').href = data.dataUrl;
     render();
     $('#loading').classList.add('hide');
@@ -3122,9 +3209,9 @@ function openItem(listId, id, stage) {
   });
   var del = $('#dDelete');
   if (del) del.addEventListener('click', function () {
-    if (!confirm('Delete "' + (src.title || 'this item') + '"? Its attachments will go to your Google Drive trash.')) return;
+    if (!confirm('Move "' + (src.title || 'this item') + '" to Trash? Its attachments are kept. You can restore it for 30 days.')) return;
     busy(del, 'Deleting…');
-    remove('ListItems', src.id).then(function () { closeDrawer(); render(); toast('Deleted'); }).catch(function (e) { unbusy(del); fail(e); });
+    remove('ListItems', src.id).then(function () { closeDrawer(); render(); }).catch(function (e) { unbusy(del); fail(e); });
   });
 }
 
@@ -3253,15 +3340,10 @@ function openListEditor(id, preset) {
   var del = $('#dDelete');
   if (del) del.addEventListener('click', function () {
     var n = listItems(src.id).length;
-    if (!confirm('Delete the "' + src.name + '" list' + (n ? ' and its ' + n + ' item(s)' : '') + '? This can\'t be undone.')) return;
+    if (!confirm('Move the "' + src.name + '" list' + (n ? ' and its ' + n + ' item(s)' : '') + ' to Trash? You can restore it, with its items, for 30 days.')) return;
     busy(del, 'Deleting…');
-    var files = [];
-    listItems(src.id).forEach(function (it) { (it.attachments || []).forEach(function (a) { if (a.kind === 'file') files.push(a.id); }); });
-    call('deleteList', src.id).then(function () {
-      files.forEach(function (fid) { call('trashPhoto', fid).catch(function () {}); });
-      S.data.Lists = S.data.Lists.filter(function (x) { return x.id !== src.id; });
-      S.data.ListItems = S.data.ListItems.filter(function (x) { return x.listId !== src.id; });
-      closeDrawer(); go('dashboard'); toast('List deleted');
+    remove('Lists', src.id).then(function () {                     // Phase 2 Step 2A-4: Trash (list and items together)
+      closeDrawer(); go('dashboard');
     }).catch(function (e) { unbusy(del); fail(e); });
   });
 }
@@ -4028,17 +4110,17 @@ function openExpense(id) {
   });
   var del = $('#dDelete');
   if (del) del.addEventListener('click', function () {
-    if (!confirm('Delete this ' + money(src.amount) + ' expense from ' + (src.vendor || 'this company') + '? Its receipts will go to your Google Drive trash.')) return;
+    if (!confirm('Move this ' + money(src.amount) + ' expense from ' + (src.vendor || 'this company') + ' to Trash? It is left out of your totals and reports; its receipts are kept. You can restore it for 30 days.')) return;
     busy(del, 'Deleting…');
-    call('deleteExpense', src.id).then(function () {
-      S.data.Expenses = S.data.Expenses.filter(function (x) { return x.id !== src.id; });
-      closeDrawer(); render(); toast('Expense deleted');
+    remove('Expenses', src.id).then(function () {                 // Phase 2 Step 2A-4: Trash
+      closeDrawer(); render();
     }).catch(function (e) { unbusy(del); fail(e); });
   });
 }
 function refreshData() {
   return call('getAll').then(function (data) {
     Object.keys(S.data).forEach(function (k) { S.data[k] = data[k] || []; });
+    S.trash = data.trash || S.trash;
     S.settings = data.settings || S.settings;
     S.expenseCategories = data.expenseCategories || S.expenseCategories;
   });
@@ -4291,9 +4373,9 @@ function openMaterial(id, presetSupplier) {
   });
   var del = $('#dDelete');
   if (del) del.addEventListener('click', function () {
-    if (!confirm('Delete ' + m.name + '? Products using it will no longer count its cost.')) return;
+    if (!confirm('Move ' + m.name + ' to Trash? While it is in Trash, products using it don\'t count its cost. Stock already taken by orders is kept. You can restore it for 30 days.')) return;
     busy(del, 'Deleting…');
-    remove('Materials', m.id).then(function () { closeDrawer(); render(); toast('Material deleted'); }).catch(function (e) { unbusy(del); fail(e); });
+    remove('Materials', m.id).then(function () { closeDrawer(); render(); }).catch(function (e) { unbusy(del); fail(e); });
   });
 }
 
@@ -4333,9 +4415,9 @@ function openSupplier(name) {
   });
   var del = $('#dDelete');
   if (del) del.addEventListener('click', function () {
-    if (!confirm('Remove ' + src.name + ' and its shop link? Its materials stay, still marked with this supplier name.')) return;
+    if (!confirm('Move ' + src.name + ' to Trash? Its materials stay, still marked with this supplier name. You can restore it for 30 days.')) return;
     busy(del, 'Deleting…');
-    remove('Suppliers', src.id).then(function () { closeDrawer(); render(); toast('Supplier removed'); }).catch(function (e) { unbusy(del); fail(e); });
+    remove('Suppliers', src.id).then(function () { closeDrawer(); render(); }).catch(function (e) { unbusy(del); fail(e); });
   });
 }
 
