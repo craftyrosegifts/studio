@@ -1526,9 +1526,26 @@ function itemsSummary(o) {
 function call(fn) {
   var args = Array.prototype.slice.call(arguments, 1);
   return new Promise(function (resolve, reject) {
-    var r = google.script.run.withSuccessHandler(resolve).withFailureHandler(function (e) { reject(e); });
+    var r = google.script.run.withSuccessHandler(function (res) { rememberVersions(res); resolve(res); }).withFailureHandler(function (e) { reject(e); });
     r[fn].apply(r, args);
   });
+}
+/* Phase 2 Step 2A-3: remember every record exactly as it arrived from the spreadsheet (by id + version), so a save can
+   tell the server what the record looked like when editing started. The server then keeps changes made meanwhile on
+   another device instead of overwriting them. */
+var VERSIONS = {}, VERSION_COUNT = 0;
+function rememberVersions(res, depth) {
+  try {
+    if (!res || typeof res !== 'object' || (depth || 0) > 1) return;
+    if (Array.isArray(res)) { res.forEach(function (r) { if (r && typeof r === 'object' && r.id && r.updated) { VERSIONS[r.id + '|' + r.updated] = JSON.stringify(r); VERSION_COUNT++; } }); return; }
+    if (res.id && res.updated) { VERSIONS[res.id + '|' + res.updated] = JSON.stringify(res); VERSION_COUNT++; return; }
+    Object.keys(res).forEach(function (k) { if (Array.isArray(res[k]) || (res[k] && typeof res[k] === 'object' && res[k].id)) rememberVersions(res[k], (depth || 0) + 1); });
+    if (VERSION_COUNT > 60000) { VERSIONS = {}; VERSION_COUNT = 0; }
+  } catch (e) {}
+}
+function baseFor(rec) {
+  var v = rec && rec.id && rec.updated && VERSIONS[rec.id + '|' + rec.updated];
+  return v ? JSON.parse(v) : undefined;
 }
 function toast(msg, isErr) {
   var t = $('#toast');
@@ -1537,11 +1554,21 @@ function toast(msg, isErr) {
   clearTimeout(toast._t);
   toast._t = setTimeout(function () { t.className = 'toast'; }, isErr ? 5000 : 2200);
 }
-function fail(e) { console.error(e); toast((e && e.message) || 'Something went wrong. Please try again.', true); }
+function fail(e) {
+  console.error(e);
+  var msg = (e && e.message) || 'Something went wrong. Please try again.';
+  toast(msg, true);
+  if (/changed on another device|deleted on another device/.test(msg)) { clearTimeout(toast._t); toast._t = setTimeout(function () { $('#toast').className = 'toast'; }, 15000); }
+}
 
 function save(table, rec) {
   var trash = rec._trash || []; delete rec._trash;
-  return call('saveRecord', table, rec).then(function (saved) {
+  var send = Object.assign({}, rec), base = baseFor(rec);
+  if (base) send._base = base;
+  return call('saveRecord', table, send).catch(function (e) {
+    if (e && /changed on another device|deleted on another device/.test(e.message || '')) reloadAfterConflict(table, rec);
+    throw e;
+  }).then(function (saved) {
     trash.forEach(function (fid) { call('trashPhoto', fid).catch(function () {}); });
     if (table === 'Orders' && typeof afterOrderSaved === 'function') setTimeout(afterOrderSaved, 0);
     var list = S.data[table];
@@ -1552,6 +1579,13 @@ function save(table, rec) {
     }
     return saved;
   });
+}
+/** Phase 2 Step 2A-3: after a clash, show the latest copy (and close the form so nothing stale can be saved again). */
+function reloadAfterConflict(table, rec) {
+  if (table === 'Orders' && D && D.id === rec.id) closeDrawer();
+  call('getTable', table).then(function (rows) {
+    S.data[table] = rows; render();
+  }).catch(function () {});
 }
 function remove(table, id) {
   var rec = byId(table, id);
@@ -1829,6 +1863,7 @@ function orderForm() {
       DELIVERY.map(function (d) { return '<option' + (d === D.delivery ? ' selected' : '') + '>' + d + '</option>'; }).join('') + '</select></div>' +
     '<div class="field" id="trackWrap"><label>Tracking number</label><input class="input" id="oTracking" value="' + esc(D.tracking || '') + '"></div></div>' +
     '<div class="field"><label class="check"><input type="checkbox" id="oPaid"' + (D.paid ? ' checked' : '') + '> Paid in full</label></div>' +
+    orderDateFields() +
     '<div class="field"><label>Online payment link <span class="muted">(optional — Stripe)</span></label><input class="input" type="url" id="oPayLink" value="' + esc(D.paymentLink || '') + '" placeholder="https://"></div>' +
 
     '<div class="section-title">Items</div>' +
@@ -1962,6 +1997,8 @@ function saveOrder(after) {
   D.delivery = $('#oDelivery').value;
   D.tracking = D.delivery === 'Shipping' ? $('#oTracking').value.trim() : '';
   D.paid = $('#oPaid').checked;
+  if (D.paid && $('#oDatePaid')) D.datePaid = $('#oDatePaid').value;                       // Phase 2 Step 2A-3
+  if (D.stage === DONE && $('#oDateDone')) D.dateCompleted = $('#oDateDone').value;
   D.paymentLink = $('#oPayLink').value.trim();
   if (D.paymentLink && !/^https?:\/\//i.test(D.paymentLink)) D.paymentLink = 'https://' + D.paymentLink;
   D.notes = $('#oNotes').value;
@@ -2473,6 +2510,27 @@ $('#collapseBtn').addEventListener('click', function () {
   var next = app.getAttribute('data-sidebar') === 'collapsed' ? 'expanded' : 'collapsed';
   app.setAttribute('data-sidebar', next);
   try { localStorage.setItem('os.sidebar', next); } catch (err) {}
+});
+
+/* ---------------- Date paid / date completed (Phase 2 Step 2A-3) ----------------
+   Filled in automatically when the order is saved as paid / Delivered/Shipped. You can change them; your date is kept.
+   Orders paid or finished before these dates existed show "unknown" (no date is made up). */
+function orderDateFields() {
+  var today = todayStr();
+  var unknownPaid = D.id && D.paid && !D.datePaid, unknownDone = D.id && D.stage === DONE && !D.dateCompleted;
+  return '<div class="row">' +
+    '<div class="field" id="dpWrap"' + (D.paid ? '' : ' style="display:none"') + '><label>Date paid</label>' +
+      '<input class="input" type="date" id="oDatePaid" max="' + today + '" value="' + esc(D.datePaid || '') + '">' +
+      '<div class="muted small" id="dpHint">' + (unknownPaid ? 'Unknown: paid before dates were recorded. Add it if you know it.' : (D.datePaid ? '' : 'Filled in with today\'s date when you save, unless you pick another day.')) + '</div></div>' +
+    '<div class="field" id="dcWrap"' + (D.stage === DONE ? '' : ' style="display:none"') + '><label>Date completed</label>' +
+      '<input class="input" type="date" id="oDateDone" max="' + today + '" value="' + esc(D.dateCompleted || '') + '">' +
+      '<div class="muted small" id="dcHint">' + (unknownDone ? 'Unknown: finished before dates were recorded. Add it if you know it.' : (D.dateCompleted ? '' : 'Filled in with today\'s date when you save, unless you pick another day.')) + '</div></div>' +
+    '</div>';
+}
+document.addEventListener('change', function (e) {
+  var id = e.target && e.target.id;
+  if (id === 'oPaid' && $('#dpWrap')) $('#dpWrap').style.display = e.target.checked ? '' : 'none';
+  if (id === 'oStage' && $('#dcWrap')) $('#dcWrap').style.display = e.target.value === DONE ? '' : 'none';
 });
 
 /* ---------------- Global search (Phase 2 Step 2A-1) ----------------
