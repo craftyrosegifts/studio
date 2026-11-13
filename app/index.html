@@ -2005,9 +2005,9 @@ function bindOrderForm() {
   $('#dSave').addEventListener('click', function () { saveOrder(); });
   var del = $('#dDelete');
   if (del) del.addEventListener('click', function () {
-    if (!confirm('Delete order ' + D.number + '? This can\'t be undone.')) return;
+    if (!confirm('Move order ' + D.number + ' to Trash?' + (D.stockUsed && Object.keys(D.stockUsed).length ? ' The materials it took go back into stock.' : '') + ' You can restore it from Trash for 30 days.')) return;
     busy(del, 'Deleting…');
-    remove('Orders', D.id).then(function () { closeDrawer(); render(); toast('Order deleted'); }).catch(function (e) { unbusy(del); fail(e); });
+    remove('Orders', D.id).then(function () { closeDrawer(); render(); }).catch(function (e) { unbusy(del); fail(e); });   // Phase 2 Step 2A-5: Trash, with Undo
   });
 }
 function saveOrder(after) {
@@ -2535,23 +2535,26 @@ $('#collapseBtn').addEventListener('click', function () {
 /* ---------------- Trash (Phase 2 Step 2A-4) ----------------
    Deleting a customer, product, material, expense, supplier, list or list item moves it here for 30 days.
    Restore puts it back exactly as it was; "Delete forever" removes it (and its photos/receipts) for good. */
-var TRASHABLE = { Customers: 1, Products: 1, Materials: 1, Expenses: 1, Suppliers: 1, Lists: 1, ListItems: 1 };
-var TRASH_TYPES = { Customers: 'Customer', Products: 'Product', Materials: 'Material', Expenses: 'Expense', Suppliers: 'Supplier', Lists: 'List', ListItems: 'List item' };
+var TRASHABLE = { Orders: 1, Customers: 1, Products: 1, Materials: 1, Expenses: 1, Suppliers: 1, Lists: 1, ListItems: 1 };   // Orders: Phase 2 Step 2A-5
+var TRASH_TYPES = { Orders: 'Order', Customers: 'Customer', Products: 'Product', Materials: 'Material', Expenses: 'Expense', Suppliers: 'Supplier', Lists: 'List', ListItems: 'List item' };
 function trashLabel(t, r) {
+  if (t === 'Orders') return (r.number || 'Order') + ' · ' + (r.customerName || 'No customer') + ' · ' + money(r.total);
   if (t === 'Expenses') return (r.vendor || 'Expense') + ' · ' + money(r.amount) + (r.date ? ' · ' + niceDate(r.date) : '');
   if (t === 'ListItems') { var l = byId('Lists', r.listId); return (r.title || 'Untitled') + (l ? ' (' + l.name + ')' : ''); }
   return r.name || r.title || 'Untitled';
 }
 function trashSub(t, r) {
+  if (t === 'Orders') return [r.stage, r.paid ? 'paid' : 'unpaid', trashOrderStock(r) ? 'stock was returned' : ''].filter(Boolean).join(' · ');
   if (t === 'Customers') { var n = S.data.Orders.filter(function (o) { return o.customerId === r.id; }).length; return [r.email, r.phone, n ? n + ' order(s) still linked' : ''].filter(Boolean).join(' · '); }
   if (t === 'Products') return [r.category, money(r.price)].filter(Boolean).join(' · ');
   if (t === 'Lists') { var e = (S.trash || []).filter(function (x) { return x.table === 'Lists' && x.record.id === r.id; })[0]; var k = e ? e.items : 0; return k ? k + ' item(s) went with it' : ''; }
   return '';
 }
+function trashOrderStock(r) { return (r.log || []).some(function (l) { return l && l.stockReturned && Object.keys(l.stockReturned).length && Math.abs(new Date(l.trashedAt).getTime() - new Date(String(r.deleted).slice(0, 24)).getTime()) < 1000; }); }
 function trashGoneDay(iso) { var d = new Date(String(iso).slice(0, 24)); d.setDate(d.getDate() + 30); return d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' }); }
 function renderTrash() {
   var items = S.trash || [];
-  if (!items.length) return emptyState('Trash is empty', 'Deleted customers, products, materials, expenses, suppliers and lists are kept here for 30 days so you can restore them.');
+  if (!items.length) return emptyState('Trash is empty', 'Deleted orders, customers, products, materials, expenses, suppliers and lists are kept here for 30 days so you can restore them.');
   return '<p class="muted" style="margin:0 0 12px">Items stay here for 30 days, then they are removed for good. Your daily backups keep older copies.</p>' +
     '<div class="card">' + items.map(function (it) {
       var key = esc(it.table + '|' + it.record.id);
@@ -2569,7 +2572,9 @@ function moveToTrash(table, id) {
     S.trash = (S.trash || []).filter(function (x) { return !(x.table === table && x.record.id === id); });
     S.trash.unshift({ table: table, deleted: res.deleted, record: res.record, items: (res.items || []).length });
     renderNav();
-    toastUndo((TRASH_TYPES[table] || 'Item') + ' moved to Trash', function () { restoreFromTrash(table, id); });
+    if (table === 'Orders' && typeof afterOrderSaved === 'function') afterOrderSaved();   // stock may have changed
+    var back = res.stock && res.stock.returned ? Object.keys(res.stock.returned).length : 0;
+    toastUndo((TRASH_TYPES[table] || 'Item') + ' moved to Trash' + (back ? ' · stock returned' : ''), function () { restoreFromTrash(table, id); });
     return res;
   });
 }
@@ -2578,7 +2583,13 @@ function restoreFromTrash(table, id) {
     var list = S.data[table]; if (!list.some(function (r) { return r.id === id; })) list.push(res.record);
     (res.items || []).forEach(function (it) { if (!S.data.ListItems.some(function (x) { return x.id === it.id; })) S.data.ListItems.push(it); });
     S.trash = (S.trash || []).filter(function (x) { return !(x.table === table && x.record.id === id); });
-    render(); toast((TRASH_TYPES[table] || 'Item') + ' restored');
+    var st = res.stock || {}, taken = st.taken ? Object.keys(st.taken).length : 0;
+    if (table === 'Orders' && typeof afterOrderSaved === 'function') afterOrderSaved();   // stock may have changed
+    render(); toast((TRASH_TYPES[table] || 'Item') + ' restored' + (taken ? ' · stock taken out again' : ''));
+    var warn = [];
+    if (st.missing && st.missing.length) warn.push('These materials no longer exist, so their stock was not taken out: ' + st.missing.join(', ') + '.');
+    if (st.below && st.below.length) warn.push('Stock is now below zero for: ' + st.below.join(', ') + '.');
+    if (warn.length) alert((TRASH_TYPES[table] || 'Item') + ' restored.\n\n' + warn.join('\n\n'));
   }).catch(fail);
 }
 function deleteForeverFromTrash(table, id) {
