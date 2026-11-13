@@ -648,6 +648,24 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .trash-row { gap: 8px; flex-wrap: wrap; cursor: default; }
 .trash-row .btn { flex: 0 0 auto; }
 .trash-forever { color: var(--st-red); }
+/* Customer message templates (Phase 2 Step 2B-1) */
+.msg-to { background: var(--sage-50); border: 1px solid var(--sage-200); border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; }
+.msg-to .title { font-weight: 700; }
+.msg-to .sub { font-size: 13px; margin-top: 3px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; overflow-wrap: anywhere; }
+.msg-to .sub .ico svg { width: 14px; height: 14px; }
+.msg-dot { margin: 0 4px; }
+.msg-text { min-height: 260px; line-height: 1.5; font-size: 15px; white-space: pre-wrap; resize: vertical; }
+.msg-notes { display: grid; gap: 6px; }
+.msg-warn { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--st-amber); font-weight: 600; }
+.msg-warn .ico svg { width: 16px; height: 16px; }
+.tpl-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-btn { border: 1px solid var(--sage-200); background: var(--white); color: var(--forest); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-family: inherit; cursor: pointer; }
+.chip-btn:hover { background: var(--sage-100); }
+.tpl-preview { white-space: pre-wrap; font-family: inherit; font-size: 14px; line-height: 1.5; background: var(--sage-50); border: 1px dashed var(--sage-200); border-radius: 12px; padding: 12px; margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 820px) {
+  .msg-text { min-height: 300px; font-size: 16px; }
+  #drawerFoot #msgEditTpl, #drawerFoot #tplReset { padding: 0 8px; }
+}
 </style>
 
   <style>
@@ -1899,7 +1917,8 @@ function orderForm() {
 }
 function orderFoot(existing) {
   return (existing ? '<button class="btn btn-danger" type="button" id="dDelete">' + ico('trash') + 'Delete</button>' : '') +
-    '<span class="spacer"></span>' + (existing ? '<button class="btn btn-secondary" type="button" id="dInvoice">' + ico('file') + 'Invoice</button>' : '') +
+    '<span class="spacer"></span>' + (existing ? '<button class="btn btn-secondary" type="button" id="dMessage" title="Write a message to this customer from a template">' + ico('chat') + 'Message</button>' : '') +
+    (existing ? '<button class="btn btn-secondary" type="button" id="dInvoice">' + ico('file') + 'Invoice</button>' : '') +
     '<button class="btn btn-secondary" type="button" data-close>Cancel</button>' +
     '<button class="btn btn-primary" type="button" id="dSave">Save order</button>';
 }
@@ -2829,6 +2848,263 @@ function openGlobalSearch() {
     $('#loading').innerHTML = '<p style="color:var(--st-red);max-width:420px;text-align:center">Couldn\'t open your data: ' + esc((e && e.message) || e) + '</p>';
   });
 })();
+/* ---------------- Customer message templates (Phase 2 Step 2B-1) ----------------
+   "Message" on an order opens a ready-to-send draft from one of 12 templates, filled in from the order.
+   Everything stays editable. Nothing is ever sent by the app: Copy puts the text on the clipboard, and Text
+   (when the customer has a phone number) only opens the phone's messages app with the text filled in.
+   Sara's own wording for a template is kept in the "Templates" tab; "Reset to original" removes it again. */
+Object.assign(ICONS, {
+  chat: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12z"/>',
+  phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+  chevronLeft: '<path d="m15 18-6-6 6-6"/>',
+  edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  copy: '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>'
+});
+var MSG_TEMPLATES = [
+  { key: 'inquiry', title: 'Inquiry received', body:
+    'Hi {firstName}!\n\nThank you so much for reaching out to {businessName}. I got your request (order {orderNumber}) and I\'m excited to help with it.\n\nI\'ll take a look and get back to you soon with any questions and a price.\n\nTalk soon,\n{signature}' },
+  { key: 'moreinfo', title: 'Request for more information', body:
+    'Hi {firstName}!\n\nThanks again for your order request ({orderNumber}). Before I get started, I just need a few more details:\n\n- [question]\n- [question]\n\nOnce I have those, I\'ll get everything ready for you.\n\nThank you!\n{signature}' },
+  { key: 'quote', title: 'Quote / estimate', body:
+    'Hi {firstName}!\n\nHere\'s the price for your order {orderNumber}:\n{items}\n\nTotal: {total}\n\nLet me know if you\'d like to go ahead, or if you\'d like to change anything. I\'m happy to help!\n\n{signature}' },
+  { key: 'confirm', title: 'Quote approval / order confirmation', body:
+    'Hi {firstName}!\n\nGreat news, your order {orderNumber} is confirmed!\n\nHere\'s what I\'ll be making for you:\n{items}\n\nTotal: {total}\nI\'ll have it ready by {dueDate}.\nYou can pay by {paymentOptions}.\nOr pay online here: {paymentLink}\n\nThank you so much for supporting my small business!\n{signature}' },
+  { key: 'payreminder', title: 'Payment reminder', body:
+    'Hi {firstName}!\n\nJust a friendly reminder that order {orderNumber} ({amountDue}) hasn\'t been paid yet.\nYou can pay by {paymentOptions}.\nOr pay online here: {paymentLink}\n\nIf you\'ve already sent it, thank you, and please ignore this message!\n\n{signature}' },
+  { key: 'paid', title: 'Payment received', body:
+    'Hi {firstName}!\n\nThank you, I\'ve received your payment for order {orderNumber} ({total}). You\'re all set!\n\n{signature}' },
+  { key: 'making', title: 'Order being made', body:
+    'Hi {firstName}!\n\nJust a quick update: I\'ve started working on your order {orderNumber}!\nI\'m aiming to have it ready by {dueDate}.\n\nI\'ll let you know as soon as it\'s done.\n\n{signature}' },
+  { key: 'ready', title: 'Ready for pickup', body:
+    'Hi {firstName}!\n\nYour order {orderNumber} is ready! 🎉\n\nLet me know a day and time that works for you to pick it up.\nAmount due at pickup: {amountDue}\n\nThank you!\n{signature}' },
+  { key: 'shipped', title: 'Order shipped', body:
+    'Hi {firstName}!\n\nYour order {orderNumber} is on its way! 📦\nTracking number: {tracking}\n\nI hope you love it!\n{signature}' },
+  { key: 'delay', title: 'Delay or unexpected issue', body:
+    'Hi {firstName}!\n\nI wanted to let you know that your order {orderNumber} is going to take a little longer than planned. [What happened]\n\nI\'m now expecting to have it ready by [new date]. I\'m so sorry for the wait, and thank you for your patience!\n\n{signature}' },
+  { key: 'thanks', title: 'Thank-you message', body:
+    'Hi {firstName}!\n\nThank you so much for your order! I really hope you love it!\n\nIt means so much to me when people support my small business. 🌹\n\n{signature}' },
+  { key: 'feedback', title: 'Feedback / review request', body:
+    'Hi {firstName}!\n\nI hope you\'re enjoying your order! If you have a minute, I\'d love to hear what you think.\n\nA quick review or a photo tagged on Instagram ({instagram}) or Facebook ({facebook}) means the world to a small business like mine.\n\nThank you again!\n{signature}' }
+];
+var MSG_FIELDS = [
+  ['firstName', 'Customer first name'], ['customerName', 'Customer full name'], ['orderNumber', 'Order number'],
+  ['items', 'Items with prices (one per line)'], ['itemNames', 'Item names in a sentence'], ['total', 'Order total'],
+  ['amountDue', 'Amount still to pay (left out when paid)'], ['dueDate', 'Due date'], ['paymentOptions', 'Ways to pay (left out when paid)'],
+  ['paymentLink', 'Online payment link (left out when paid)'], ['tracking', 'Tracking number'], ['businessName', 'Business name'],
+  ['signature', 'Your signature'], ['instagram', 'Instagram'], ['facebook', 'Facebook']
+];
+var MSG = { orderId: null, key: null, edited: false };
+function msgDefault(key) { return MSG_TEMPLATES.filter(function (t) { return t.key === key; })[0]; }
+function msgSaved(key) { return ((S.data && S.data.Templates) || []).filter(function (r) { return r.id === key && String(r.body || '').trim(); })[0]; }
+function msgBody(key) { var s = msgSaved(key); return s ? String(s.body) : msgDefault(key).body; }
+function msgLongDate(s) {
+  if (!/^\d{4}-\d{2}-\d{2}/.test(String(s || ''))) return '';
+  var p = String(s).slice(0, 10).split('-'), d = new Date(+p[0], +p[1] - 1, +p[2]);
+  return d.toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+function msgList(names, word) { return names.length <= 1 ? (names[0] || '') : names.slice(0, -1).join(', ') + ' ' + (word || 'and') + ' ' + names[names.length - 1]; }
+/** Every value a template can use, from the order (and its customer and the business settings). Empty = not known. */
+function msgValues(o) {
+  var cu = o.customerId ? byId('Customers', o.customerId) : null, st = S.settings || {};
+  var name = String((cu && cu.name) || o.customerName || '').trim();
+  var c = calcOrder(o), items = (o.items || []).filter(function (it) { return it.name || num(it.unitPrice); });
+  var pay = [];
+  if (st.payEtransfer) pay.push('e-Transfer' + (st.etransferEmail ? ' to ' + st.etransferEmail : ''));
+  if (st.payCash) pay.push('cash');
+  if (st.payCard) pay.push('card');
+  return {
+    firstName: name ? name.split(/\s+/)[0] : 'there',
+    customerName: name,
+    orderNumber: o.number || '',
+    items: items.map(function (it) {
+      var add = (it.addons || []).filter(function (a) { return a.label; }).map(function (a) { return a.label; });
+      return '• ' + (num(it.qty) > 1 ? num(it.qty) + ' × ' : '') + (it.name || 'Item') + (add.length ? ' (' + add.join(', ') + ')' : '') + ' – ' + money(itemTotal(it));
+    }).join('\n'),
+    itemNames: msgList(items.map(function (it) { return String(it.name || 'item').trim(); })) || 'order',
+    total: items.length || num(o.total) ? money(items.length ? c.total : o.total) : '',
+    amountDue: o.paid ? '' : (items.length || num(o.total) ? money(items.length ? c.total : o.total) : ''),
+    dueDate: msgLongDate(o.dueDate),
+    paymentOptions: o.paid ? '' : msgList(pay, 'or'),          // a paid order never gets payment instructions
+    paymentLink: o.paid ? '' : String(o.paymentLink || ''),
+    tracking: String(o.tracking || '').trim(),
+    businessName: st.businessName || 'Crafty Rose Gifts',
+    signature: st.signature || '',
+    instagram: st.instagram || '', facebook: st.facebook || ''
+  };
+}
+/** Fill a template. A detail in brackets, like "({total})", is simply left out when the order doesn't have it;
+    any other line that uses a missing detail is left out (e.g. no tracking number). */
+function msgFill(body, v) {
+  var dropped = {};
+  var has = function (k) { return Object.prototype.hasOwnProperty.call(v, k); };
+  body = String(body || '').replace(/ ?\(\{(\w+)\}\)/g, function (m, k) { if (has(k) && !String(v[k]).trim()) { dropped[k] = 1; return ''; } return m; });
+  var src = body.split('\n');
+  var keep = src.map(function (line) {
+    var miss = (line.match(/\{(\w+)\}/g) || []).map(function (m) { return m.slice(1, -1); })
+      .filter(function (k) { return Object.prototype.hasOwnProperty.call(v, k) && !String(v[k]).trim(); });
+    miss.forEach(function (k) { dropped[k] = 1; });
+    return !miss.length;
+  });
+  // A line that introduces a list ("...for you:") goes too when the list right after it was left out (e.g. an order with no items)
+  src.forEach(function (line, i) {
+    if (!keep[i] || !/:\s*$/.test(line)) return;
+    var j = i + 1; while (j < src.length && !src[j].trim()) j++;
+    if (j < src.length && !keep[j]) keep[i] = false;
+  });
+  var lines = src.filter(function (line, i) { return keep[i]; }).map(function (line) {
+    return line.replace(/\{(\w+)\}/g, function (m, k) { return Object.prototype.hasOwnProperty.call(v, k) ? String(v[k]) : m; });
+  });
+  var text = lines.join('\n').replace(/\n{3,}/g, '\n\n').replace(/^\s+|\s+$/g, '');
+  return { text: text, dropped: Object.keys(dropped) };
+}
+function msgSuggest(o) {
+  if (o.stage === 'Inquiry') return 'inquiry';
+  if (o.stage === 'In Progress') return o.paid ? 'making' : 'confirm';
+  if (o.stage === 'Ready') return o.delivery === 'Shipping' ? 'shipped' : 'ready';
+  if (o.stage === DONE) return o.delivery === 'Shipping' && o.tracking ? 'shipped' : 'thanks';
+  return 'inquiry';
+}
+function msgContactWay(o) { var m = String(o.notes || '').match(/Best way to contact:\s*([^\n]+)/i); return m ? m[1].trim() : ''; }
+var MSG_FIELD_LABEL = {}; MSG_FIELDS.forEach(function (f) { MSG_FIELD_LABEL[f[0]] = f[1]; });
+
+function openMessage(orderId, key) {
+  var o = byId('Orders', orderId); if (!o) { toast('Please save the order first.', true); return; }
+  MSG.orderId = orderId; MSG.key = key || msgSuggest(o); MSG.edited = false;
+  if (msgBlocked(MSG.key, o)) MSG.key = msgSuggest(o);        // never open a payment reminder for a paid order
+  var cu = o.customerId ? byId('Customers', o.customerId) : null, way = msgContactWay(o);
+  var contact = [cu && cu.email ? ico('mail') + esc(cu.email) : '', cu && cu.phone ? ico('phone') + esc(cu.phone) : ''].filter(Boolean).join('<span class="msg-dot">·</span>');
+  var body = '<div class="msg-to"><div class="title">' + esc((cu && cu.name) || o.customerName || 'No customer') + ' <span class="muted">· ' + esc(o.number || '') + '</span></div>' +
+      (contact ? '<div class="sub muted">' + contact + '</div>' : '<div class="sub muted">No email or phone saved for this customer.</div>') +
+      (way ? '<div class="sub"><b>Best way to contact:</b> ' + esc(way) + '</div>' : '') + '</div>' +
+    '<div class="field"><label for="msgTpl">Message</label><select class="input" id="msgTpl">' + MSG_TEMPLATES.map(function (t, i) {
+      return '<option value="' + t.key + '"' + (t.key === MSG.key ? ' selected' : '') + (msgBlocked(t.key, o) ? ' disabled' : '') + '>' + (i + 1) + '. ' + esc(t.title) + (msgBlocked(t.key, o) ? '  (not for paid orders)' : '') + (t.key === msgSuggest(o) ? '  (suggested)' : '') + (msgSaved(t.key) ? '  · your wording' : '') + '</option>';
+    }).join('') + '</select></div>' +
+    '<div class="field"><label for="msgText">Your message <span class="muted">(change anything before you copy it)</span></label>' +
+      '<textarea class="input msg-text" id="msgText" rows="14"></textarea></div>' +
+    '<div id="msgNotes" class="msg-notes"></div>' +
+    '<p class="hint" style="margin:6px 0 0">Nothing is sent from here. Copy the message into Messenger, Instagram, email or a text.</p>';
+  var foot = '<button class="btn btn-secondary" type="button" id="msgBack">' + ico('chevronLeft') + 'Back to order</button>' +
+    '<button class="btn btn-ghost" type="button" id="msgEditTpl">' + ico('edit') + 'Edit template</button>' +
+    '<span class="spacer"></span>' +
+    (cu && cu.phone ? '<a class="btn btn-secondary" id="msgSms" href="#">' + ico('phone') + 'Text</a>' : '') +
+    '<button class="btn btn-primary" type="button" id="msgCopy">' + ico('copy') + 'Copy message</button>';
+  openDrawer('Message customer', body, foot);
+  msgRender();
+  var ta = $('#msgText');
+  ta.addEventListener('input', function () { MSG.edited = true; msgCheck(); msgSmsLink(); });
+  $('#msgTpl').addEventListener('change', function (e) {
+    if (MSG.edited && !confirm('Switch to "' + msgDefault(e.target.value).title + '"? The changes you made to this message will be replaced.')) { e.target.value = MSG.key; return; }
+    MSG.key = e.target.value; MSG.edited = false; msgRender();
+  });
+  $('#msgCopy').addEventListener('click', function () { if (msgBlocked(MSG.key, byId('Orders', MSG.orderId))) { toast('A payment reminder can\'t be sent for an order marked as paid.', true); return; } msgCopy(ta.value); });
+  $('#msgBack').addEventListener('click', function () { openOrder(MSG.orderId); });
+  $('#msgEditTpl').addEventListener('click', function () {
+    if (MSG.edited && !confirm('Leave this message? The changes you made to it are not saved anywhere.')) return;
+    openTemplateEditor(MSG.key, MSG.orderId);
+  });
+}
+function msgRender() {
+  var o = byId('Orders', MSG.orderId), r = msgFill(msgBody(MSG.key), msgValues(o));
+  $('#msgText').value = r.text;
+  MSG.dropped = r.dropped; msgCheck(); msgSmsLink();
+}
+function msgCheck() {
+  var notes = [], text = $('#msgText').value;
+  var ord = byId('Orders', MSG.orderId);
+  var blocked = msgBlocked(MSG.key, ord);
+  if (blocked) notes.push('<div class="msg-warn">' + ico('alert') + 'This order is marked as paid, so a payment reminder can\'t be copied or texted. Choose another message.</div>');
+  var cp = $('#msgCopy'), sm = $('#msgSms');
+  if (cp) cp.disabled = blocked;
+  if (sm) sm.style.display = blocked ? 'none' : '';
+  if (/\[[^\]]+\]/.test(text)) notes.push('<div class="msg-warn">' + ico('alert') + 'Fill in the parts in [brackets] before you send it.</div>');
+  if ((MSG.dropped || []).length) notes.push('<div class="muted small">Left out because this order doesn\'t have it yet: ' + MSG.dropped.map(function (k) { return esc((MSG_FIELD_LABEL[k] || k).toLowerCase()); }).join(', ') + '.</div>');
+  $('#msgNotes').innerHTML = notes.join('');
+}
+/** A payment reminder is never available for an order marked as paid. */
+function msgBlocked(key, o) { return key === 'payreminder' && !!(o && o.paid); }
+function msgSmsLink() {
+  var a = $('#msgSms'); if (!a) return;
+  var o = byId('Orders', MSG.orderId), cu = o && o.customerId ? byId('Customers', o.customerId) : null;
+  a.href = 'sms:' + String((cu && cu.phone) || '').replace(/[^\d+]/g, '') + '?&body=' + encodeURIComponent($('#msgText').value);
+}
+function msgCopy(text) {
+  var done = function () { toast('Message copied'); };
+  var fallback = function () {
+    var ta = $('#msgText'); ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length);
+    var ok = false; try { ok = document.execCommand('copy'); } catch (e) {}
+    if (ok) done(); else toast('Select the message and copy it by hand.', true);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(fallback);
+  else fallback();
+}
+
+/* Template editor */
+function openTemplateEditor(key, orderId) {
+  var t = msgDefault(key) || MSG_TEMPLATES[0]; key = t.key;
+  var saved = msgSaved(key), o = orderId ? byId('Orders', orderId) : null;
+  var body = '<div class="field"><label for="tplPick">Template</label><select class="input" id="tplPick">' + MSG_TEMPLATES.map(function (x, i) {
+      return '<option value="' + x.key + '"' + (x.key === key ? ' selected' : '') + '>' + (i + 1) + '. ' + esc(x.title) + (msgSaved(x.key) ? '  · your wording' : '') + '</option>';
+    }).join('') + '</select></div>' +
+    '<p class="muted small" style="margin:-4px 0 10px">' + (saved ? 'You\'ve changed this template.' : 'This is the original wording.') + ' Words in {curly brackets} are filled in from the order. A line whose detail the order doesn\'t have is left out.</p>' +
+    '<div class="field"><label for="tplBody">Wording</label><textarea class="input msg-text" id="tplBody" rows="12">' + esc(msgBody(key)) + '</textarea></div>' +
+    '<div class="field"><label>Insert a detail</label><div class="tpl-chips">' + MSG_FIELDS.map(function (f) {
+      return '<button class="chip-btn" type="button" data-tpl-field="' + f[0] + '" title="' + esc(f[1]) + '">{' + f[0] + '}</button>';
+    }).join('') + '</div></div>' +
+    (o ? '<div class="field"><label>Preview for ' + esc(o.number || 'this order') + '</label><pre class="tpl-preview" id="tplPreview"></pre></div>' : '');
+  var foot = '<button class="btn btn-secondary" type="button" id="tplBack">' + ico('chevronLeft') + (orderId ? 'Back to message' : 'Close') + '</button>' +
+    (saved ? '<button class="btn btn-ghost" type="button" id="tplReset">Reset to original</button>' : '') +
+    '<span class="spacer"></span><button class="btn btn-primary" type="button" id="tplSave">Save template</button>';
+  openDrawer('Message templates', body, foot);
+  var ta = $('#tplBody'), dirty = false;
+  var prev = function () { if (o) $('#tplPreview').textContent = msgFill(ta.value, msgValues(o)).text; };
+  prev();
+  ta.addEventListener('input', function () { dirty = true; prev(); });
+  $('#tplPick').addEventListener('change', function (e) {
+    if (dirty && !confirm('Leave without saving your changes to this template?')) { e.target.value = key; return; }
+    openTemplateEditor(e.target.value, orderId);
+  });
+  $('#drawerBody').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tpl-field]'); if (!b) return;
+    var ins = '{' + b.getAttribute('data-tpl-field') + '}', s = ta.selectionStart || ta.value.length, en = ta.selectionEnd || s;
+    ta.value = ta.value.slice(0, s) + ins + ta.value.slice(en); ta.focus(); ta.setSelectionRange(s + ins.length, s + ins.length);
+    dirty = true; prev();
+  });
+  var back = function () { if (orderId) openMessage(orderId, key); else closeDrawer(); };
+  $('#tplBack').addEventListener('click', function () { if (dirty && !confirm('Leave without saving your changes to this template?')) return; back(); });
+  $('#tplSave').addEventListener('click', function () {
+    var btn = $('#tplSave'), text = ta.value.replace(/\s+$/, '');
+    if (!text.trim()) { toast('The template can\'t be empty. Use "Reset to original" to go back to the original wording.', true); return; }
+    if (!S.data.Templates) S.data.Templates = [];
+    busy(btn, 'Saving…');
+    var rec = saved ? Object.assign({}, saved, { title: t.title, body: text }) : { id: key, title: t.title, body: text, created: new Date().toISOString() };
+    save('Templates', rec).then(function () { toast('Template saved'); back(); }).catch(function (e) { unbusy(btn); fail(e); });
+  });
+  var rs = $('#tplReset');
+  if (rs) rs.addEventListener('click', function () {
+    if (!confirm('Go back to the original wording for "' + t.title + '"? Your version of this template will be removed.')) return;
+    busy(rs, 'Resetting…');
+    call('deleteRecord', 'Templates', key).then(function () {
+      S.data.Templates = (S.data.Templates || []).filter(function (r) { return r.id !== key; });
+      toast('Original wording restored'); openTemplateEditor(key, orderId);
+    }).catch(function (e) { unbusy(rs); fail(e); });
+  });
+}
+/* The "Message" button on an order: any unsaved changes are saved first (like Invoice), so the message matches the order. */
+function orderFormChanged() {
+  var o = D && D.id ? byId('Orders', D.id) : null; if (!o) return true;
+  var v = function (id) { var el = $('#' + id); return el ? (el.type === 'checkbox' ? el.checked : el.value) : undefined; };
+  var same = function (a, b) { return String(a == null ? '' : a) === String(b == null ? '' : b); };
+  return !(same(v('oStage'), o.stage) && same(v('oDue'), o.dueDate) && same(v('oDelivery'), o.delivery) && !!v('oPaid') === !!o.paid &&
+    same(v('oNotes'), o.notes) && same(v('oPayLink'), o.paymentLink) && same(v('oCustomer'), o.customerId) &&
+    (v('oDelivery') !== 'Shipping' || same(String(v('oTracking') || '').trim(), o.tracking)) &&
+    JSON.stringify(D.items || []) === JSON.stringify(o.items || []) && same(D.shipping, o.shipping) && same(D.discount, o.discount));
+}
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('#dMessage')) return;
+  if (!D || !D.id) return;
+  if (!orderFormChanged()) { openMessage(D.id); return; }
+  saveOrder(function (saved) { openMessage(saved.id); });
+});
 </script>
 
   <script>
