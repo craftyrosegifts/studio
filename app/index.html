@@ -666,6 +666,27 @@ table.tbl { width: 100%; border-collapse: collapse; }
   .msg-text { min-height: 300px; font-size: 16px; }
   #drawerFoot #msgEditTpl, #drawerFoot #tplReset { padding: 0 8px; }
 }
+/* Email a customer (Phase 2 Step 2B-2) */
+.em-copy { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0 8px; }
+.em-copy input { margin-top: 3px; }
+.em-quota { margin: 0 0 12px; }
+.em-warn-text { color: var(--st-amber); }
+/* The preview always uses the email's own colours (the email itself is always light), whatever the app theme */
+.em-preview { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #F4F8F5; color: #2C3832; }
+.em-head { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #E4ECE7; background: #FFFFFF; color: #2C3832; overflow-wrap: anywhere; }
+.em-card { background: #FFFFFF; color: #2C3832; margin: 12px; border-radius: 12px; padding: 16px; border: 1px solid #E4ECE7; font-family: Arial, sans-serif; }
+.em-logo { display: block; width: 90px; margin: 0 auto 12px; }
+.em-body { font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; color: #2C3832; }
+.em-body a { color: #4C6D5E; }
+.em-foot { margin: 20px 0 0; font-size: 12px; color: #74827A; text-align: center; overflow-wrap: anywhere; }
+.em-status:empty { display: none; }
+.em-status { border-radius: 12px; padding: 10px 12px; margin-top: 12px; font-size: 14px; display: grid; gap: 6px; }
+.em-status.info { background: var(--st-blue-bg); color: var(--st-blue); }
+.em-status.ok { background: var(--st-green-bg); color: var(--st-green); }
+.em-status.bad { background: var(--st-red-bg); color: var(--st-red); }
+.em-status.warn { background: var(--st-amber-bg); color: var(--st-amber); }
+.em-line { display: flex; gap: 6px; align-items: flex-start; }
+.em-line .ico svg { width: 16px; height: 16px; margin-top: 2px; }
 </style>
 
   <style>
@@ -2982,10 +3003,11 @@ function openMessage(orderId, key) {
     '<div class="field"><label for="msgText">Your message <span class="muted">(change anything before you copy it)</span></label>' +
       '<textarea class="input msg-text" id="msgText" rows="14"></textarea></div>' +
     '<div id="msgNotes" class="msg-notes"></div>' +
-    '<p class="hint" style="margin:6px 0 0">Nothing is sent from here. Copy the message into Messenger, Instagram, email or a text.</p>';
+    '<p class="hint" style="margin:6px 0 0">Copy the message into Messenger, Instagram or a text, or tap Email to send it from your Gmail.</p>';
   var foot = '<button class="btn btn-secondary" type="button" id="msgBack">' + ico('chevronLeft') + 'Back to order</button>' +
     '<button class="btn btn-ghost" type="button" id="msgEditTpl">' + ico('edit') + 'Edit template</button>' +
     '<span class="spacer"></span>' +
+    '<button class="btn btn-secondary" type="button" id="msgEmail">' + ico('mail') + 'Email</button>' +          // Phase 2 Step 2B-2
     (cu && cu.phone ? '<a class="btn btn-secondary" id="msgSms" href="#">' + ico('phone') + 'Text</a>' : '') +
     '<button class="btn btn-primary" type="button" id="msgCopy">' + ico('copy') + 'Copy message</button>';
   openDrawer('Message customer', body, foot);
@@ -3012,9 +3034,10 @@ function msgCheck() {
   var notes = [], text = $('#msgText').value;
   var ord = byId('Orders', MSG.orderId);
   var blocked = msgBlocked(MSG.key, ord);
-  if (blocked) notes.push('<div class="msg-warn">' + ico('alert') + 'This order is marked as paid, so a payment reminder can\'t be copied or texted. Choose another message.</div>');
-  var cp = $('#msgCopy'), sm = $('#msgSms');
+  if (blocked) notes.push('<div class="msg-warn">' + ico('alert') + 'This order is marked as paid, so a payment reminder can\'t be copied, texted or emailed. Choose another message.</div>');
+  var cp = $('#msgCopy'), sm = $('#msgSms'), em = $('#msgEmail');
   if (cp) cp.disabled = blocked;
+  if (em) em.disabled = blocked;
   if (sm) sm.style.display = blocked ? 'none' : '';
   if (/\[[^\]]+\]/.test(text)) notes.push('<div class="msg-warn">' + ico('alert') + 'Fill in the parts in [brackets] before you send it.</div>');
   if ((MSG.dropped || []).length) notes.push('<div class="muted small">Left out because this order doesn\'t have it yet: ' + MSG.dropped.map(function (k) { return esc((MSG_FIELD_LABEL[k] || k).toLowerCase()); }).join(', ') + '.</div>');
@@ -3104,6 +3127,167 @@ document.addEventListener('click', function (e) {
   if (!D || !D.id) return;
   if (!orderFormChanged()) { openMessage(D.id); return; }
   saveOrder(function (saved) { openMessage(saved.id); });
+});
+/* ---------------- Email a customer message (Phase 2 Step 2B-2) ----------------
+   From the Message screen: check the address, subject and wording, see a preview, then tap Send email and confirm.
+   Nothing is ever sent without that. Each draft has a one-time send ID, so the server never sends it twice.
+   If the app can't confirm what happened (no reply, lost connection), it says so and never retries by itself. */
+var EMAIL_SUBJECTS = {
+  inquiry: 'Thank you for reaching out – {businessName}', moreinfo: 'A few questions about your order {orderNumber}',
+  quote: 'Your price for order {orderNumber}', confirm: 'Your order {orderNumber} is confirmed',
+  payreminder: 'Payment reminder for order {orderNumber}', paid: 'Payment received for order {orderNumber}',
+  making: 'Your order {orderNumber} is being made', ready: 'Your order {orderNumber} is ready for pickup',
+  shipped: 'Your order {orderNumber} is on its way', delay: 'An update on your order {orderNumber}',
+  thanks: 'Thank you from {businessName}', feedback: 'How are you enjoying your order?'
+};
+var EMAIL_WAIT_MS = 60000;
+var EM = null;
+function emNewId() {
+  var a = new Uint8Array(16); (window.crypto || window.msCrypto).getRandomValues(a);
+  return 'e' + Array.prototype.map.call(a, function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+}
+function emValid(a) { return /^[^@\s,;<>]+@[^@\s,;<>]+\.[^@\s,;<>]+$/.test(String(a || '').trim()); }
+function openEmailStep(fromMessage) {
+  var o = byId('Orders', MSG.orderId); if (!o) return;
+  var cu = o.customerId ? byId('Customers', o.customerId) : null;
+  if (msgBlocked(MSG.key, o)) { toast('A payment reminder can\'t be sent for an order marked as paid.', true); return; }
+  if (!EM || EM.orderId !== MSG.orderId || EM.key !== MSG.key || EM.done || fromMessage) {
+    EM = { orderId: MSG.orderId, key: MSG.key, to: (cu && cu.email) || '', subject: msgFill(EMAIL_SUBJECTS[MSG.key] || '', msgValues(o)).text,
+      body: fromMessage, copyMe: false, sendId: emNewId(), state: 'draft', done: false };
+  }
+  var body = '<div class="msg-to"><div class="title">' + esc((cu && cu.name) || o.customerName || 'No customer') + ' <span class="muted">· ' + esc(o.number || '') + ' · ' + esc(msgDefault(EM.key).title) + '</span></div>' +
+      '<div class="sub muted">Sent from your Gmail as ' + esc((S.settings && S.settings.businessName) || 'Crafty Rose Gifts') + '. Replies go to your inbox.</div></div>' +
+    '<div class="field"><label for="emTo">To</label><input class="input" id="emTo" type="email" autocomplete="off" value="' + esc(EM.to) + '" placeholder="customer@email.com">' +
+      (cu && cu.email ? '' : '<div class="hint" style="margin:4px 0 0">No email saved for this customer. Type it here.</div>') + '</div>' +
+    '<div class="field"><label for="emSubject">Subject</label><input class="input" id="emSubject" value="' + esc(EM.subject) + '"></div>' +
+    '<div class="field"><label for="emBody">Message</label><textarea class="input msg-text" id="emBody" rows="12">' + esc(EM.body) + '</textarea></div>' +
+    '<label class="check em-copy"><input type="checkbox" id="emCopy"' + (EM.copyMe ? ' checked' : '') + '> <span>Send me a copy <span class="muted" id="emCopyTo"></span><br><span class="muted small">Uses 1 extra email from today\'s limit.</span></span></label>' +
+    '<div class="em-quota muted small" id="emQuota">Checking today\'s email limit…</div>' +
+    '<div class="field"><label>Preview</label><div class="em-preview" id="emPreview"></div></div>' +
+    '<div id="emStatus" class="em-status" role="status" aria-live="polite"></div>';
+  var foot = '<button class="btn btn-secondary" type="button" id="emBack">' + ico('chevronLeft') + 'Back to message</button><span class="spacer"></span>' +
+    '<button class="btn btn-secondary" type="button" id="emCheck" style="display:none">' + ico('refresh') + 'Check again</button>' +
+    '<button class="btn btn-primary" type="button" id="emSend">' + ico('mail') + 'Send email</button>';
+  openDrawer('Email customer', body, foot);
+  ['emTo', 'emSubject', 'emBody'].forEach(function (id) { $('#' + id).addEventListener('input', function () { emRead(); emPreview(); }); });
+  $('#emCopy').addEventListener('change', function () { emRead(); emQuotaText(); });
+  $('#emBack').addEventListener('click', function () {
+    emRead(); var keep = EM.body;
+    openMessage(EM.orderId, EM.key);
+    if (!EM.done && keep !== $('#msgText').value) { $('#msgText').value = keep; MSG.edited = true; msgCheck(); msgSmsLink(); }
+  });
+  $('#emSend').addEventListener('click', emSend);
+  $('#emCheck').addEventListener('click', emCheckAgain);
+  emPreview(); emShow(); emLoadQuota();
+}
+function emRead() { if (!$('#emTo')) return; EM.to = $('#emTo').value.trim(); EM.subject = $('#emSubject').value; EM.body = $('#emBody').value; EM.copyMe = $('#emCopy').checked; }
+function emPreview() {
+  var html = esc(EM.body).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g, '<br>');
+  $('#emPreview').innerHTML = '<div class="em-head"><div><b>To:</b> ' + esc(EM.to || '—') + '</div><div><b>Subject:</b> ' + esc(EM.subject || '—') + '</div></div>' +
+    '<div class="em-card"><img src="' + esc((window.SITE_URL || 'https://studio.craftyrosegifts.ca') + '/logo.png') + '" alt="" class="em-logo">' + '<div class="em-body">' + html + '</div>' + emFooter() + '</div>';
+}
+/** The small line at the bottom of every email (business name, email, Instagram), as the server adds it. */
+function emFooter() {
+  var st = S.settings || {};
+  return '<p class="em-foot">' + esc(st.businessName || 'Crafty Rose Gifts') + ' · ' + esc(st.email || '') + (st.instagram ? ' · Instagram ' + esc(st.instagram) : '') + '</p>';
+}
+function emLoadQuota() {
+  var mine = EM;
+  call('emailQuota').then(function (q) { if (EM !== mine) return; EM.quota = q; emQuotaText(); })
+    .catch(function () { if (EM !== mine) return; EM.quota = null; var el = $('#emQuota'); if (el) el.textContent = 'Couldn\'t check today\'s email limit. It will be checked again when you send.'; });
+}
+/** After a send: show Google's new count at once (the server reads it right after sending, so a copy counts too). */
+function emSetQuota(left) {
+  if (typeof left === 'number' && EM.quota) { EM.quota.remaining = left; EM.quota.available = Math.max(0, left - EM.quota.reserve); emQuotaText(); }
+  else emLoadQuota();
+}
+function emQuotaText() {
+  var q = EM.quota, el = $('#emQuota'); if (!el || !q) return;
+  $('#emCopyTo').textContent = q.copyTo ? '(to ' + q.copyTo + ')' : '';
+  var need = EM.copyMe ? 2 : 1;
+  el.innerHTML = esc(q.remaining + ' email' + (q.remaining === 1 ? '' : 's') + ' left today. ' + q.reserve + ' are kept for website orders, so you can send ' + q.available + ' more.') +
+    (q.available < need ? ' <b class="em-warn-text">Not enough left to send this today' + (EM.copyMe ? ' with a copy' : '') + '.</b>' : '');
+}
+/** Show the draft's state: buttons, fields and the message box. */
+function emShow() {
+  var st = EM.state, box = $('#emStatus'), send = $('#emSend'), chk = $('#emCheck');
+  var lock = st === 'sending' || st === 'sent' || st === 'already' || st === 'uncertain';
+  ['emTo', 'emSubject', 'emBody', 'emCopy'].forEach(function (id) { var el = $('#' + id); if (el) el.disabled = st === 'sending' || st === 'sent' || st === 'already'; });
+  send.disabled = lock; send.style.display = (st === 'sent' || st === 'already') ? 'none' : '';
+  chk.style.display = st === 'uncertain' ? '' : 'none';
+  var cls = { sending: 'info', sent: 'ok', already: 'ok', failed: 'bad', uncertain: 'warn' }[st] || '';
+  box.className = 'em-status' + (cls ? ' ' + cls : '');
+  box.innerHTML = EM.msg || '';
+}
+function emSend() {
+  emRead();
+  var o = byId('Orders', EM.orderId);
+  if (!emValid(EM.to)) { toast('Please enter one valid email address.', true); $('#emTo').focus(); return; }
+  if (!EM.subject.trim()) { toast('Please add a subject.', true); $('#emSubject').focus(); return; }
+  if (!EM.body.trim()) { toast('The message is empty.', true); $('#emBody').focus(); return; }
+  if (/\[[^\]]+\]/.test(EM.body) && !confirm('The message still has parts in [brackets] to fill in. Send it anyway?')) return;
+  if (msgBlocked(EM.key, o)) { toast('A payment reminder can\'t be sent for an order marked as paid.', true); return; }
+  var copyTo = EM.quota && EM.quota.copyTo;
+  if (!confirm('Send this email to ' + EM.to + '?' + (EM.copyMe ? '\nA copy goes to ' + (copyTo || 'you') + '.' : '') + '\n\nSubject: ' + EM.subject + '\n\nAn email can\'t be taken back once it\'s sent.')) return;
+  EM.state = 'sending'; EM.msg = ico('mail') + 'Sending…'; emShow();
+  var req = { orderId: EM.orderId, templateKey: EM.key, to: EM.to, subject: EM.subject, body: EM.body, copyMe: EM.copyMe, sendId: EM.sendId };
+  var mine = EM, answered = false;
+  var timer = setTimeout(function () { if (answered || EM !== mine) return; emResult({ status: 'uncertain', noReply: true }); }, EMAIL_WAIT_MS);
+  call('sendCustomerEmail', req).then(function (r) { answered = true; clearTimeout(timer); if (EM === mine) emResult(r); })
+    .catch(function (e) {
+      answered = true; clearTimeout(timer); if (EM !== mine) return;
+      var m = String((e && e.message) || e || '');
+      if (/EMAIL_NOT_SENT:/.test(m)) emResult({ status: 'failed', reason: m.replace(/^.*EMAIL_NOT_SENT:\s*/, '') });
+      else emResult({ status: 'uncertain', detail: m });       // lost connection etc.: we don't know if Google sent it
+    });
+}
+function emWhen(iso) { try { return new Date(iso).toLocaleString('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).replace(/\.$/, ''); } catch (e) { return ''; } }
+function emResult(r) {
+  if (r.status === 'sent') {
+    EM.state = 'sent'; EM.done = true;
+    if (r.order) { var list = S.data.Orders, i = list.findIndex(function (x) { return x.id === r.order.id; }); if (i >= 0) list[i] = r.order; }
+    emSetQuota(r.remaining);
+    EM.msg = '<div class="em-line">' + ico('check') + '<span>' + '<b>Email sent</b> to ' + esc(r.to) + (r.copyTo ? ' (copy to ' + esc(r.copyTo) + ')' : '') + ' at ' + esc(emWhen(r.at)) + '.</span></div>' +
+      (r.noted ? '<div class="em-line">' + ico('check') + '<span>' + 'Saved in the order history.</span></div>'
+               : '<div class="em-line em-warn-text">' + ico('alert') + '<span>' + 'The email was sent, but the note in the order history could not be saved' + (r.noteError ? ' (' + esc(r.noteError) + ')' : '') + '. You may want to add a note yourself.</span></div>');
+    toast('Email sent');
+  } else if (r.status === 'already') {
+    EM.state = 'already'; EM.done = true;
+    EM.msg = '<div class="em-line">' + ico('check') + '<span>' + '<b>Already sent</b> to ' + esc(r.to || EM.to) + (r.at ? ' at ' + esc(emWhen(r.at)) : '') + '. It was not sent again.</span></div>';
+  } else if (r.status === 'failed') {
+    EM.state = 'failed';
+    EM.msg = '<div class="em-line">' + ico('alert') + '<span>' + '<b>Email not sent:</b> ' + esc(r.reason) + '</span></div><div class="em-line muted">Your draft is kept. You can fix it and try again.</div>';
+  } else {
+    EM.state = 'uncertain';
+    EM.msg = '<div class="em-line">' + ico('alert') + '<span>' + '<b>We couldn\'t confirm whether this email was sent.</b></span></div>' +
+      '<div class="em-line muted">' + (r.noReply ? 'There was no reply after a minute. ' : 'The connection was interrupted. ') +
+      'To avoid sending it twice, it won\'t be sent again by itself. Tap "Check again" in a moment, or look in the order history.</div>' +
+      '<div class="em-line"><button class="link-btn" type="button" id="emRestart">Start a new email instead</button></div>';
+  }
+  emShow();
+  if (r.status === 'already' || r.status === 'uncertain') emLoadQuota();   // the count may have changed: read it again from Google
+  var rs = $('#emRestart');
+  if (rs) rs.addEventListener('click', function () {
+    if (!confirm('Only do this if you\'re sure the first email was NOT sent (for example, it isn\'t in the order history). The customer could otherwise get it twice. Start a new email?')) return;
+    emRead(); EM.sendId = emNewId(); EM.state = 'draft'; EM.msg = ''; emShow();
+  });
+}
+function emCheckAgain() {
+  var btn = $('#emCheck'); busy(btn, 'Checking…');
+  call('emailStatus', EM.sendId, EM.orderId).then(function (r) {
+    unbusy(btn);
+    if (r.status === 'sent') {
+      call('getTable', 'Orders').then(function (rows) { S.data.Orders = rows; }).catch(function () {});
+      emResult({ status: 'sent', to: r.to || EM.to, at: r.at, noted: r.noted });
+    } else if (r.status === 'none') {
+      EM.state = 'draft'; EM.msg = '<div class="em-line">' + ico('alert') + '<span>' + 'It was <b>not sent</b>. Your draft is kept, and you can send it now.</span></div>'; emShow();
+    } else { toast('Still can\'t confirm. Please check again in a minute.', true); }
+  }).catch(function () { unbusy(btn); toast('Couldn\'t check right now. Please try again in a moment.', true); });
+}
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('#msgEmail')) return;
+  if (!MSG.orderId) return;
+  openEmailStep($('#msgText').value);
 });
 </script>
 
