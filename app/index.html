@@ -735,6 +735,62 @@ table.tbl { width: 100%; border-collapse: collapse; }
   .qa-box { max-width: none; border-radius: 18px 18px 0 0; max-height: 90vh; padding-bottom: env(safe-area-inset-bottom); }
   .td-acts .btn-sm { min-height: 36px; }
 }
+/* Phone layout (Phase 2 Step 2B-3 Release 2): the bottom bar is hidden on computers; everything else below is phone-only */
+.bottom-nav { display: none; }
+@media (max-width: 820px) {
+  #menuBtn { display: none !important; }
+  .bottom-nav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 22; gap: 2px; background: var(--white); border-top: 1px solid var(--line);
+    padding: 4px 6px calc(4px + env(safe-area-inset-bottom)); box-shadow: 0 -2px 12px rgba(44, 56, 50, .07); }
+  .bottom-nav button { flex: 1 1 0; min-width: 0; min-height: 54px; border: 0; border-radius: 12px; background: none; color: var(--muted); cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font: 600 12px/1.15 var(--font); -webkit-tap-highlight-color: transparent; }
+  .bottom-nav button .ico { width: 24px; height: 24px; }
+  .bottom-nav button.on { color: var(--forest-800); background: var(--sage-100); }
+  .bottom-nav button:focus-visible { outline: 2px solid var(--forest); outline-offset: -2px; }
+  /* Orders: filter chips and cards */
+  .r2-otools .seg button { min-height: 40px; }
+  .r2-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+  .r2-chips::-webkit-scrollbar { display: none; }
+  .r2-chip { flex: none; min-height: 46px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--sage-200); background: var(--white); color: var(--forest-800);
+    font: 600 14px/1 var(--font); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .r2-chip .n { color: var(--muted); font-weight: 700; }
+  .r2-chip.on { background: var(--forest); border-color: var(--forest); color: #fff; }
+  .r2-chip.on .n { color: rgba(255, 255, 255, .85); }
+  .r2-list { display: grid; gap: 10px; }
+  .r2-card { background: var(--white); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-sm); overflow: hidden; }
+  .r2-main { display: block; width: 100%; padding: 14px 14px 12px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .r2-main > span { display: block; }
+  .r2-main > .r2-top, .r2-main > .r2-tags { display: flex; align-items: center; gap: 8px; }
+  .r2-num { font-weight: 700; color: var(--forest-800); }
+  .r2-amt { margin-left: auto; font-weight: 700; }
+  .r2-name { margin-top: 4px; font-size: 17px; font-weight: 700; overflow-wrap: anywhere; }
+  .r2-items { margin-top: 2px; font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+  .r2-tags { flex-wrap: wrap; margin-top: 8px; font-size: 13px; }
+  .r2-acts { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 14px; }
+  .r2-acts .btn { flex: 1 1 auto; min-height: 44px; justify-content: center; font-size: 15px; }
+  .r2-older { margin: 14px 0; text-align: center; }
+  .r2-older .btn { min-height: 44px; }
+  /* Order screen: folding sections, contact buttons, 3 buttons at the bottom */
+  .r2-fold { margin: 16px 0 0; border: 1px solid var(--line); border-radius: 14px; background: var(--white); }
+  .r2-fold-head { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 8px 14px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .r2-fold-name { flex: none; font-size: 13px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--forest-700); }
+  .r2-fold-sum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: 14px; color: var(--muted); }
+  .r2-fold-chev { flex: none; width: 18px; height: 18px; color: var(--forest); transition: transform .15s; }
+  .r2-fold.open .r2-fold-chev { transform: rotate(180deg); }
+  .r2-fold-body { padding: 0 14px 14px; }
+  .r2-fold-body > .section-title.r2-t, .r2-fold-body #proofSec > .section-title { display: none; }
+  .r2-contact { margin: 10px 0 6px; }
+  .r2-way { margin-bottom: 8px; font-size: 14px; }
+  .r2-cbtns { display: flex; gap: 8px; }
+  .r2-cbtns .btn { flex: 1 1 0; min-width: 0; min-height: 44px; justify-content: center; text-decoration: none; }
+  .r2-ehint { margin-top: 6px; }
+  .r2-due-field { margin-top: 16px; }
+  .drawer-foot.r2-foot .btn { min-height: 46px; justify-content: center; }
+  .r2-moremenu { flex: 1 1 100%; display: flex; flex-direction: column; gap: 8px; }
+  .r2-moremenu[hidden] { display: none; }
+  .r2-moremenu .btn { width: 100%; }
+  body .offline-bar { bottom: calc(72px + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) { .r2-fold-chev { transition: none; } }
 </style>
 
   <style>
@@ -1322,6 +1378,14 @@ document.addEventListener('keydown', function (e) { if (e.key === 'Escape') clos
     </div>
   </div>
 
+  <!-- Phone bottom bar (Phase 2 Step 2B-3 Release 2): only shown on phone-sized screens -->
+  <nav class="bottom-nav" id="bottomNav" aria-label="Main sections">
+    <button type="button" data-bn="dashboard"><span class="ico" data-icon="home"></span><span>Today</span></button>
+    <button type="button" data-bn="orders"><span class="ico" data-icon="bag"></span><span>Orders</span></button>
+    <button type="button" data-bn="customers"><span class="ico" data-icon="users"></span><span>Customers</span></button>
+    <button type="button" data-bn="more"><span class="ico" data-icon="menu"></span><span>More</span></button>
+  </nav>
+
   <!-- Side drawer for editing -->
   <div class="drawer-scrim" id="drawerScrim"></div>
   <aside class="drawer" id="drawer" aria-hidden="true" role="dialog" aria-modal="true">
@@ -1729,6 +1793,7 @@ function go(view) {
   window.scrollTo(0, 0);
 }
 function render() {
+  r2Nav();   // Phase 2 Step 2B-3 Release 2: phone bottom bar
   if (String(S.view).indexOf('list:') === 0 && typeof renderListView === 'function') { renderListView(); return; }
   var v = VIEWS.find(function (x) { return x.key === S.view; }) || VIEWS[0];
   $('#pageTitle').textContent = v.label;
@@ -1749,6 +1814,7 @@ function render() {
   if (!fn) { S.view = 'dashboard'; fn = renderDashboard; }
   $('#view').innerHTML = fn();
   afterRender();
+  r2After();   // Phase 2 Step 2B-3 Release 2: phone only (Today first)
 }
 function afterRender() { loadPhotos(); bindBoardDnD(); }
 
@@ -1850,6 +1916,7 @@ function filteredOrders() {
   });
 }
 function renderOrders() {
+  if (r2Phone()) return r2Orders();   // Phase 2 Step 2B-3 Release 2: cards with stage filters on a phone
   var toolbar = '<div class="toolbar">' + searchBox('Search orders, customers, items…') +
     '<label class="check"><input type="checkbox" id="unpaidOnly"' + (S.unpaidOnly ? ' checked' : '') + '> Unpaid only</label>' +
     '<span class="spacer"></span><div class="seg">' +
@@ -2907,7 +2974,7 @@ function openGlobalSearch() {
   paintIcons();
   try {
     var sb = localStorage.getItem('os.sidebar'); if (sb) $('#app').setAttribute('data-sidebar', sb);
-    var v = localStorage.getItem('os.view'); if (v && (VIEWS.some(function (x) { return x.key === v; }) || v.indexOf('list:') === 0 || v === 'expenses' || v === 'trash')) S.view = v;
+    var v = localStorage.getItem('os.view'); if (v && (VIEWS.some(function (x) { return x.key === v; }) || v.indexOf('list:') === 0 || v === 'expenses' || v === 'trash') && !r2Phone()) S.view = v;   // Release 2: a phone always opens on Today
   } catch (e) {}
   call('getAll').then(function (data) {
     Object.keys(S.data).forEach(function (k) { S.data[k] = data[k] || []; });
@@ -3798,6 +3865,254 @@ document.addEventListener('change', function (e) {
   if (el.hasAttribute && el.hasAttribute('data-td-tick')) { tdTick(el.getAttribute('data-td-tick'), true); return; }
   if (el.hasAttribute && el.hasAttribute('data-td-untick')) { tdTick(el.getAttribute('data-td-untick'), false); return; }
 });
+/* ---------------- Phone layout (Phase 2 Step 2B-3 Release 2) ----------------
+   Everything here only changes phone-sized screens (820 px wide or less). The computer layout is not changed.
+   - bottom bar: Today · Orders · Customers · More (More opens the usual menu)
+   - a phone always opens on Today; the Today list comes first, the greeting and wins below it
+   - Orders: cards with stage filters (opens on Open; Done shows the last 30 days), each with its next quick action
+   - order screen: less-used sections fold up (Order notes stays open), 3 buttons at the bottom
+   - Call / Text / Email buttons (Email opens the app's own Message screen)
+   - number boxes ask for the number keypad
+   Nothing here saves anything new: quick actions, saving and email go through the existing code. */
+function r2Phone() { return !!(window.matchMedia && window.matchMedia('(max-width: 820px)').matches); }
+var R2 = { chip: 'open', board: false, doneAll: false, folds: {} }, R2_DONE_DAYS = 30;
+var R2_CHIPS = [{ k: 'open', label: 'Open' }, { k: 'Inquiry', label: 'Inquiry' }, { k: 'In Progress', label: 'In Progress' }, { k: 'Ready', label: 'Ready' }, { k: 'done', label: 'Done' }];
+Object.assign(ICONS, { chevronDown: '<path d="m6 9 6 6 6-6"/>', dots: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>' });
+
+/* ---------- bottom bar ---------- */
+function r2Nav() {
+  var bar = $('#bottomNav'); if (!bar) return;
+  var v = String(S.view), key = (v === 'dashboard' || v === 'orders' || v === 'customers') ? v : 'more';
+  $$('[data-bn]', bar).forEach(function (b) {
+    var on = b.getAttribute('data-bn') === key;
+    b.classList.toggle('on', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
+}
+function r2After() {
+  if (!r2Phone()) return;
+  if (S.view === 'dashboard') {
+    $('#pageTitle').textContent = 'Today';
+    $('#pageSub').textContent = 'What needs you today';
+    var view = $('#view'), tc = $('#todayCard');
+    if (tc && tc.parentNode === view && view.firstElementChild !== tc) view.insertBefore(tc, view.firstChild);   // Today first; greeting and wins below it
+  }
+}
+
+/* ---------- Orders: cards with stage filters ---------- */
+function r2DoneDay(o) { return String(o.dateCompleted || o.updated || '').slice(0, 10); }
+function r2IsRecent(o) { return r2DoneDay(o) >= tdAddDays(todayStr(), -R2_DONE_DAYS); }
+function r2InChip(o, k) { return k === 'open' ? o.stage !== DONE : k === 'done' ? o.stage === DONE : o.stage === k; }
+function r2Orders() {
+  var tools = '<div class="toolbar r2-otools">' + searchBox('Search orders, customers, items…') +
+    '<div class="seg r2-seg"><button type="button" data-r2-mode="cards" class="' + (R2.board ? '' : 'on') + '">' + ico('list') + 'List</button>' +
+    '<button type="button" data-r2-mode="board" class="' + (R2.board ? 'on' : '') + '">' + ico('board') + 'Board</button></div></div>';
+  if (!S.data.Orders.length) return tools + '<div class="card">' + emptyState('No orders yet', 'Add an order to start tracking it through each stage.', 'new-order', 'New order') + '</div>';
+  var all = filteredOrders();
+  var unpaid = '<button type="button" class="r2-chip r2-unpaid' + (S.unpaidOnly ? ' on' : '') + '" data-r2-unpaid aria-pressed="' + (S.unpaidOnly ? 'true' : 'false') + '">Unpaid only</button>';
+  if (R2.board) return tools + '<div class="r2-chips">' + unpaid + '</div>' + orderBoard(all);   // the usual board, unchanged
+  var older = 0;
+  var chips = R2_CHIPS.map(function (c) {
+    var list = all.filter(function (o) { return r2InChip(o, c.k); });
+    var n = c.k === 'done' && !S.q ? list.filter(r2IsRecent).length : list.length;
+    var on = R2.chip === c.k;
+    return '<button type="button" class="r2-chip' + (on ? ' on' : '') + '" data-r2-chip="' + esc(c.k) + '" aria-pressed="' + on + '">' + esc(c.label) + ' <span class="n">' + n + '</span></button>';
+  }).join('');
+  var list = all.filter(function (o) { return r2InChip(o, R2.chip); });
+  if (R2.chip === 'done') {
+    list.sort(function (a, b) { return r2DoneDay(b).localeCompare(r2DoneDay(a)); });
+    if (!S.q && !R2.doneAll) { var keep = list.filter(r2IsRecent); older = list.length - keep.length; list = keep; }
+  } else {
+    list.sort(function (a, b) { return String(a.dueDate || '9999').localeCompare(String(b.dueDate || '9999')) || String(a.number).localeCompare(String(b.number), undefined, { numeric: true }); });
+  }
+  var cards = list.length ? '<div class="r2-list">' + list.map(function (o) { return r2Card(o, R2.chip === 'open'); }).join('') + '</div>' :
+    '<div class="card card-pad"><p class="muted" style="margin:0">' + (R2.chip === 'done' && older ? 'No orders finished in the last ' + R2_DONE_DAYS + ' days.' : 'No orders here.') + '</p></div>';
+  var more = older ? '<div class="r2-older"><button class="btn btn-secondary" type="button" data-r2-older>Show older finished orders (' + older + ')</button></div>' :
+    (R2.chip === 'done' && R2.doneAll && !S.q ? '<div class="r2-older"><button class="btn btn-ghost" type="button" data-r2-older>Show only the last ' + R2_DONE_DAYS + ' days</button></div>' : '');
+  return tools + '<div class="r2-chips" role="toolbar" aria-label="Show orders">' + chips + unpaid + '</div>' + cards + more;
+}
+function r2Card(o, showStage) {
+  var d = dueInfo(o), sv = TD_SAVING['o:' + o.id];
+  var acts = sv ? tdSavingHtml(sv) : qaFor(o).map(function (a) {
+    var q = qaDef(o, a);
+    return q ? '<button class="btn ' + (a === 'paid' ? 'btn-secondary' : 'btn-primary') + ' btn-sm" type="button" data-qa="' + a + '" data-qa-order="' + o.id + '">' + esc(q.label) + '</button>' : '';
+  }).join('');
+  return '<article class="r2-card">' +
+    '<button type="button" class="r2-main" data-r2-open="' + o.id + '" aria-label="' + esc('Open order ' + (o.number || '') + ', ' + (o.customerName || 'no customer')) + '">' +
+      '<span class="r2-top"><span class="r2-num">' + esc(o.number) + '</span>' + (showStage ? stageChip(o.stage) : '') + '<span class="r2-amt">' + money(o.total) + '</span></span>' +
+      '<span class="r2-name">' + esc(o.customerName || 'No customer') + '</span>' +
+      '<span class="r2-items">' + esc(itemsSummary(o)) + '</span>' +
+      '<span class="r2-tags">' + paidChip(o) + (o.delivery ? '<span class="chip gray">' + esc(o.delivery) + '</span>' : '') +
+        (d ? '<span class="r2-due ' + d.cls + '">' + esc(d.text) + '</span>' : '') + '</span>' +
+    '</button>' + (acts ? '<div class="r2-acts">' + acts + '</div>' : '') + '</article>';
+}
+
+/* ---------- contact buttons ---------- */
+function r2Dial(p) { return String(p || '').replace(/[^\d+]/g, ''); }
+function r2Prefers(way) { return /text|sms/i.test(way) ? 'text' : /call|phone/i.test(way) ? 'call' : /e-?mail/i.test(way) ? 'email' : ''; }
+function r2ContactHtml(phone, email, way, emailHint) {
+  var tel = r2Dial(phone), pref = r2Prefers(way || '');
+  if (!tel && !email) return '';
+  var b = function (k) { return 'btn ' + (pref === k ? 'btn-primary' : 'btn-secondary') + ' r2-cbtn'; };
+  return (way ? '<div class="r2-way">Prefers: <b>' + esc(way) + '</b></div>' : '') + '<div class="r2-cbtns">' +
+    (tel ? '<a class="' + b('call') + '" href="tel:' + esc(tel) + '" data-r2-call>' + ico('phone') + 'Call</a>' +
+           '<a class="' + b('text') + '" href="sms:' + esc(tel) + '" data-r2-text>' + ico('chat') + 'Text</a>' : '') +
+    (email && emailHint !== null ? '<button class="' + b('email') + '" type="button" data-r2-email>' + ico('mail') + 'Email</button>' : '') + '</div>' +
+    (email && emailHint ? '<div class="muted small r2-ehint">' + esc(emailHint) + '</div>' : '');
+}
+function r2Paint(el, html) { if (el && el.getAttribute('data-html') !== html) { el.innerHTML = html; el.setAttribute('data-html', html); el.hidden = !html; } }
+
+/* ---------- order screen on a phone ---------- */
+function r2TitleOf(body, name) { return $$('.section-title', body).filter(function (t) { return t.textContent.trim() === name; })[0] || null; }
+function r2Collect(first) {   // a section: its title and everything after it up to the next section
+  var out = [first], n = first.nextElementSibling;
+  while (n && !n.classList.contains('section-title') && n.id !== 'proofSec') { out.push(n); n = n.nextElementSibling; }
+  return out;
+}
+function r2Fold(key, label, nodes, open) {
+  nodes = nodes.filter(Boolean); if (!nodes.length) return;
+  var box = document.createElement('div');
+  box.className = 'r2-fold' + (open ? ' open' : ''); box.setAttribute('data-fold', key);
+  box.innerHTML = '<button type="button" class="r2-fold-head" aria-expanded="' + !!open + '"><span class="r2-fold-name">' + esc(label) + '</span>' +
+    '<span class="r2-fold-sum"></span><span class="ico r2-fold-chev">' + icon('chevronDown') + '</span></button><div class="r2-fold-body"' + (open ? '' : ' hidden') + '></div>';
+  nodes[0].parentNode.insertBefore(box, nodes[0]);
+  var inner = box.lastChild;
+  nodes.forEach(function (n) { if (n.classList.contains('section-title')) n.classList.add('r2-t'); inner.appendChild(n); });
+}
+function r2FoldKey() { return D && D.id ? D.id : 'new'; }
+function r2Sums() {
+  var body = $('#drawerBody'); if (!body || !D || !$('#oNotes') || !$('#r2Contact')) return;
+  var set = function (k, txt) { var f = body.querySelector('[data-fold="' + k + '"] .r2-fold-sum'); if (f && f.textContent !== txt) f.textContent = txt; };
+  var paid = $('#oPaid');
+  set('pricing', 'Total ' + money(calcOrder(D).total) + ' · ' + (paid && paid.checked ? 'paid' : 'unpaid'));
+  var pc = $('#proofSec .chip'); set('proof', pc ? pc.textContent.trim() : '');
+  var na = $$('#xAtt .att-row').length; set('attachments', na ? na + (na === 1 ? ' file' : ' files') : 'None yet');
+  var nn = $$('#xNotes .note').length, last = (D.log || []).map(function (l) { return String((l && l.at) || ''); }).sort().pop();
+  set('notes', nn ? nn + (nn === 1 ? ' note' : ' notes') + (last ? ', latest ' + niceDate(last.slice(0, 10)) : '') : 'None yet');
+  var st = $('#oStage'), dl = $('#oDelivery'); if (st && dl) set('status', st.value + ' · ' + dl.value + ' · ' + (paid && paid.checked ? 'paid' : 'unpaid'));
+  var cu = $('#oCustomer') && $('#oCustomer').value ? byId('Customers', $('#oCustomer').value) : null;
+  r2Paint($('#r2Contact'), cu ? r2ContactHtml(cu.phone, cu.email, msgContactWay({ notes: $('#oNotes') ? $('#oNotes').value : D.notes }), D.id ? '' : null) : '');
+  var tw = $('#trackWrap'); if (tw && dl) tw.style.display = dl.value === 'Shipping' ? '' : 'none';   // no empty gap where tracking would be
+}
+function r2OrderPhone() {
+  var body = $('#drawerBody'); if (!r2Phone() || !D || !body || !$('#oNotes') || $('#r2Contact')) return;
+  var isNew = !D.id, fk = r2FoldKey(), mem = R2.folds[fk] || (R2.folds[fk] = {});
+  // contact buttons under the customer
+  var pick = $('.cust-pick', body), nc = $('#newCust');
+  var cbox = document.createElement('div'); cbox.id = 'r2Contact'; cbox.className = 'r2-contact'; cbox.hidden = true;
+  if (pick) (nc || pick).insertAdjacentElement('afterend', cbox); else body.insertBefore(cbox, body.firstChild);
+  // new order: Customer, Items, Due date and Order notes first
+  var tStatus = r2TitleOf(body, 'Status'), tItems = r2TitleOf(body, 'Items'), tPricing = r2TitleOf(body, 'Pricing'), tNotes = r2TitleOf(body, 'Order notes');
+  if (isNew && tStatus && tItems) {
+    var bar = $('#addProduct') && $('#addProduct').closest('.toolbar'), due = $('#oDue') && $('#oDue').closest('.field'), nf = $('#oNotes').closest('.field');
+    var statusNodes = []; for (var n = tStatus; n && n !== tItems; n = n.nextElementSibling) statusNodes.push(n);
+    if (bar && due && tNotes && nf) { bar.insertAdjacentElement('afterend', due); due.insertAdjacentElement('afterend', tNotes); tNotes.insertAdjacentElement('afterend', nf); due.classList.add('r2-due-field'); }
+    var stDone = mem.status;
+    r2Fold('status', 'Status', statusNodes.filter(function (x) { return x !== due; }), !!stDone);
+    // the folded Status goes after Order notes
+    var sf = body.querySelector('[data-fold="status"]'); if (sf && nf) nf.insertAdjacentElement('afterend', sf);
+  }
+  var pv = D.proof && !Array.isArray(D.proof) && typeof D.proof === 'object' ? D.proof : {};
+  var want = function (k, auto) { return mem[k] !== undefined ? mem[k] : !!auto; };
+  if (tPricing) r2Fold('pricing', 'Pricing', r2Collect(tPricing), want('pricing'));
+  var ps = $('#proofSec'); if (ps) r2Fold('proof', 'Proof', [ps], want('proof', pv.status === 'sent' || pv.status === 'changes'));
+  var tAtt = r2TitleOf(body, 'Attachments'), tLog = r2TitleOf(body, 'Notes log');
+  if (tAtt) r2Fold('attachments', 'Attachments', r2Collect(tAtt), want('attachments'));
+  if (tLog) r2Fold('notes', 'Notes log', r2Collect(tLog), want('notes'));
+  // bottom: Save order (wide), Message, More (Invoice, Delete)
+  var foot = $('#drawerFoot'), del = $('#dDelete'), inv = $('#dInvoice'), msg = $('#dMessage');
+  if (foot && (del || inv)) {
+    foot.classList.add('r2-foot');
+    var more = document.createElement('button');
+    more.type = 'button'; more.className = 'btn btn-secondary'; more.id = 'r2More'; more.setAttribute('aria-expanded', 'false');
+    more.innerHTML = ico('dots') + 'More';
+    (msg || foot.lastChild).insertAdjacentElement(msg ? 'afterend' : 'beforebegin', more);
+    var menu = document.createElement('div'); menu.className = 'r2-moremenu'; menu.id = 'r2MoreMenu'; menu.hidden = true;
+    if (inv) menu.appendChild(inv); if (del) menu.appendChild(del);
+    foot.appendChild(menu);
+  }
+  r2Sums();
+}
+/* the customer screen: Call / Text / Email under the phone and email boxes */
+function r2CustomerPhone(c) {
+  var body = $('#drawerBody'), ph = $('#cPhone'); if (!r2Phone() || !body || !ph || !c || $('#r2CContact')) return;
+  var box = document.createElement('div'); box.id = 'r2CContact'; box.className = 'r2-contact'; box.hidden = true;
+  ph.closest('.row').insertAdjacentElement('afterend', box);
+  r2CSums();
+}
+function r2CustLatest(id) { return S.data.Orders.filter(function (o) { return o.customerId === id; }).sort(function (a, b) { return String(b.created).localeCompare(String(a.created)); })[0] || null; }
+function r2CSums() {
+  var box = $('#r2CContact'); if (!box || !D || !D.id) return;
+  var latest = r2CustLatest(D.id);
+  r2Paint(box, r2ContactHtml($('#cPhone').value, $('#cEmail').value, '', latest ? 'Email opens the Message screen for ' + latest.number + ', their latest order.' : null));
+}
+var _openDrawerR2 = openDrawer;
+openDrawer = function (title, body, foot) { var f = $('#drawerFoot'); if (f) f.classList.remove('r2-foot'); return _openDrawerR2(title, body, foot); };
+var _openOrderR2 = openOrder;
+openOrder = function (id, stage) {
+  _openOrderR2(id, stage);
+  if (r2Phone()) Promise.resolve().then(r2OrderPhone);   // after the proof and payment-link parts have been added
+};
+var _openCustomerR2 = openCustomer;
+openCustomer = function (id) {
+  _openCustomerR2(id);
+  var c = id ? byId('Customers', id) : null;
+  if (r2Phone() && c) Promise.resolve().then(function () { r2CustomerPhone(c); });
+};
+
+/* ---------- clicks ---------- */
+document.addEventListener('click', function (e) {
+  var t = e.target, el;
+  if ((el = t.closest('[data-bn]'))) {
+    var k = el.getAttribute('data-bn');
+    if (k === 'more') $('#app').classList.add('nav-open'); else go(k);
+    return;
+  }
+  if ((el = t.closest('[data-r2-chip]'))) { R2.chip = el.getAttribute('data-r2-chip'); R2.doneAll = false; render(); return; }
+  if (t.closest('[data-r2-unpaid]')) { S.unpaidOnly = !S.unpaidOnly; render(); return; }
+  if ((el = t.closest('[data-r2-mode]'))) { R2.board = el.getAttribute('data-r2-mode') === 'board'; render(); return; }
+  if (t.closest('[data-r2-older]')) { R2.doneAll = !R2.doneAll; render(); return; }
+  if ((el = t.closest('[data-r2-open]'))) { openOrder(el.getAttribute('data-r2-open')); return; }
+  if ((el = t.closest('.r2-fold-head'))) {
+    var f = el.parentNode, open = !f.classList.contains('open');
+    f.classList.toggle('open', open); el.setAttribute('aria-expanded', open); f.lastChild.hidden = !open;
+    (R2.folds[r2FoldKey()] = R2.folds[r2FoldKey()] || {})[f.getAttribute('data-fold')] = open;
+    return;
+  }
+  if ((el = t.closest('#r2More'))) { var m = $('#r2MoreMenu'); m.hidden = !m.hidden; el.setAttribute('aria-expanded', !m.hidden); return; }
+  if (t.closest('[data-r2-email]')) {
+    if ($('#r2CContact') && $('#r2CContact').contains(t)) {   // customer screen: their latest order's Message screen
+      var c = D && D.id ? byId('Customers', D.id) : null, lo = c ? r2CustLatest(c.id) : null; if (!lo) return;
+      var changed = c && ($('#cName').value.trim() !== String(c.name || '') || $('#cEmail').value.trim() !== String(c.email || '') || $('#cPhone').value.trim() !== String(c.phone || '') ||
+        $('#cAddress').value !== String(c.address || '') || $('#cNotes').value !== String(c.notes || ''));
+      if (changed) { toast('Save or cancel your changes to this customer first.', true); return; }
+      openMessage(lo.id); return;
+    }
+    var mb = $('#dMessage'); if (mb) mb.click();   // exactly like the Message button (saves changes first, as before)
+    return;
+  }
+});
+document.addEventListener('input', function (e) { if ($('#drawerBody') && $('#drawerBody').contains(e.target)) setTimeout(function () { r2Sums(); r2CSums(); }, 0); });
+document.addEventListener('change', function (e) { if ($('#drawerBody') && $('#drawerBody').contains(e.target)) setTimeout(function () { r2Sums(); r2CSums(); }, 0); });
+document.addEventListener('click', function (e) { if ($('#drawerBody') && $('#drawerBody').contains(e.target)) setTimeout(r2Sums, 0); });
+
+/* ---------- number keypads ---------- */
+function r2Keypads(root) {
+  if (!r2Phone() || !root || !root.querySelectorAll) return;
+  var list = [].slice.call(root.querySelectorAll('input[type=number]:not([inputmode])'));
+  if (root.matches && root.matches('input[type=number]:not([inputmode])')) list.push(root);
+  list.forEach(function (el) {
+    var min = el.getAttribute('min');
+    if (min === null || !(parseFloat(min) >= 0)) return;   // boxes that may take a minus sign keep the full keyboard
+    el.setAttribute('inputmode', el.getAttribute('step') === '1' ? 'numeric' : 'decimal');
+  });
+}
+if (window.MutationObserver) new MutationObserver(function (ms) { if (!r2Phone()) return; ms.forEach(function (m) { [].forEach.call(m.addedNodes, function (n) { if (n.nodeType === 1) r2Keypads(n); }); }); })
+  .observe(document.body, { childList: true, subtree: true });
+
+/* turning a tablet or resizing the window across the phone size redraws the page */
+if (window.matchMedia) { var r2mq = window.matchMedia('(max-width: 820px)'), r2cb = function () { if (!$('#drawer').classList.contains('open')) render(); else r2Nav(); };
+  if (r2mq.addEventListener) r2mq.addEventListener('change', r2cb); else if (r2mq.addListener) r2mq.addListener(r2cb); }
 </script>
 
   <script>
