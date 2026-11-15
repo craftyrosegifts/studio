@@ -1820,6 +1820,7 @@ function render() {
   var fn = { dashboard: renderDashboard, orders: renderOrders, customers: renderCustomers,
              catalog: renderCatalog, materials: renderMaterials, ideas: renderIdeas, trash: renderTrash }[S.view];
   if (!fn && S.view === 'expenses' && typeof renderExpenses === 'function') { fn = renderExpenses; $('#topActions').innerHTML = expenseActions(); }
+  if (!fn && S.view === 'reports' && typeof renderReports === 'function') { fn = renderReports; $('#topActions').innerHTML = reportActions(); }   // Phase 2 Step 2B-4
   if (!fn) { S.view = 'dashboard'; fn = renderDashboard; }
   $('#view').innerHTML = fn();
   afterRender();
@@ -2984,7 +2985,7 @@ function openGlobalSearch() {
   paintIcons();
   try {
     var sb = localStorage.getItem('os.sidebar'); if (sb) $('#app').setAttribute('data-sidebar', sb);
-    var v = localStorage.getItem('os.view'); if (v && (VIEWS.some(function (x) { return x.key === v; }) || v.indexOf('list:') === 0 || v === 'expenses' || v === 'trash') && !r2Phone()) S.view = v;   // Release 2: a phone always opens on Today
+    var v = localStorage.getItem('os.view'); if (v && (VIEWS.some(function (x) { return x.key === v; }) || v.indexOf('list:') === 0 || v === 'expenses' || v === 'trash' || v === 'reports') && !r2Phone()) S.view = v;   // Release 2: a phone always opens on Today
   } catch (e) {}
   call('getAll').then(function (data) {
     Object.keys(S.data).forEach(function (k) { S.data[k] = data[k] || []; });
@@ -5567,6 +5568,446 @@ document.addEventListener('click', function (e) {
 document.addEventListener('change', function (e) {
   if (e.target.id === 'expYear') { S.exp.year = e.target.value; render(); }
   else if (e.target.id === 'expCat') { S.exp.cat = e.target.value; render(); }
+});
+</script>
+
+  <style>
+/* ---------- Business reports (Phase 2 Step 2B-4) ---------- */
+.rep-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+.rep-seg { display: inline-flex; flex-wrap: wrap; gap: 4px; background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 3px; }
+.rep-seg button { border: 0; background: none; border-radius: 9px; padding: 7px 12px; font: 600 13px/1.2 var(--font); color: var(--muted); cursor: pointer; }
+.rep-seg button.on { background: var(--sage-100); color: var(--forest-800); }
+.rep-per { display: inline-flex; align-items: center; gap: 4px; }
+.rep-per .rep-lbl { min-width: 128px; text-align: center; font-weight: 700; color: var(--forest-800); }
+.rep-basis-note { font-size: 13px; color: var(--muted); margin: 0 0 14px; line-height: 1.5; }
+.rep-basis-note b { color: var(--forest-800); }
+.rep-warn { border-left: 4px solid var(--st-amber); background: var(--st-amber-bg); color: var(--ink); border-radius: 12px; padding: 12px 14px; margin: 0 0 16px; font-size: 14px; line-height: 1.5; }
+.rep-warn ul { margin: 6px 0 0; padding-left: 18px; }
+.rep-warn .link-btn { font-size: 14px; }
+.rep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.rep-card { margin-bottom: 16px; }
+.rep-card h3 { margin: 0 0 4px; }
+.rep-card .rep-sub { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+.rep-tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+.rep-tbl th { text-align: left; font-size: 12px; color: var(--muted); font-weight: 600; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.rep-tbl td { padding: 8px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.rep-tbl .num { text-align: right; white-space: nowrap; }
+.rep-tbl tr.rep-tap { cursor: pointer; }
+.rep-tbl tr.rep-tap:hover td { background: var(--sage-25); }
+.rep-more { margin-top: 8px; }
+.kpi .rep-link { cursor: pointer; }
+.rep-kpi { cursor: pointer; }
+.rep-kpi:hover { border-color: var(--green-500); box-shadow: var(--shadow); }
+.rep-kpi:focus-visible, .rep-tap:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
+.rep-chart { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; align-items: end; height: 170px; padding-top: 18px; }
+.rep-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; border: 0; background: none; padding: 0; cursor: pointer; font: inherit; color: inherit; min-width: 0; }
+.rep-bars { display: flex; align-items: flex-end; gap: 2px; height: 130px; width: 100%; justify-content: center; }
+.rep-bar { width: 42%; max-width: 18px; background: var(--forest); border-radius: 4px 4px 0 0; min-height: 0; }
+.rep-bar.last { background: var(--sage-200); }
+.rep-col.on .rep-bar:not(.last) { background: var(--green-500); }
+.rep-col span { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.rep-legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 8px; flex-wrap: wrap; }
+.rep-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--forest); }
+.rep-legend i.last { background: var(--sage-200); }
+.rep-how { font-size: 14px; line-height: 1.55; }
+.rep-how dt { font-weight: 700; color: var(--forest-800); margin-top: 10px; }
+.rep-how dd { margin: 2px 0 0; color: var(--ink-2); }
+.rep-date-row { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.rep-date-row .grow { min-width: 0; flex: 1; }
+.rep-date-row .title { font-weight: 600; }
+.rep-date-row .sub { font-size: 13px; color: var(--muted); }
+.rep-date-acts { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+@media (max-width: 1100px) { .rep-grid { grid-template-columns: 1fr; } }
+@media (max-width: 820px) {
+  .rep-tools { gap: 8px; }
+  .rep-seg { width: 100%; }
+  .rep-seg button { flex: 1 1 auto; min-height: 44px; font-size: 14px; }
+  .rep-per { width: 100%; justify-content: space-between; }
+  .rep-per .icon-btn { width: 44px; height: 44px; }
+  .rep-chart { gap: 3px; height: 150px; }
+  .rep-bars { height: 112px; }
+  .rep-bar { width: 45%; }
+  .rep-col span { font-size: 10px; }
+  .rep-date-row { flex-wrap: wrap; }
+  .rep-date-acts { width: 100%; justify-content: stretch; }
+  .rep-date-acts .btn { flex: 1 1 auto; min-height: 44px; justify-content: center; }
+  .rep-dl { width: 100%; min-height: 44px; justify-content: center; }
+}
+</style>
+<script>
+/* ================================================================
+   Business reports (Phase 2 Step 2B-4)
+   Read-only: everything is worked out in the app from the data it already has.
+   "Count by" decides which date puts an order in a period:
+     payment date (default) – the order's date paid
+     order date            – the day the order was created
+     completion date       – the order's date completed
+   Inquiries and Trash are always left out. Orders without the chosen date are never put in any period
+   and are listed as "unknown" instead: no date is ever estimated or invented.
+   Expenses always count by their own expense date.
+   The download uses exactly the same figures as the screen (one shared model).
+   The only thing this page can change is a date Sara types in under "Dates to check", saved through the
+   normal safe save (the server records the change in the order's history).
+   ================================================================ */
+Object.assign(ICONS, {
+  report: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  chevRight: '<path d="m9 6 6 6-6 6"/>'
+});
+VIEWS.push({ key: 'reports', label: 'Reports', icon: 'report', sub: 'Sales, expenses and best sellers for any month, quarter or year' });
+
+var REP_BASES = [
+  { k: 'paid', label: 'Payment date', short: 'payment date', field: 'date paid' },
+  { k: 'order', label: 'Order date', short: 'order date', field: 'order date' },
+  { k: 'done', label: 'Completion date', short: 'completion date', field: 'date completed' }
+];
+var REP_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+var REP = (function () {
+  var d = new Date(), r = { per: 'year', y: d.getFullYear(), q: Math.floor(d.getMonth() / 3) + 1, m: d.getMonth() + 1, basis: 'paid', more: {} };
+  try { var s = JSON.parse(localStorage.getItem('os.reports') || 'null'); if (s && /^(month|quarter|year)$/.test(s.per) && /^(paid|order|done)$/.test(s.basis)) { r.per = s.per; r.basis = s.basis; } } catch (e) {}
+  return r;   // the period itself always starts at this year / quarter / month; only the kind of period and "Count by" are remembered
+})();
+function repSave() { try { localStorage.setItem('os.reports', JSON.stringify({ per: REP.per, basis: REP.basis })); } catch (e) {} }
+function repBasis(k) { return REP_BASES.filter(function (b) { return b.k === (k || REP.basis); })[0]; }
+
+/* ---------- dates ---------- */
+function repLocalDay(v) {   // a timestamp (order created) → its day on this device (Halifax for Sara); a plain date stays as it is
+  if (!v) return '';
+  var s = String(v);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  var d = new Date(s); if (isNaN(d)) return '';
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+function repRange(p) {
+  p = p || REP;
+  var y = p.y, a, b;
+  if (p.per === 'year') { a = y + '-01-01'; b = y + '-12-31'; }
+  else if (p.per === 'quarter') { var m0 = (p.q - 1) * 3 + 1; a = y + '-' + pad(m0) + '-01'; b = y + '-' + pad(m0 + 2) + '-' + pad(new Date(y, m0 + 2, 0).getDate()); }
+  else { a = y + '-' + pad(p.m) + '-01'; b = y + '-' + pad(p.m) + '-' + pad(new Date(y, p.m, 0).getDate()); }
+  return { from: a, to: b };
+}
+function repPeriodLabel(p) {
+  p = p || REP;
+  if (p.per === 'year') return String(p.y);
+  if (p.per === 'quarter') return 'Q' + p.q + ' ' + p.y + ' (' + REP_MONTHS[(p.q - 1) * 3] + '–' + REP_MONTHS[(p.q - 1) * 3 + 2] + ')';
+  return monthName(p.m - 1) + ' ' + p.y;
+}
+function repShift(n) {
+  if (REP.per === 'year') REP.y += n;
+  else if (REP.per === 'quarter') { REP.q += n; if (REP.q < 1) { REP.q = 4; REP.y--; } if (REP.q > 4) { REP.q = 1; REP.y++; } }
+  else { REP.m += n; if (REP.m < 1) { REP.m = 12; REP.y--; } if (REP.m > 12) { REP.m = 1; REP.y++; } }
+}
+function repIsPaid(o) { return o.paid === true || o.paid === 'TRUE' || o.paid === 'true'; }
+/** The day an order counts on for a basis: a 'YYYY-MM-DD' day, null = applies but unknown, undefined = doesn't apply. */
+function repDay(o, basis) {
+  if (basis === 'order') return repLocalDay(o.created) || null;
+  if (basis === 'paid') return repIsPaid(o) ? (o.datePaid ? String(o.datePaid).slice(0, 10) : null) : undefined;
+  if (basis === 'done') return o.stage === DONE ? (o.dateCompleted ? String(o.dateCompleted).slice(0, 10) : null) : undefined;
+}
+function repOrders() { return S.data.Orders.filter(function (o) { return o.stage !== 'Inquiry' && !o.deleted; }); }
+function repInRange(o, basis, r) { var d = repDay(o, basis); return !!d && d >= r.from && d <= r.to; }
+
+/* ---------- material costs ---------- */
+/** An order's material cost is "known" only when every item has a material cost recorded. */
+function repCostKnown(o) {
+  var items = o.items || [];
+  return items.length > 0 && items.every(function (it) { return num(it.unitCost) > 0; });
+}
+function repItemKey(it) {
+  var p = it.productId ? byId('Products', it.productId) : null;
+  return p ? { key: 'p:' + p.id, name: p.name, cat: p.category || 'No category', linked: true } :
+    { key: 'n:' + String(it.name || 'Item').trim().toLowerCase(), name: String(it.name || 'Item').trim(), cat: 'Not linked to a catalog product', linked: false };
+}
+function repSourceOf(o) { var s = String(o.source || ''); return s === 'Website' ? 'Website order form' : /zoho/i.test(s) ? 'Imported from Zoho' : 'Entered in the app'; }
+function repExpenses(r) { return (S.data.Expenses || []).filter(function (e) { var d = String(e.date || '').slice(0, 10); return !e.deleted && d >= r.from && d <= r.to; }); }
+function repCatLabel(k) { var c = (S.expenseCategories || []).filter(function (x) { return x.key === k; })[0]; return c ? c.label : (k || 'Other'); }
+function repSum(list) { return round2(list.reduce(function (t, o) { return t + num(o.total); }, 0)); }
+
+/* ---------- the model: every figure on the page and in the download ---------- */
+function repModel(p) {
+  p = p || REP;
+  var basis = p.basis, r = repRange(p), all = repOrders();
+  var inP = all.filter(function (o) { return repInRange(o, basis, r); })
+    .sort(function (a, b) { return String(repDay(b, basis)).localeCompare(String(repDay(a, basis))) || String(b.number).localeCompare(String(a.number), undefined, { numeric: true }); });
+  var sales = repSum(inP), exp = repExpenses(r), expTotal = round2(exp.reduce(function (t, e) { return t + num(e.amount); }, 0));
+  var known = inP.filter(repCostKnown), mat = { orders: known.length, of: inP.length, sales: repSum(known), cost: 0, profit: 0 };
+  known.forEach(function (o) { var c = calcOrder(o); mat.cost += c.cost; mat.profit += c.profit; });
+  mat.cost = round2(mat.cost); mat.profit = round2(mat.profit);
+  var unknown = all.filter(function (o) { return repDay(o, basis) === null; });
+  var unknownHere = unknown.filter(function (o) { var d = repLocalDay(o.created); return d >= r.from && d <= r.to; });
+  var unpaidIn = basis === 'paid' ? [] : inP.filter(function (o) { return !repIsPaid(o); });
+  // month by month (the period's year, and the year before)
+  var months = [];
+  for (var i = 1; i <= 12; i++) {
+    var mr = repRange({ per: 'month', y: p.y, m: i }), lr = repRange({ per: 'month', y: p.y - 1, m: i });
+    months.push({ m: i, sales: repSum(all.filter(function (o) { return repInRange(o, basis, mr); })), last: repSum(all.filter(function (o) { return repInRange(o, basis, lr); })) });
+  }
+  // expenses by category
+  var cats = {};
+  exp.forEach(function (e) { var k = e.category || 'other'; cats[k] = cats[k] || { label: repCatLabel(k), total: 0, count: 0 }; cats[k].total += num(e.amount); cats[k].count++; });
+  var expCats = Object.keys(cats).map(function (k) { cats[k].total = round2(cats[k].total); return cats[k]; }).sort(function (a, b) { return b.total - a.total; });
+  // best sellers and product categories
+  var items = {}, pcats = {}, itemCount = 0, unlinked = 0;
+  inP.forEach(function (o) {
+    (o.items || []).forEach(function (it) {
+      var k = repItemKey(it), t = itemTotal(it); itemCount++; if (!k.linked) unlinked++;
+      items[k.key] = items[k.key] || { key: k.key, name: k.name, cat: k.cat, linked: k.linked, qty: 0, sales: 0, orders: {} };
+      items[k.key].qty += num(it.qty); items[k.key].sales += t; items[k.key].orders[o.id] = 1;
+      pcats[k.cat] = pcats[k.cat] || { label: k.cat, linked: k.linked, qty: 0, sales: 0 };
+      pcats[k.cat].qty += num(it.qty); pcats[k.cat].sales += t;
+    });
+  });
+  var best = Object.keys(items).map(function (k) { var x = items[k]; x.sales = round2(x.sales); x.orderIds = Object.keys(x.orders); delete x.orders; return x; })
+    .sort(function (a, b) { return b.sales - a.sales || b.qty - a.qty || a.name.localeCompare(b.name); });
+  var prodCats = Object.keys(pcats).map(function (k) { pcats[k].sales = round2(pcats[k].sales); return pcats[k]; })
+    .sort(function (a, b) { return (a.linked === b.linked ? 0 : a.linked ? -1 : 1) || b.sales - a.sales; });
+  // customers and sources
+  var cust = {}, src = {};
+  inP.forEach(function (o) {
+    var ck = o.customerId || ('name:' + (o.customerName || ''));
+    cust[ck] = cust[ck] || { key: ck, name: o.customerName || 'No customer', orders: 0, sales: 0, ids: [] };
+    cust[ck].orders++; cust[ck].sales += num(o.total); cust[ck].ids.push(o.id);
+    var s = repSourceOf(o); src[s] = src[s] || { label: s, orders: 0, sales: 0, ids: [] };
+    src[s].orders++; src[s].sales += num(o.total); src[s].ids.push(o.id);
+  });
+  var customers = Object.keys(cust).map(function (k) { cust[k].sales = round2(cust[k].sales); return cust[k]; }).sort(function (a, b) { return b.sales - a.sales || b.orders - a.orders; });
+  var sources = Object.keys(src).map(function (k) { src[k].sales = round2(src[k].sales); return src[k]; }).sort(function (a, b) { return b.sales - a.sales; });
+  // waiting on payment today (whatever the period)
+  var unpaidNow = all.filter(function (o) { return !repIsPaid(o); }).sort(function (a, b) { return String(a.dueDate || '9999').localeCompare(String(b.dueDate || '9999')); });
+  // what is incomplete in this period
+  var gaps = {
+    paidUnknown: all.filter(function (o) { return repIsPaid(o) && !o.datePaid; }),
+    doneUnknown: all.filter(function (o) { return o.stage === DONE && !o.dateCompleted; }),
+    costUnknown: inP.length - known.length, itemsUnlinked: unlinked, items: itemCount
+  };
+  return { p: { per: p.per, y: p.y, q: p.q, m: p.m, basis: basis }, range: r, label: repPeriodLabel(p), basis: repBasis(basis),
+    orders: inP, sales: sales, count: inP.length, avg: inP.length ? round2(sales / inP.length) : 0,
+    unpaidIn: { count: unpaidIn.length, total: repSum(unpaidIn), list: unpaidIn },
+    expenses: exp, expTotal: expTotal, net: round2(sales - expTotal), mat: mat,
+    unknown: { list: unknown, total: repSum(unknown), here: unknownHere, hereTotal: repSum(unknownHere) },
+    months: months, expCats: expCats, best: best, prodCats: prodCats, customers: customers, sources: sources,
+    unpaidNow: { list: unpaidNow, total: repSum(unpaidNow) }, gaps: gaps };
+}
+
+/* ---------- screen ---------- */
+function reportActions() {
+  return '<button class="btn btn-secondary desktop-only" type="button" data-rep-dl>' + ico('download') + '<span class="label">Download spreadsheet</span></button>';
+}
+function repTap(key, label) { return ' data-rep-open="' + esc(key) + '" role="button" tabindex="0" aria-label="' + esc(label) + '"'; }
+function repTable(head, rows, key, limit) {
+  var all = rows.length, show = REP.more[key] ? rows : rows.slice(0, limit || 10);
+  return '<table class="rep-tbl"><thead><tr>' + head.map(function (h) { return '<th' + (h.num ? ' class="num"' : '') + '>' + esc(h.t) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    show.join('') + '</tbody></table>' + (all > (limit || 10) ? '<div class="rep-more"><button class="link-btn" type="button" data-rep-more="' + esc(key) + '">' + (REP.more[key] ? 'Show fewer' : 'Show all ' + all) + '</button></div>' : '');
+}
+function renderReports() {
+  var M = repModel(), b = M.basis;
+  var tools = '<div class="rep-tools">' +
+    '<div class="rep-seg" role="group" aria-label="Period">' + [['month', 'Month'], ['quarter', 'Quarter'], ['year', 'Year']].map(function (x) {
+      return '<button type="button" data-rep-per="' + x[0] + '" class="' + (REP.per === x[0] ? 'on' : '') + '" aria-pressed="' + (REP.per === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+    '<div class="rep-per"><button class="icon-btn" type="button" data-rep-shift="-1" aria-label="Previous period">' + ico('chevronLeft') + '</button>' +
+      '<span class="rep-lbl" aria-live="polite">' + esc(M.label) + '</span><button class="icon-btn" type="button" data-rep-shift="1" aria-label="Next period">' + ico('chevRight') + '</button></div>' +
+    '<div class="rep-seg" role="group" aria-label="Count by"><span class="sr-only">Count by</span>' + REP_BASES.map(function (x) {
+      return '<button type="button" data-rep-basis="' + x.k + '" class="' + (REP.basis === x.k ? 'on' : '') + '" aria-pressed="' + (REP.basis === x.k) + '">' + x.label + '</button>'; }).join('') + '</div>' +
+    '<button class="btn btn-secondary mobile-only rep-dl" type="button" data-rep-dl>' + ico('download') + 'Download spreadsheet</button></div>';
+  var note = '<p class="rep-basis-note">Counted by <b>' + esc(b.short) + '</b> · ' + esc(M.label) + '. Inquiries and Trash are never included. Expenses always count by their own date. ' +
+    'The <b>Sales this month</b> box on the Today page counts by <b>order date</b>, so it can differ from sales counted by payment date here.</p>';
+  // what is incomplete
+  var w = [];
+  if (M.unknown.list.length) w.push('<li><b>' + M.unknown.list.length + (M.unknown.list.length === 1 ? ' order has' : ' orders have') + ' no ' + esc(b.field) + '</b> (' + money(M.unknown.total) + ' in total), so ' + (M.unknown.list.length === 1 ? 'it is' : 'they are') +
+    ' not counted in any period when counting by ' + esc(b.short) + (M.unknown.here.length ? '. ' + M.unknown.here.length + ' of them (' + money(M.unknown.hereTotal) + ') were ordered in this period' : '') +
+    '. <button class="link-btn" type="button"' + repTap('unknown', 'Show the orders with no ' + b.field) + '>Show them</button>' + (b.k !== 'order' ? ' · <button class="link-btn" type="button" data-rep-basis="order">Count by order date instead</button>' : '') + '</li>');
+  if (M.gaps.costUnknown) w.push('<li><b>Material costs</b> are not recorded for ' + M.gaps.costUnknown + ' of the ' + M.count + ' orders in this period, so profit after materials only covers the other ' + M.mat.orders + '.</li>');
+  if (M.gaps.itemsUnlinked) w.push('<li><b>' + M.gaps.itemsUnlinked + ' of ' + M.gaps.items + ' items</b> in this period are not linked to a catalog product, so they are grouped by item name and have no category.</li>');
+  var warn = w.length ? '<div class="rep-warn" role="note"><b>Some older information is missing</b> (nothing has been estimated or filled in):<ul>' + w.join('') + '</ul></div>' : '';
+  // summary boxes
+  var kb = function (key, icn, label, val, sub, aria) {
+    return '<div class="card kpi rep-kpi"' + repTap(key, aria) + '><div class="k-label">' + ico(icn) + esc(label) + '</div><div class="k-val">' + val + '</div><div class="k-sub">' + sub + '</div></div>';
+  };
+  var kpis = '<div class="kpis">' +
+    kb('sales', 'dollar', 'Sales', money(M.sales), M.count + (M.count === 1 ? ' order' : ' orders') + (M.count ? ' · average ' + money(M.avg) : '') + (M.unpaidIn.count ? ' · ' + money(M.unpaidIn.total) + ' still unpaid' : ''), 'Sales: show these orders') +
+    '<div class="card kpi"><div class="k-label">' + ico('receipt') + 'Expenses</div><div class="k-val">' + money(M.expTotal) + '</div><div class="k-sub">' + M.expenses.length + (M.expenses.length === 1 ? ' expense' : ' expenses') + ' dated in this period</div></div>' +
+    '<div class="card kpi"><div class="k-label">' + ico('dollar') + 'Sales minus expenses</div><div class="k-val">' + money(M.net) + '</div><div class="k-sub">' + money(M.sales) + ' sales − ' + money(M.expTotal) + ' expenses</div></div>' +
+    kb('mat', 'box', 'Profit after materials', M.mat.orders ? money(M.mat.profit) : '—', M.mat.orders ? 'Based on ' + M.mat.orders + ' of ' + M.count + ' orders (' + money(M.mat.sales) + ' of sales)' : 'No orders with recorded material costs', 'Profit after materials: show the orders it is based on') + '</div>';
+  var how = '<details class="card card-pad rep-card" id="repHow"' + ((REP.howClosed === undefined ? r2Phone() : REP.howClosed) ? '' : ' open') + '><summary><b>How these numbers are worked out</b></summary><dl class="rep-how">' +
+    '<dt>Sales</dt><dd>The order totals (items and personalization, plus shipping, minus discounts) of the orders whose ' + esc(b.field) + ' falls in ' + esc(M.label) + '.' + (b.k === 'paid' ? ' Unpaid orders are never sales here; they are under Waiting on payment.' : '') + '</dd>' +
+    '<dt>Sales minus expenses</dt><dd>Sales minus every expense dated in ' + esc(M.label) + ' (from the Expenses page). Materials you buy are already in your expenses, so they are not taken off twice. This is what the business kept.</dd>' +
+    '<dt>Profit after materials</dt><dd>For each order where every item has a material cost recorded: the items and personalization, minus discounts, minus those material costs (shipping left out). Orders without recorded material costs are left out completely, not counted as zero. It is an estimate per order and does not include your other expenses, so it is not the same as Sales minus expenses.</dd>' +
+    '<dt>Unknown dates</dt><dd>Orders paid or finished before dates were recorded have no date, and the app never makes one up. You can type in a real date under Dates to check below, or in the order itself.</dd></dl></details>';
+  // chart
+  var max = Math.max.apply(null, M.months.map(function (x) { return Math.max(x.sales, x.last); }).concat([1]));
+  var chart = '<div class="card card-pad rep-card"><h3>Month by month · ' + M.p.y + '</h3><p class="rep-sub">Sales counted by ' + esc(b.short) + ', with ' + (M.p.y - 1) + ' alongside. Tap a month to see it.</p>' +
+    '<div class="rep-chart">' + M.months.map(function (x) {
+      var on = REP.per === 'month' && REP.m === x.m;
+      return '<button type="button" class="rep-col' + (on ? ' on' : '') + '" data-rep-month="' + x.m + '" aria-label="' + esc(monthName(x.m - 1) + ' ' + M.p.y + ': ' + money(x.sales) + ', ' + (M.p.y - 1) + ': ' + money(x.last)) + '">' +
+        '<div class="rep-bars"><div class="rep-bar last" style="height:' + (x.last / max * 100) + '%"></div><div class="rep-bar" style="height:' + (x.sales / max * 100) + '%"></div></div><span>' + REP_MONTHS[x.m - 1] + '</span></button>';
+    }).join('') + '</div><div class="rep-legend"><span><i></i>' + M.p.y + ': ' + money(M.months.reduce(function (t, x) { return t + x.sales; }, 0)) + '</span><span><i class="last"></i>' + (M.p.y - 1) + ': ' + money(M.months.reduce(function (t, x) { return t + x.last; }, 0)) + '</span></div></div>';
+  // tables
+  var expTbl = '<div class="card card-pad rep-card"><h3>Expenses by category</h3><p class="rep-sub">Expenses dated in ' + esc(M.label) + '.</p>' +
+    (M.expCats.length ? repTable([{ t: 'Category' }, { t: 'Expenses', num: 1 }, { t: 'Total', num: 1 }], M.expCats.map(function (c) {
+      return '<tr><td>' + esc(c.label) + '</td><td class="num">' + c.count + '</td><td class="num">' + money(c.total) + '</td></tr>'; }).concat(['<tr><td><b>Total</b></td><td class="num">' + M.expenses.length + '</td><td class="num"><b>' + money(M.expTotal) + '</b></td></tr>']), 'exp', 99)
+      : '<p class="muted">No expenses dated in this period.</p>') + '</div>';
+  var bestTbl = '<div class="card card-pad rep-card"><h3>Best sellers</h3><p class="rep-sub">Items in the orders counted above. Item sales don\'t include shipping or discounts.</p>' +
+    (M.best.length ? repTable([{ t: 'Item' }, { t: 'Qty', num: 1 }, { t: 'Sales', num: 1 }], M.best.map(function (x) {
+      return '<tr class="rep-tap"' + repTap('item:' + x.key, 'Show orders with ' + x.name) + '><td>' + esc(x.name) + (x.linked ? '' : ' <span class="muted small">· not linked</span>') + '</td><td class="num">' + x.qty + '</td><td class="num">' + money(x.sales) + '</td></tr>'; }), 'best') : '<p class="muted">No orders in this period.</p>') +
+    (M.prodCats.length ? '<h3 style="margin-top:16px">By category</h3>' + repTable([{ t: 'Category' }, { t: 'Qty', num: 1 }, { t: 'Sales', num: 1 }], M.prodCats.map(function (c) {
+      return '<tr><td>' + esc(c.label) + '</td><td class="num">' + c.qty + '</td><td class="num">' + money(c.sales) + '</td></tr>'; }), 'pcat') : '') + '</div>';
+  var custTbl = '<div class="card card-pad rep-card"><h3>Top customers</h3><p class="rep-sub">By sales in the orders counted above.</p>' +
+    (M.customers.length ? repTable([{ t: 'Customer' }, { t: 'Orders', num: 1 }, { t: 'Sales', num: 1 }], M.customers.map(function (c) {
+      return '<tr class="rep-tap"' + repTap('cust:' + c.key, 'Show orders from ' + c.name) + '><td>' + esc(c.name) + '</td><td class="num">' + c.orders + '</td><td class="num">' + money(c.sales) + '</td></tr>'; }), 'cust') : '<p class="muted">No orders in this period.</p>') + '</div>';
+  var srcTbl = '<div class="card card-pad rep-card"><h3>Where orders came from</h3><p class="rep-sub">The orders counted above.</p>' +
+    (M.sources.length ? repTable([{ t: 'Source' }, { t: 'Orders', num: 1 }, { t: 'Sales', num: 1 }], M.sources.map(function (s) {
+      return '<tr class="rep-tap"' + repTap('src:' + s.label, 'Show orders from ' + s.label) + '><td>' + esc(s.label) + '</td><td class="num">' + s.orders + '</td><td class="num">' + money(s.sales) + '</td></tr>'; }), 'src') : '<p class="muted">No orders in this period.</p>') + '</div>';
+  var unpaidTbl = '<div class="card card-pad rep-card"><h3>Waiting on payment (today)</h3><p class="rep-sub">Every confirmed order not marked paid, whatever the period. ' + M.unpaidNow.list.length + (M.unpaidNow.list.length === 1 ? ' order' : ' orders') + ' · ' + money(M.unpaidNow.total) + '.</p>' +
+    (M.unpaidNow.list.length ? repTable([{ t: 'Order' }, { t: 'Customer' }, { t: 'Total', num: 1 }], M.unpaidNow.list.map(function (o) {
+      return '<tr class="rep-tap" data-rep-order="' + o.id + '" tabindex="0"><td>' + esc(o.number) + '</td><td>' + esc(o.customerName || '—') + '</td><td class="num">' + money(o.total) + '</td></tr>'; }), 'unpaid') : '<p class="muted">Nothing is waiting on payment.</p>') + '</div>';
+  return tools + note + warn + kpis + how + chart + '<div class="rep-grid"><div>' + bestTbl + srcTbl + '</div><div>' + custTbl + expTbl + unpaidTbl + '</div></div>' + repDatesCard();
+}
+
+/* ---------- Dates to check ---------- */
+function repDateList() {
+  return repOrders().filter(function (o) { return (repIsPaid(o) && !o.datePaid) || (o.stage === DONE && !o.dateCompleted); })
+    .sort(function (a, b) { return String(b.created).localeCompare(String(a.created)); });
+}
+function repDatesCard() {
+  var list = repDateList();
+  var rows = list.map(function (o) {
+    var np = repIsPaid(o) && !o.datePaid, nd = o.stage === DONE && !o.dateCompleted;
+    return '<div class="rep-date-row"><div class="grow"><div class="title">' + esc(o.number) + ' · ' + esc(o.customerName || 'No customer') + '</div>' +
+      '<div class="sub">Ordered ' + esc(niceDate(repLocalDay(o.created))) + ' · ' + money(o.total) + ' · ' + [np ? 'payment date unknown' : '', nd ? 'completion date unknown' : ''].filter(Boolean).join(', ') + '</div></div>' +
+      '<div class="rep-date-acts">' + (np ? '<button class="btn btn-secondary btn-sm" type="button" data-rep-date="paid|' + o.id + '">Add payment date</button>' : '') +
+      (nd ? '<button class="btn btn-secondary btn-sm" type="button" data-rep-date="done|' + o.id + '">Add completion date</button>' : '') + '</div></div>';
+  });
+  var all = rows.length, show = REP.more.dates ? rows : rows.slice(0, 8);
+  return '<div class="card card-pad rep-card" id="repDates"><h3>Dates to check</h3><p class="rep-sub">Orders paid or finished before dates were recorded. If you know the real date from your records, add it here: you check it before it is saved, and the change is noted in the order\'s history. Leave any you don\'t know; nothing is filled in automatically. To correct a date that is already recorded, open the order and change it there.</p>' +
+    (all ? show.join('') + (all > 8 ? '<div class="rep-more"><button class="link-btn" type="button" data-rep-more="dates">' + (REP.more.dates ? 'Show fewer' : 'Show all ' + all) + '</button></div>' : '') : '<p class="muted">Every paid and finished order has its dates.</p>') + '</div>';
+}
+var REP_SAVING = false;
+function repDateDialog(kind, id) {
+  var o = byId('Orders', id); if (!o) { toast('This order is no longer here.', true); return; }
+  var isPaid = kind === 'paid', label = isPaid ? 'Date paid' : 'Date completed', field = isPaid ? 'datePaid' : 'dateCompleted';
+  if (o[field]) { toast(o.number + ' already has a ' + label.toLowerCase() + '. Open the order to change it.', true); render(); return; }
+  var ordered = repLocalDay(o.created), today = todayStr();
+  qaDialog('<h3 class="qa-title">Add ' + label.toLowerCase() + '</h3>' +
+    '<p><b>' + esc(o.number) + '</b> · ' + esc(o.customerName || 'No customer') + ' · ' + money(o.total) + '<br><span class="muted">Ordered ' + esc(niceDate(ordered)) + '</span></p>' +
+    '<div class="field"><label for="repDateIn">' + label + ' <span class="muted">(from your records)</span></label><input class="input" type="date" id="repDateIn" max="' + today + '"></div>' +
+    '<p class="muted small" id="repDateErr" role="alert" style="color:var(--st-red)"></p>',
+    function (m) {
+      var v = m.querySelector('#repDateIn').value, err = m.querySelector('#repDateErr');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { err.textContent = 'Please pick a date, or press Cancel if you don\'t know it.'; return false; }
+      if (v > today) { err.textContent = 'The date can\'t be in the future.'; return false; }
+      setTimeout(function () { repDateConfirm(o.id, kind, v); }, 0);
+    }, 'Review');
+}
+function repDateConfirm(id, kind, v) {
+  var o = byId('Orders', id); if (!o) return;
+  var isPaid = kind === 'paid', label = isPaid ? 'date paid' : 'date completed', ordered = repLocalDay(o.created);
+  qaDialog('<h3 class="qa-title">Save this date?</h3>' +
+    '<p>' + esc(o.number) + ' · ' + esc(o.customerName || 'No customer') + '</p><p><b>' + esc(label.charAt(0).toUpperCase() + label.slice(1)) + ': ' + esc(niceDate(v)) + '</b> (was unknown)</p>' +
+    (v < ordered ? '<p class="msg-warn">' + ico('alert') + 'This is before the order date (' + esc(niceDate(ordered)) + '). Please check it is right.</p>' : '') +
+    '<p class="muted small">It is saved on the order and noted in its history. Reports will then count it ' + (isPaid ? 'when counting by payment date' : 'when counting by completion date') + '.</p>',
+    function () { repDateSave(id, kind, v); }, 'Save date');
+}
+function repDateSave(id, kind, v) {
+  if (REP_SAVING) return;
+  var o = byId('Orders', id); if (!o) return;
+  var field = kind === 'paid' ? 'datePaid' : 'dateCompleted', label = kind === 'paid' ? 'Date paid' : 'Date completed';
+  var rec = JSON.parse(JSON.stringify(o)); rec[field] = v;
+  REP_SAVING = true; toast('Saving…');
+  save('Orders', rec).then(function (saved) {
+    REP_SAVING = false; render();
+    if (String(saved[field] || '') === v) toast(saved.number + ': ' + label.toLowerCase() + ' saved as ' + niceDate(v) + ' (noted in its history)');
+    else toast('Not saved – ' + saved.number + ' (' + label.toLowerCase() + '). Please check the order.', true);
+  }).catch(function (e) { REP_SAVING = false; render(); tdFail(e, o.number + ' (' + label.toLowerCase() + ')'); });
+}
+
+/* ---------- tap-through: the orders behind a number (shown on the Orders page, like the Today boxes) ---------- */
+var REP_FOCUS_P = null;
+function repFocus(k) {
+  var M = repModel(REP_FOCUS_P || REP), key = String(k).slice(4), list = null, title = '', extra = '';
+  var where = ' · ' + M.label + ' · counted by ' + M.basis.short;
+  if (key === 'sales') { list = M.orders; title = 'Sales'; extra = money(M.sales) + where; }
+  else if (key === 'mat') { list = M.orders.filter(repCostKnown); title = 'Profit after materials is based on'; extra = money(M.mat.profit) + ' profit after ' + money(M.mat.cost) + ' materials' + where; }
+  else if (key === 'unknown') { list = M.unknown.list; title = 'No ' + M.basis.field + ' recorded'; extra = money(M.unknown.total) + ' · not counted in any period by ' + M.basis.short; }
+  else if (key.indexOf('item:') === 0) { var it = M.best.filter(function (x) { return x.key === key.slice(5); })[0]; if (it) { list = M.orders.filter(function (o) { return it.orderIds.indexOf(o.id) >= 0; }); title = it.name; extra = it.qty + ' sold · ' + money(it.sales) + where; } }
+  else if (key.indexOf('cust:') === 0) { var c = M.customers.filter(function (x) { return x.key === key.slice(5); })[0]; if (c) { list = M.orders.filter(function (o) { return c.ids.indexOf(o.id) >= 0; }); title = c.name; extra = money(c.sales) + where; } }
+  else if (key.indexOf('src:') === 0) { var s = M.sources.filter(function (x) { return x.label === key.slice(4); })[0]; if (s) { list = M.orders.filter(function (o) { return s.ids.indexOf(o.id) >= 0; }); title = s.label; extra = money(s.sales) + where; } }
+  return list ? { title: title, list: list, extra: extra, back: true } : null;
+}
+var _kfInfoRep = kfInfo;
+kfInfo = function (k) { return String(k).indexOf('rep:') === 0 ? repFocus(k) : _kfInfoRep(k); };
+var _kfViewRep = kfView;
+kfView = function () {
+  var h = _kfViewRep(), f = kfInfo(S.focus);
+  return f && f.back ? h.replace('data-kf-clear>Show all orders</button>', 'data-rep-back>' + ico('chevronLeft') + 'Back to Reports</button>') : h;
+};
+
+/* ---------- download: the same figures as the screen, as a spreadsheet file ---------- */
+function repSheets(M) {
+  var head = function (title) { return [[title], ['Crafty Rose Gifts · ' + M.label + ' · counted by ' + M.basis.short + ' · made ' + todayStr()], []]; };
+  var orderRow = function (o) { return [o.number, o.customerName || '', repLocalDay(o.created), String(o.datePaid || '') || (repIsPaid(o) ? 'unknown' : 'not paid'), o.stage === DONE ? (String(o.dateCompleted || '') || 'unknown') : 'not finished', o.stage, repSourceOf(o), round2(num(o.subtotal) || calcOrder(o).subtotal), round2(num(o.shipping)), round2(num(o.discount)), round2(num(o.total)), repCostKnown(o) ? round2(calcOrder(o).cost) : 'not recorded', repIsPaid(o) ? 'Yes' : 'No']; };
+  var orderHead = ['Order', 'Customer', 'Order date', 'Date paid', 'Date completed', 'Stage', 'Source', 'Items', 'Shipping', 'Discount', 'Total', 'Material cost', 'Paid'];
+  var sum = head('Summary').concat([['Figure', 'Amount', 'Details'],
+    ['Sales', M.sales, M.count + ' orders, average ' + money(M.avg) + (M.unpaidIn.count ? ', ' + money(M.unpaidIn.total) + ' still unpaid' : '')],
+    ['Expenses', M.expTotal, M.expenses.length + ' expenses dated in this period'],
+    ['Sales minus expenses', M.net, 'Sales minus every expense dated in this period'],
+    ['Profit after materials', M.mat.orders ? M.mat.profit : 'not available', 'Based on ' + M.mat.orders + ' of ' + M.count + ' orders with recorded material costs (' + money(M.mat.sales) + ' of sales); material costs ' + money(M.mat.cost)],
+    [], ['Missing information (nothing estimated)', 'Count', 'Details'],
+    ['Orders with no ' + M.basis.field, M.unknown.list.length, money(M.unknown.total) + ', not counted in any period by ' + M.basis.short],
+    ['Paid orders with unknown payment date (all time)', M.gaps.paidUnknown.length, ''],
+    ['Finished orders with unknown completion date (all time)', M.gaps.doneUnknown.length, ''],
+    ['Orders in this period without material costs', M.gaps.costUnknown, ''],
+    ['Items in this period not linked to a catalog product', M.gaps.itemsUnlinked, 'of ' + M.gaps.items + ' items'],
+    [], ['Note', '', 'The Today page\'s Sales this month box counts by order date, so it can differ from sales counted by payment date.']]);
+  return [
+    { name: 'Summary', rows: sum, header: [3, 9], money: [1], plain: [10, 11, 12, 13, 14] },   // plain: the counts under Missing information are not money
+    { name: 'Month by month', rows: head('Month by month').concat([['Month', String(M.p.y), String(M.p.y - 1)]], M.months.map(function (x) { return [monthName(x.m - 1), x.sales, x.last]; }),
+      [['Total', round2(M.months.reduce(function (t, x) { return t + x.sales; }, 0)), round2(M.months.reduce(function (t, x) { return t + x.last; }, 0))]]), header: [3], money: [1, 2] },
+    { name: 'Orders', rows: head('Orders counted').concat([orderHead], M.orders.map(orderRow)), header: [3], money: [7, 8, 9, 10, 11] },
+    { name: 'Expenses by category', rows: head('Expenses by category').concat([['Category', 'Expenses', 'Total']], M.expCats.map(function (c) { return [c.label, c.count, c.total]; }), [['Total', M.expenses.length, M.expTotal]]), header: [3], money: [2] },
+    { name: 'Expenses', rows: head('Expenses').concat([['Date', 'Company', 'Category', 'Amount', 'HST/GST']], M.expenses.slice().sort(function (a, b) { return String(a.date).localeCompare(String(b.date)); })
+      .map(function (e) { return [String(e.date).slice(0, 10), e.vendor || '', repCatLabel(e.category), round2(num(e.amount)), round2(num(e.tax))]; })), header: [3], money: [3, 4] },
+    { name: 'Best sellers', rows: head('Best sellers').concat([['Item', 'Linked to catalog', 'Category', 'Qty', 'Sales']], M.best.map(function (x) { return [x.name, x.linked ? 'Yes' : 'No', x.linked ? x.cat : '', x.qty, x.sales]; })), header: [3], money: [4] },
+    { name: 'Categories', rows: head('Sales by product category').concat([['Category', 'Qty', 'Sales']], M.prodCats.map(function (c) { return [c.label, c.qty, c.sales]; })), header: [3], money: [2] },
+    { name: 'Top customers', rows: head('Top customers').concat([['Customer', 'Orders', 'Sales']], M.customers.map(function (c) { return [c.name, c.orders, c.sales]; })), header: [3], money: [2] },
+    { name: 'Order sources', rows: head('Where orders came from').concat([['Source', 'Orders', 'Sales']], M.sources.map(function (s) { return [s.label, s.orders, s.sales]; })), header: [3], money: [2] },
+    { name: 'Waiting on payment', rows: head('Waiting on payment today (whatever the period)').concat([orderHead], M.unpaidNow.list.map(orderRow)), header: [3], money: [7, 8, 9, 10, 11] },
+    { name: 'Unknown dates', rows: head('Orders with no ' + M.basis.field + ' (not counted in any period)').concat([orderHead], M.unknown.list.map(orderRow)), header: [3], money: [7, 8, 9, 10, 11] }
+  ];
+}
+function repFileName(M) { return 'Crafty Rose report – ' + M.label.replace(/[^\w –()-]/g, '') + ' – by ' + M.basis.short + '.xlsx'; }
+function repDownload(btn) {
+  var M = repModel(), payload = { name: repFileName(M), sheets: repSheets(M) };
+  if (btn) busy(btn, 'Making the file…');
+  call('makeReportFile', payload).then(function (r) {
+    if (btn) unbusy(btn);
+    openDrawer('Report download', '<p style="margin-top:0"><b>Ready:</b> ' + esc(r.name) + '</p>' +
+      '<p class="muted">Counted by ' + esc(M.basis.short) + ', ' + esc(M.label) + ': exactly the figures on the Reports page. A copy is kept in the "' + esc(r.folder) + '" folder in your Google Drive.</p>' +
+      '<a class="btn btn-primary" style="width:100%;justify-content:center" href="' + esc(r.download) + '" target="_blank" rel="noopener">' + ico('download') + 'Download spreadsheet</a>' +
+      '<p style="margin:12px 0 0"><a href="' + esc(r.url) + '" target="_blank" rel="noopener">Open it in Google Drive</a></p>' +
+      '<p class="hint" style="margin:12px 0 0"><b>On iPhone:</b> tap Download spreadsheet, then the share button, then <b>Save to Files</b>. It opens in Numbers or Excel.</p>',
+      '<span class="spacer"></span><button class="btn btn-secondary" type="button" data-close>Close</button>');
+  }).catch(function (e) { if (btn) unbusy(btn); fail(e); });
+}
+
+/* ---------- clicks ---------- */
+document.addEventListener('click', function (e) {
+  var t = e.target, el;
+  if (S.view !== 'reports' && !t.closest('[data-rep-back]') && !t.closest('#qaModal')) return;
+  if ((el = t.closest('[data-rep-per]'))) { REP.per = el.getAttribute('data-rep-per'); REP.more = {}; repSave(); render(); return; }
+  if ((el = t.closest('[data-rep-shift]'))) { repShift(+el.getAttribute('data-rep-shift')); REP.more = {}; render(); return; }
+  if ((el = t.closest('[data-rep-basis]'))) { REP.basis = el.getAttribute('data-rep-basis'); REP.more = {}; repSave(); render(); return; }
+  if ((el = t.closest('[data-rep-month]'))) { REP.per = 'month'; REP.m = +el.getAttribute('data-rep-month'); REP.more = {}; repSave(); render(); return; }
+  if ((el = t.closest('[data-rep-more]'))) { var k = el.getAttribute('data-rep-more'); REP.more[k] = !REP.more[k]; render(); return; }
+  if ((el = t.closest('[data-rep-open]'))) { REP_FOCUS_P = null; kfOpen('rep:' + el.getAttribute('data-rep-open')); return; }
+  if ((el = t.closest('[data-rep-order]'))) { openOrder(el.getAttribute('data-rep-order')); return; }
+  if ((el = t.closest('[data-rep-date]'))) { var pr = el.getAttribute('data-rep-date').split('|'); repDateDialog(pr[0], pr[1]); return; }
+  if ((el = t.closest('[data-rep-dl]'))) { repDownload(el); return; }
+  if (t.closest('[data-rep-back]')) { go('reports'); return; }
+});
+document.addEventListener('toggle', function (e) { if (e.target && e.target.id === 'repHow') REP.howClosed = !e.target.open; }, true);   // the explanation stays as Sara left it
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  var el = e.target && e.target.closest && e.target.closest('[data-rep-open],[data-rep-order]');
+  if (el && S.view === 'reports') { e.preventDefault(); el.click(); }
 });
 </script>
 
