@@ -569,6 +569,28 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .sc-stats span { display: block; font-size: 10.5px; color: var(--muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sc-note { font-size: 12px; color: var(--ink-2); background: var(--note-bg, #FFF6E5); border-radius: 10px; padding: 7px 9px; line-height: 1.4; }
 @media (max-width: 520px) { .sc-grid { grid-template-columns: 1fr; } .sc-h { font-size: 24px; } }
+.cat-field { position: relative; }
+.pick-list { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; margin-top: 4px; max-height: 260px; overflow-y: auto; background: var(--white); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 4px; }
+.pick-list.static { position: static; box-shadow: none; margin-top: 8px; max-height: 320px; }
+.pick-row { display: flex; width: 100%; align-items: baseline; justify-content: space-between; gap: 10px; text-align: left; background: none; border: 0; border-radius: 8px; padding: 9px 10px; font: inherit; color: inherit; cursor: pointer; }
+.pick-row:hover, .pick-row:focus-visible { background: var(--sage-25); outline: none; }
+.pick-name { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.pick-sub { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.pick-new { justify-content: flex-start; color: var(--forest, #2F473C); font-weight: 600; }
+.pick-new .ico { width: 14px; height: 14px; }
+.mat-search { margin-top: 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--sage-25); padding: 10px; }
+.mat-top { display: flex; gap: 8px; align-items: center; }
+.mat-pick { flex: 1; min-width: 0; display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; cursor: pointer; overflow: hidden; }
+.mat-pick .ico { width: 14px; height: 14px; flex: none; opacity: .6; }
+.mat-how { display: inline-flex; gap: 2px; margin-top: 8px; background: var(--sage-25); border-radius: 10px; padding: 2px; flex-wrap: wrap; }
+.mat-how .seg { border: 0; background: none; font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 8px; cursor: pointer; color: var(--muted); }
+.mat-how .seg.on { background: var(--white); color: inherit; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.mat-amt { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin-top: 8px; }
+.mat-amt label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); flex: 1 1 110px; min-width: 0; }
+.mat-amt .mat-x, .mat-amt .mat-of { padding-bottom: 10px; color: var(--muted); }
+.mat-size label { flex: 1 1 90px; }
+.mat-calc { margin-top: 6px; }
+.mat-warn { margin-top: 4px; color: #8A5A00; }
 .qm-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .stripe-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
 .ship-help { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: -4px 0 14px; font-size: 13px; }
@@ -1768,10 +1790,78 @@ function matches(obj, fields) {
 }
 
 /* Cost of one product from its materials list */
+/* ---------------- Product setup step (Nov 2026): sheet materials by size, bulk supplies by yield ----------------
+   The share of a sheet / can is stored as the material's usual qty (the server works it out again on save), so
+   costs, stock and the website order form keep working as before. */
+var SHEET_EDGE = 0.5, SHEET_GAP = 10;
+function sheetOf(m) {
+  var s = m && m.sheet;
+  if (typeof s === 'string') { try { s = s ? JSON.parse(s) : null; } catch (e) { s = null; } }
+  if (!s || !(num(s.w) > 0) || !(num(s.h) > 0)) return null;
+  var d = function (v, def) { return v === '' || v === null || v === undefined || isNaN(parseFloat(v)) ? def : Math.max(0, num(v)); };
+  return { w: num(s.w), h: num(s.h), edge: d(s.edge, SHEET_EDGE), gap: d(s.gap, SHEET_GAP) };
+}
+function sheetUsable(s) { return { w: Math.max(0, s.w - 2 * s.edge), h: Math.max(0, s.h - 2 * s.edge) }; }
+function sheetShare(s, w, h, pieces) {
+  var u = sheetUsable(s), area = u.w * u.h; w = num(w); h = num(h); pieces = Math.max(1, num(pieces) || 1);
+  if (!(area > 0) || !(w > 0) || !(h > 0)) return 0;
+  return Math.round(w * h * pieces * (1 + s.gap / 100) / area * 10000) / 10000;
+}
+function sheetFits(s, w, h) { var u = sheetUsable(s); w = num(w); h = num(h); return (w <= u.w && h <= u.h) || (w <= u.h && h <= u.w); }
+function yieldShare(y) { y = num(y); return y > 0 ? Math.round(1 / y * 1000000) / 1000000 : 0; }
+function fmtIn(v) { return String(Math.round(num(v) * 100) / 100); }
+/** qty for a product material entry, from how it was entered. */
+function matShare(x) {
+  if (!x) return 0;
+  if (x.how === 'yield') return yieldShare(x.yield);
+  if (x.how === 'size') { var s = sheetOf(byId('Materials', x.materialId)); return s ? sheetShare(s, x.w, x.h, x.pieces) : 0; }
+  return num(x.qty);
+}
+/** Search materials: every word must appear in the name, supplier, unit or a colour / type name. */
+function matSearch(q) {
+  var words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+  return S.data.Materials.filter(function (m) {
+    if (m.deleted) return false;
+    var hay = [m.name, m.supplier, m.unit].concat((typeof variantsOf === 'function' ? variantsOf(m) : []).map(function (v) { return v.name; })).join(' ').toLowerCase();
+    return words.every(function (w) { return hay.indexOf(w) >= 0; });
+  }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+}
+/** Existing product categories with how many products use each (first spelling wins). */
+function productCategories() {
+  var by = {};
+  S.data.Products.forEach(function (p) { var c = String(p.category || '').trim(); if (!c || p.deleted) return; var k = c.toLowerCase(); by[k] = by[k] || { name: c, n: 0 }; by[k].n++; });
+  return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+}
+/** The product Category box: tap to see your categories, type to filter or to add a new one. */
+function wireCatPicker() {
+  var inp = $('#pCat'), box = $('#catPick'); if (!inp || !box) return;
+  var draw = function () {
+    var q = inp.value.trim().toLowerCase(), all = productCategories();
+    var list = all.filter(function (c) { return !q || c.name.toLowerCase().indexOf(q) >= 0; });
+    var exact = all.some(function (c) { return c.name.toLowerCase() === q; });
+    box.innerHTML = list.map(function (c) {
+      return '<button type="button" class="pick-row" role="option" data-cat="' + esc(c.name) + '"><span class="pick-name">' + esc(c.name) + '</span><span class="pick-sub">' + c.n + (c.n === 1 ? ' product' : ' products') + '</span></button>';
+    }).join('') + (q && !exact ? '<button type="button" class="pick-row pick-new" data-cat="' + esc(inp.value.trim()) + '">' + ico('plus') + 'Use "' + esc(inp.value.trim()) + '" as a new category</button>' : '') +
+      (!all.length && !q ? '<p class="muted small" style="margin:6px 8px">No categories yet. Type one to start.</p>' : '');
+    box.hidden = !box.innerHTML; inp.setAttribute('aria-expanded', String(!box.hidden));
+  };
+  var close = function () { box.hidden = true; inp.setAttribute('aria-expanded', 'false'); };
+  inp.addEventListener('focus', draw);
+  inp.addEventListener('click', draw);
+  inp.addEventListener('input', draw);
+  inp.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); if (e.key === 'Enter') { e.preventDefault(); var f = box.querySelector('[data-cat]'); if (f && !box.hidden) f.click(); else close(); } });
+  inp.addEventListener('blur', function () { setTimeout(close, 200); });
+  box.addEventListener('mousedown', function (e) { e.preventDefault(); });          // keep the box open while choosing
+  box.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-cat]'); if (!b) return;
+    inp.value = b.getAttribute('data-cat'); close();
+    inp.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
 function productCost(p) {
   return round2((p.materials || []).reduce(function (sum, m) {
     var mat = byId('Materials', m.materialId);
-    return sum + (mat ? num(mat.costPerUnit) * num(m.qty) : 0);
+    return sum + (mat ? num(mat.costPerUnit) * matShare(m) : 0);
   }, 0));
 }
 function itemUnitPrice(it) {
@@ -2394,13 +2484,13 @@ function openProduct(id, preset) {
   var cats = Array.from(new Set(S.data.Products.map(function (x) { return x.category; }).filter(Boolean)));
   var body =
     '<div class="field"><label>Product name</label><input class="input" id="pName" value="' + esc(D.name) + '"></div>' +
-    '<div class="row"><div class="field"><label>Category</label><input class="input" id="pCat" list="catList" value="' + esc(D.category || '') + '" placeholder="e.g. Ornaments">' +
-    '<datalist id="catList">' + cats.map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist></div>' +
+    '<div class="row"><div class="field cat-field"><label for="pCat">Category</label><input class="input" id="pCat" value="' + esc(D.category || '') + '" placeholder="Choose or type a new one" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="catPick">' +
+    '<div class="pick-list" id="catPick" role="listbox" hidden></div></div>' +
     '<div class="field"><label>Selling price</label><div class="money-in"><input class="input" type="number" min="0" step="0.01" id="pPrice" value="' + esc(D.price) + '"></div></div></div>' +
     '<div class="field"><label>Description</label><textarea class="input" id="pDesc">' + esc(D.description || '') + '</textarea></div>' +
     '<div class="field"><label class="check"><input type="checkbox" id="pActive"' + (D.active !== false ? ' checked' : '') + '> Show in the order item list</label></div>' +
     '<div class="section-title">Materials per item</div>' +
-    '<div id="pMats" class="items"></div><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
+    '<div id="pMats" class="items"></div><div class="mat-search" id="pMatFind" hidden></div><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
     (S.data.Materials.length ? '<button class="btn btn-secondary btn-sm" type="button" id="pAddMat">' + ico('plus') + 'Add material</button>' : '') +
     '<button class="btn btn-secondary btn-sm" type="button" id="pNewMat">' + ico('plus') + 'New material</button></div>' +
     '<div class="qm" id="pQuickMat" style="display:none"></div>' +
@@ -2430,26 +2520,98 @@ function openProduct(id, preset) {
     $('#qmName').focus(); box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   };
   var closeQuick = function () { var box = $('#pQuickMat'); if (box) { box.style.display = 'none'; box.innerHTML = ''; } var nb = $('#pNewMat'); if (nb) nb.style.display = ''; };
+  var matLabel = function (mat) { return mat ? mat.name + ' · ' + money(mat.costPerUnit) + '/' + (mat.unit || 'unit') : ''; };
+  var amountHtml = function (m, mat, i) {
+    var sh = sheetOf(mat), how = m.how === 'size' && sh ? 'size' : m.how === 'yield' ? 'yield' : 'qty', unit = (mat && mat.unit) || 'unit';
+    var opts = [['qty', 'Quantity'], ['size', 'By size'], ['yield', 'By yield']].filter(function (o) { return o[0] !== 'size' || sh || m.how === 'size'; });
+    var h = '<div class="mat-how" role="group" aria-label="How much">' + opts.map(function (o) {
+      return '<button type="button" class="seg' + (o[0] === how ? ' on' : '') + '" data-how="' + o[0] + '" aria-pressed="' + (o[0] === how) + '">' + o[1] + '</button>'; }).join('') + '</div>';
+    if (how === 'qty') return h + '<div class="mat-amt"><label>Used per item <span class="muted">(' + esc(unit) + ')</span><input class="input" type="number" min="0" step="any" inputmode="decimal" data-m="qty" value="' + esc(m.qty) + '"></label></div>';
+    if (how === 'yield') {
+      return h + '<div class="mat-amt"><label>One ' + esc(unit) + ' does about<input class="input" type="number" min="1" step="1" inputmode="numeric" data-m="yield" value="' + esc(m.yield || '') + '" placeholder="e.g. 200"></label><span class="mat-of">of this product</span></div>' +
+        '<div class="mat-calc muted small">' + (num(m.yield) > 0 ? '1/' + esc(fmtIn(m.yield)) + ' of a ' + esc(unit) + ' per item' : 'Enter roughly how many of this product one ' + esc(unit) + ' does.') + '</div>';
+    }
+    var u = sheetUsable(sh), share = sheetShare(sh, m.w, m.h, m.pieces), fits = !(num(m.w) > 0 && num(m.h) > 0) || sheetFits(sh, m.w, m.h);
+    return h + '<div class="mat-amt mat-size"><label>Piece width (in)<input class="input" type="number" min="0" step="any" inputmode="decimal" data-m="w" value="' + esc(m.w || '') + '"></label>' +
+      '<span class="mat-x">×</span><label>Height (in)<input class="input" type="number" min="0" step="any" inputmode="decimal" data-m="h" value="' + esc(m.h || '') + '"></label>' +
+      '<label class="mat-pcs">Pieces per item<input class="input" type="number" min="1" step="1" inputmode="numeric" data-m="pieces" value="' + esc(m.pieces || 1) + '"></label></div>' +
+      '<div class="mat-calc muted small">' + (share ? (Math.round(share * 1000) / 1000) + ' of a sheet' : 'Enter the piece size.') +
+        ' · sheet ' + fmtIn(sh.w) + ' × ' + fmtIn(sh.h) + ' in, usable ' + fmtIn(u.w) + ' × ' + fmtIn(u.h) + ' (' + fmtIn(sh.edge) + ' in edge), +' + fmtIn(sh.gap) + '% gap</div>' +
+      '<div class="mat-warn small"' + (fits ? ' hidden' : '') + '>This piece is bigger than the usable part of one sheet, so it is counted as more than a sheet.</div>';
+  };
   var renderMats = function () {
     var w = $('#pMats');
     if (w) w.innerHTML = D.materials.map(function (m, i) {
       var mat = byId('Materials', m.materialId);
-      return '<div class="item" data-i="' + i + '"><div class="item-main" style="grid-template-columns:1fr 80px 32px">' +
-        '<div class="field"><label>Material</label><select class="input" data-m="materialId">' + matOptions(m.materialId) + '</select></div>' +
-        '<div class="field"><label>Qty' + (mat && mat.unit ? ' (' + esc(mat.unit) + ')' : '') + '</label><input class="input" type="number" min="0" step="any" data-m="qty" value="' + esc(m.qty) + '"></div>' +
+      if (m.how === 'size' && !sheetOf(mat)) m.how = 'qty';         // the material no longer has a sheet size
+      var share = matShare(m);
+      return '<div class="item mat-item" data-i="' + i + '"><div class="mat-top">' +
+        '<button class="input mat-pick" type="button" data-pick="' + i + '" aria-label="Change material">' + (mat ? esc(matLabel(mat)) : '<span class="muted">Choose material…</span>') + ico('search') + '</button>' +
         '<button class="icon-btn sm" type="button" data-del title="Remove">' + ico('trash') + '</button></div>' +
-        '<div class="item-total"><span class="muted small">' + (mat ? money(mat.costPerUnit) + ' × ' + num(m.qty) : '') + '</span><strong>' + money(mat ? num(mat.costPerUnit) * num(m.qty) : 0) + '</strong></div></div>';
+        (mat ? amountHtml(m, mat, i) : '') +
+        '<div class="item-total"><span class="muted small">' + (mat ? money(mat.costPerUnit) + ' × ' + (Math.round(share * 10000) / 10000) : '') + '</span><strong>' + money(mat ? num(mat.costPerUnit) * share : 0) + '</strong></div></div>';
     }).join('') || '<p class="muted" style="margin:0">No materials added.</p>';
+    drawSum();
+  };
+  /* a typed amount: update only this row's figures, so the box being typed in (or tapped next) keeps its place */
+  var refreshRow = function (el) {
+    var i = +el.getAttribute('data-i'), m = D.materials[i], mat = m && byId('Materials', m.materialId); if (!mat) return;
+    var tmp = document.createElement('div'); tmp.innerHTML = amountHtml(m, mat, i);
+    ['.mat-calc', '.mat-warn'].forEach(function (sel) { var a = $(sel, el), b2 = $(sel, tmp); if (a && b2) { a.innerHTML = b2.innerHTML; a.hidden = b2.hidden; } });
+    var share = matShare(m), t = $('.item-total', el);
+    if (t) t.innerHTML = '<span class="muted small">' + money(mat.costPerUnit) + ' × ' + (Math.round(share * 10000) / 10000) + '</span><strong>' + money(num(mat.costPerUnit) * share) + '</strong>';
+    drawSum();
+  };
+  var drawSum = function () {
     var cost = productCost(D), price = num($('#pPrice').value);
     var margin = price ? Math.round((price - cost) / price * 100) : 0;
     $('#pSum').innerHTML = '<div class="sum-row"><span>Material cost per item</span><strong>' + money(cost) + '</strong></div>' +
       '<div class="sum-row"><span>Selling price</span><strong>' + money(price) + '</strong></div>' +
       '<div class="sum-row total"><span>Profit per item</span><span class="' + (margin >= 50 ? 'margin-good' : 'margin-low') + '">' + money(price - cost) + (price ? ' · ' + margin + '%' : '') + '</span></div>';
   };
+  /* material search (Product setup step, Nov 2026) */
+  var findSlot = null;
+  var drawFind = function () {
+    var box = $('#pMatFind'); if (!box) return;
+    var q = $('#pMatQ') ? $('#pMatQ').value : '', list = matSearch(q), shown = list.slice(0, 40);
+    $('#pMatRes').innerHTML = (shown.length ? shown.map(function (m) {
+      var sh = sheetOf(m);
+      return '<button type="button" class="pick-row" role="option" data-pickmat="' + m.id + '"><span class="pick-name">' + esc(m.name) + '</span>' +
+        '<span class="pick-sub">' + money(m.costPerUnit) + '/' + esc(m.unit || 'unit') + (sh ? ' · sheet ' + fmtIn(sh.w) + ' × ' + fmtIn(sh.h) : '') + (m.supplier ? ' · ' + esc(m.supplier) : '') + '</span></button>';
+    }).join('') : '<p class="muted small" style="margin:6px 4px">No material matches "' + esc(q) + '".</p>') +
+      (list.length > shown.length ? '<p class="muted small" style="margin:6px 4px">' + (list.length - shown.length) + ' more, keep typing to narrow it down.</p>' : '') +
+      '<button type="button" class="pick-row pick-new" data-picknew>' + ico('plus') + (q.trim() ? 'New material "' + esc(q.trim()) + '"' : 'New material') + '</button>';
+  };
+  var openFind = function (slot) {
+    var box = $('#pMatFind'); if (!box) return;
+    findSlot = slot === undefined ? null : slot;
+    box.innerHTML = '<div class="qm-head"><b>' + (findSlot === null ? 'Add a material' : 'Change material') + '</b><button class="link-btn" type="button" data-findclose>Close</button></div>' +
+      '<input class="input" id="pMatQ" type="search" placeholder="Search materials (e.g. ply, acrylic, paint)" autocomplete="off" enterkeyhint="search">' +
+      '<div class="pick-list static" id="pMatRes" role="listbox"></div>';
+    box.hidden = false; drawFind();
+    var q = $('#pMatQ'); q.focus(); box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  };
+  var closeFind = function () { var box = $('#pMatFind'); if (box) { box.hidden = true; box.innerHTML = ''; } findSlot = null; };
+  $('#pMatFind').addEventListener('input', function (e) { if (e.target.id === 'pMatQ') drawFind(); });
+  $('#pMatFind').addEventListener('keydown', function (e) {
+    if (e.target.id === 'pMatQ' && e.key === 'Enter') { e.preventDefault(); var first = $('#pMatRes [data-pickmat]'); if (first) first.click(); }
+    if (e.key === 'Escape') closeFind();
+  });
+  $('#pMatFind').addEventListener('click', function (e) {
+    if (e.target.closest('[data-findclose]')) { closeFind(); return; }
+    var nw = e.target.closest('[data-picknew]');
+    if (nw) { var name = ($('#pMatQ') || {}).value || '', slot = findSlot; closeFind(); quickMat(slot === null ? undefined : slot); if (name.trim() && $('#qmName')) $('#qmName').value = name.trim(); return; }
+    var b = e.target.closest('[data-pickmat]'); if (!b) return;
+    var id = b.getAttribute('data-pickmat');
+    if (findSlot !== null && D.materials[findSlot]) { var x = D.materials[findSlot]; x.materialId = id; if (x.how === 'size' && !sheetOf(byId('Materials', id))) x.how = 'qty'; }
+    else { var mt = byId('Materials', id); D.materials.push(sheetOf(mt) ? { materialId: id, qty: 0, how: 'size', w: '', h: '', pieces: 1 } : { materialId: id, qty: 1 }); }
+    closeFind(); renderMats(); $('#pMats').dispatchEvent(new Event('change', { bubbles: true }));
+  });
   renderMats();
+  wireCatPicker();
   $('#pPrice').addEventListener('input', renderMats);
   var add = $('#pAddMat');
-  if (add) add.addEventListener('click', function () { D.materials.push({ materialId: '', qty: 1 }); renderMats(); });
+  if (add) add.addEventListener('click', function () { openFind(); });
   $('#pNewMat').addEventListener('click', function () { quickMat(); });
   $('#pQuickMat').addEventListener('click', function (e) {
     if (e.target.closest('#qmCancel')) { closeQuick(); renderMats(); return; }
@@ -2472,19 +2634,43 @@ function openProduct(id, preset) {
     w.addEventListener('change', function (e) {
       var el = e.target.closest('.item'); if (!el) return;
       var m = D.materials[+el.getAttribute('data-i')];
-      var k = e.target.getAttribute('data-m');
-      if (k === 'materialId' && e.target.value === '__new') { e.target.value = m.materialId || ''; quickMat(+el.getAttribute('data-i')); return; }
-      m[k] = k === 'qty' ? num(e.target.value) : e.target.value;
-      renderMats();
+      var k = e.target.getAttribute('data-m'); if (!k || !m) return;
+      m[k] = e.target.value === '' ? '' : num(e.target.value);
+      m.qty = matShare(m);
+      refreshRow(el);
+    });
+    w.addEventListener('input', function (e) {   // live figures while typing
+      var el = e.target.closest('.item'); if (!el) return;
+      var m = D.materials[+el.getAttribute('data-i')], k = e.target.getAttribute('data-m'); if (!k || !m) return;
+      m[k] = e.target.value === '' ? '' : num(e.target.value); m.qty = matShare(m);
+      refreshRow(el);
     });
     w.addEventListener('click', function (e) {
-      if (!e.target.closest('[data-del]')) return;
-      D.materials.splice(+e.target.closest('.item').getAttribute('data-i'), 1); renderMats();
+      var el = e.target.closest('.item'); if (!el) return;
+      var i = +el.getAttribute('data-i'), m = D.materials[i];
+      if (e.target.closest('[data-del]')) { D.materials.splice(i, 1); closeFind(); renderMats(); return; }
+      if (e.target.closest('[data-pick]')) { openFind(i); return; }
+      var hb = e.target.closest('[data-how]'); if (!hb || !m) return;
+      var how = hb.getAttribute('data-how');
+      if (how === 'qty') { var q0 = matShare(m); delete m.how; delete m.w; delete m.h; delete m.pieces; delete m.yield; m.qty = q0 || 1; }
+      else if (how === 'size') { m.how = 'size'; m.pieces = m.pieces || 1; m.qty = matShare(m); }
+      else { m.how = 'yield'; m.qty = matShare(m); }
+      renderMats();
+      var f = $('.item[data-i="' + i + '"] .mat-amt input', w); if (f && how !== 'qty') f.focus();
     });
   }
   $('#dSave').addEventListener('click', function () {
     var btn = this;
     D.name = $('#pName').value.trim(); D.category = $('#pCat').value.trim(); D.price = num($('#pPrice').value);
+    var sameCat = productCategories().filter(function (c) { return c.name.toLowerCase() === D.category.toLowerCase(); })[0];
+    if (sameCat) D.category = sameCat.name;                                           // same category, existing spelling
+    D.materials.forEach(function (m) {
+      if (m.how === 'size') { if (!(num(m.w) > 0 && num(m.h) > 0)) { m.bad = 1; } m.pieces = Math.max(1, Math.round(num(m.pieces) || 1)); }
+      if (m.how === 'yield' && !(num(m.yield) > 0)) m.bad = 1;
+      m.qty = matShare(m);
+    });
+    var bad = D.materials.filter(function (m) { return m.bad && m.materialId; }); D.materials.forEach(function (m) { delete m.bad; });
+    if (bad.length) { toast('Please finish the amount for ' + (byId('Materials', bad[0].materialId) || {}).name + ' (piece size or how many one does).', true); return; }
     D.description = $('#pDesc').value; D.active = $('#pActive').checked;
     D.materials = D.materials.filter(function (m) { return m.materialId; });
     if (!D.name) { toast('Please enter a product name.', true); return; }
@@ -2548,6 +2734,36 @@ function openMaterial(id) {
     busy(del, 'Deleting…');
     remove('Materials', m.id).then(function () { closeDrawer(); render(); }).catch(function (e) { unbusy(del); fail(e); });
   });
+}
+
+/* Sheet size on a material (Product setup step, Nov 2026) */
+function sheetFieldsHtml(m) {
+  var s = sheetOf(m), v = function (k, def) { return s ? fmtIn(s[k]) : (def === undefined ? '' : def); };
+  return '<div class="section-title">' + ico('sheet') + 'Sheet size <span class="muted" style="font-weight:500;margin-left:4px">(optional)</span></div>' +
+    '<p class="hint" style="margin-top:-6px">For wood, acrylic and other sheets: products can then use this material "by size" (a piece like 5 × 5 in) and the cost is worked out for you. Cost per unit should be the price of one sheet.</p>' +
+    '<div class="row sheet-row"><div class="field"><label for="mSheetW">Width (in)</label><input class="input" type="number" min="0" step="any" inputmode="decimal" id="mSheetW" value="' + v('w') + '" placeholder="e.g. 12"></div>' +
+    '<div class="field"><label for="mSheetH">Height (in)</label><input class="input" type="number" min="0" step="any" inputmode="decimal" id="mSheetH" value="' + v('h') + '" placeholder="e.g. 19"></div></div>' +
+    '<div class="row sheet-row"><div class="field"><label for="mSheetEdge">Unusable edge (in)</label><input class="input" type="number" min="0" step="any" inputmode="decimal" id="mSheetEdge" value="' + v('edge', SHEET_EDGE) + '"></div>' +
+    '<div class="field"><label for="mSheetGap">Gap allowance (%)</label><input class="input" type="number" min="0" step="any" inputmode="decimal" id="mSheetGap" value="' + v('gap', SHEET_GAP) + '"></div></div>' +
+    '<div class="muted small" id="mSheetSum"></div>';
+}
+function sheetFieldsSum() {
+  var el = $('#mSheetSum'); if (!el) return;
+  var s = sheetOf({ sheet: { w: $('#mSheetW').value, h: $('#mSheetH').value, edge: $('#mSheetEdge').value, gap: $('#mSheetGap').value } });
+  if (!s) { el.textContent = 'Leave width and height blank if this isn\'t a sheet.'; return; }
+  var u = sheetUsable(s), cost = num($('#mCost') && $('#mCost').value), share = sheetShare(s, 5, 5, 1);
+  el.textContent = 'Usable area ' + fmtIn(u.w) + ' × ' + fmtIn(u.h) + ' in. Example: a 5 × 5 in piece is ' + (Math.round(share * 1000) / 1000) + ' of a sheet' + (cost ? ' = ' + money(cost * share) : '') + '.';
+}
+document.addEventListener('input', function (e) { if (e.target && /^mSheet|^mCost$/.test(e.target.id || '')) sheetFieldsSum(); });
+/** The sheet settings from the material screen: an object, '' (not a sheet) or false (not valid, a message was shown). */
+function readSheetFields() {
+  if (!$('#mSheetW')) return D.sheet === undefined ? '' : D.sheet;
+  var w = $('#mSheetW').value.trim(), h = $('#mSheetH').value.trim();
+  if (!w && !h) return '';
+  if (!(num(w) > 0) || !(num(h) > 0)) { toast('Please enter both the sheet width and height (or leave both blank).', true); return false; }
+  var s = { w: num(w), h: num(h), edge: $('#mSheetEdge').value === '' ? SHEET_EDGE : Math.max(0, num($('#mSheetEdge').value)), gap: $('#mSheetGap').value === '' ? SHEET_GAP : Math.max(0, num($('#mSheetGap').value)) };
+  var u = sheetUsable(s); if (!(u.w > 0 && u.h > 0)) { toast('The unusable edge is too big for this sheet size.', true); return false; }
+  return s;
 }
 
 /* ---------------- Ideas ---------------- */
@@ -6282,7 +6498,8 @@ function openMaterial(id, presetSupplier) {
     '<div class="field" id="mNewSupWrap" style="display:none"><label>New supplier name</label><input class="input" id="mNewSup" placeholder="e.g. Cricut, Dollarama"></div>' +
     '<div id="mSupShop"></div>' +
     '<div class="field"><label>Reorder link for this item <span class="muted">(optional)</span></label><input class="input" type="url" id="mLink" value="' + esc(D.link || '') + '" placeholder="Paste the product page link"></div>' +
-    '<div class="field"><label>Notes</label><textarea class="input" id="mNotes">' + esc(D.notes || '') + '</textarea></div>';
+    '<div class="field"><label>Notes</label><textarea class="input" id="mNotes">' + esc(D.notes || '') + '</textarea></div>' +
+    (typeof sheetFieldsHtml === 'function' ? sheetFieldsHtml(D) : '');   // Product setup step (Nov 2026): sheet size
   openDrawer(m ? m.name : 'New material', body,
     (m ? '<button class="btn btn-danger" type="button" id="dDelete">' + ico('trash') + 'Delete</button>' : '') +
     '<span class="spacer"></span><button class="btn btn-secondary" type="button" data-close>Cancel</button><button class="btn btn-primary" type="button" id="dSave">Save material</button>');
@@ -6296,6 +6513,7 @@ function openMaterial(id, presetSupplier) {
     if (sel === '__new') $('#mNewSup').focus();
   };
   showShop();
+  if (typeof sheetFieldsSum === 'function') sheetFieldsSum();
   $('#mSupplier').addEventListener('change', showShop);
   $('#mLink').addEventListener('change', showShop);
   $('#mAddBtn').addEventListener('click', function () {
@@ -6314,10 +6532,16 @@ function openMaterial(id, presetSupplier) {
     D.lowAt = $('#mLowAt').value === '' ? '' : num($('#mLowAt').value);
     if (!D.name) { toast('Please enter a name.', true); return; }
     if (sel === '__new' && !D.supplier) { toast('Please enter the new supplier\'s name.', true); $('#mNewSup').focus(); return; }
+    if (typeof readSheetFields === 'function') { var sh = readSheetFields(); if (sh === false) return; D.sheet = sh; }
     busy(btn, 'Saving…');
     var step = (D.supplier && !supplierByName(D.supplier)) ? save('Suppliers', { name: D.supplier, website: '', notes: '' }) : Promise.resolve();
     step.then(function () { return save('Materials', D); })
-      .then(function () { closeDrawer(); render(); toast('Material saved'); }).catch(function (e) { unbusy(btn); fail(e); });
+      .then(function (saved) {
+        var n = saved && saved._resized; if (saved) delete saved._resized;
+        closeDrawer(); render();
+        if (n) call('getTable', 'Products').then(function (rows) { S.data.Products = rows; render(); }).catch(function () {});
+        toast('Material saved' + (n ? '. Updated the cost on ' + n + (n === 1 ? ' product that uses' : ' products that use') + ' it by size' : ''));
+      }).catch(function (e) { unbusy(btn); fail(e); });
   });
   var del = $('#dDelete');
   if (del) del.addEventListener('click', function () {
