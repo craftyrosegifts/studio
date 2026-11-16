@@ -1838,6 +1838,9 @@ function save(table, rec) {
     if (e && /changed on another device|deleted on another device|moved to Trash on another device/.test(e.message || '')) reloadAfterConflict(table, rec);
     throw e;
   }).then(function (saved) {
+    var notice = saved && saved._notice, noticeErr = !!(saved && saved._noticeError);   // Paid-by step (Nov 2026)
+    if (saved) { delete saved._notice; delete saved._noticeError; }
+    if (notice) setTimeout(function () { toast(notice, noticeErr); }, 1800);
     trash.forEach(function (fid) { call('trashPhoto', fid).catch(function () {}); });
     if (table === 'Orders' && typeof afterOrderSaved === 'function') setTimeout(afterOrderSaved, 0);
     var list = S.data[table];
@@ -2279,6 +2282,12 @@ function saveOrder(after) {
   D.tracking = D.delivery === 'Shipping' ? $('#oTracking').value.trim() : '';
   D.paid = $('#oPaid').checked;
   if (D.paid && $('#oDatePaid')) D.datePaid = $('#oDatePaid').value;                       // Phase 2 Step 2A-3
+  // Paid-by step (Nov 2026): how the customer paid is required when an order is marked paid
+  var storedO = D.id ? byId('Orders', D.id) : null, paidBy = '', pbSel = $('#oPaidBy');
+  if (D.paid && pbSel) {
+    if (!(storedO && storedO.paid) && !pbSel.value) { toast('Please choose how the customer paid.', true); pbSel.focus(); return; }
+    if (pbSel.value && pbSel.value !== orderPaidBy(storedO)) paidBy = pbSel.value;
+  }
   if (D.stage === DONE && $('#oDateDone')) D.dateCompleted = $('#oDateDone').value;
   D.paymentLink = $('#oPayLink').value.trim();
   if (D.paymentLink && !/^https?:\/\//i.test(D.paymentLink)) D.paymentLink = 'https://' + D.paymentLink;
@@ -2301,6 +2310,7 @@ function saveOrder(after) {
     D.customerName = cu ? cu.name : (custSel && custSel === D.customerId ? D.customerName : '');   // a customer in Trash keeps their name on the order
   }
   var rec = Object.assign({}, D); delete rec._newCustomer;
+  if (paidBy) rec._paidBy = paidBy;
   step.then(function () { rec.customerId = D.customerId; rec.customerName = D.customerName; return save('Orders', rec); })
     .then(function (o) { if (typeof after === 'function') { render(); after(o); return; } closeDrawer(); render(); toast('Saved ' + o.number); })
     .catch(function (e) { unbusy(btn); fail(e); });
@@ -2949,10 +2959,29 @@ function bindCustomerPicker() {
 /* ---------------- Date paid / date completed (Phase 2 Step 2A-3) ----------------
    Filled in automatically when the order is saved as paid / Delivered/Shipped. You can change them; your date is kept.
    Orders paid or finished before these dates existed show "unknown" (no date is made up). */
+/* Paid-by step (Nov 2026): how the customer paid. Kept in the order's notes log ({ paidBy }); orders paid before this
+   show "Not recorded" (nothing is guessed). When an order with a Stripe payment link is marked paid another way, the
+   server switches the link off so it can't be paid twice. */
+var ORDER_PAY_METHODS = [['etransfer', 'e-Transfer'], ['cash', 'Cash'], ['card', 'Card in person'], ['stripe', 'Stripe (online)'], ['other', 'Other']];
+function payMethodLabel(k) { var m = ORDER_PAY_METHODS.filter(function (x) { return x[0] === k; })[0]; return m ? m[1] : ''; }
+function orderPaidBy(o) {
+  var m = '';
+  ((o && o.log) || []).forEach(function (l) { if (l && Object.prototype.hasOwnProperty.call(l, 'paidBy')) m = String(l.paidBy || ''); });
+  return payMethodLabel(m) ? m : '';
+}
+function paidByField() {
+  var stored = D.id ? byId('Orders', D.id) : null, cur = stored && stored.paid ? orderPaidBy(stored) : '', old = !!(stored && stored.paid && !cur);
+  var hint = old ? 'Paid before this was recorded. Add it if you know it.'
+    : (D.paymentLinkId && !(stored && stored.paid) ? 'If they paid another way, the Stripe payment link is switched off when you save, so it can\'t be paid twice.' : '');
+  return '<div class="row"><div class="field" id="pbWrap"' + (D.paid ? '' : ' style="display:none"') + '><label for="oPaidBy">Paid by</label>' +
+    '<select class="input" id="oPaidBy"><option value="">' + (old ? 'Not recorded' : 'Choose…') + '</option>' + ORDER_PAY_METHODS.map(function (m) {
+      return '<option value="' + m[0] + '"' + (m[0] === cur ? ' selected' : '') + '>' + esc(m[1]) + '</option>'; }).join('') + '</select>' +
+    (hint ? '<div class="muted small" id="pbHint">' + esc(hint) + '</div>' : '') + '</div></div>';
+}
 function orderDateFields() {
   var today = todayStr();
   var unknownPaid = D.id && D.paid && !D.datePaid, unknownDone = D.id && D.stage === DONE && !D.dateCompleted;
-  return '<div class="row">' +
+  return paidByField() + '<div class="row">' +
     '<div class="field" id="dpWrap"' + (D.paid ? '' : ' style="display:none"') + '><label>Date paid</label>' +
       '<input class="input" type="date" id="oDatePaid" max="' + today + '" value="' + esc(D.datePaid || '') + '">' +
       '<div class="muted small" id="dpHint">' + (unknownPaid ? 'Unknown: paid before dates were recorded. Add it if you know it.' : (D.datePaid ? '' : 'Filled in with today\'s date when you save, unless you pick another day.')) + '</div></div>' +
@@ -2964,6 +2993,7 @@ function orderDateFields() {
 document.addEventListener('change', function (e) {
   var id = e.target && e.target.id;
   if (id === 'oPaid' && $('#dpWrap')) $('#dpWrap').style.display = e.target.checked ? '' : 'none';
+  if (id === 'oPaid' && $('#pbWrap')) $('#pbWrap').style.display = e.target.checked ? '' : 'none';
   if (id === 'oStage' && $('#dcWrap')) $('#dcWrap').style.display = e.target.value === DONE ? '' : 'none';
 });
 
@@ -3348,7 +3378,7 @@ function orderFormChanged() {
   var o = D && D.id ? byId('Orders', D.id) : null; if (!o) return true;
   var v = function (id) { var el = $('#' + id); return el ? (el.type === 'checkbox' ? el.checked : el.value) : undefined; };
   var same = function (a, b) { return String(a == null ? '' : a) === String(b == null ? '' : b); };
-  return !(same(v('oStage'), o.stage) && same(v('oDue'), o.dueDate) && same(v('oDelivery'), o.delivery) && !!v('oPaid') === !!o.paid &&
+  return !(same(v('oStage'), o.stage) && same(v('oDue'), o.dueDate) && same(v('oDelivery'), o.delivery) && !!v('oPaid') === !!o.paid && (!v('oPaidBy') || v('oPaidBy') === orderPaidBy(o)) &&
     same(v('oNotes'), o.notes) && same(v('oPayLink'), o.paymentLink) && same(v('oCustomer'), o.customerId) &&
     (v('oDelivery') !== 'Shipping' || same(String(v('oTracking') || '').trim(), o.tracking)) &&
     JSON.stringify(D.items || []) === JSON.stringify(o.items || []) && same(D.shipping, o.shipping) && same(D.discount, o.discount));
@@ -3772,6 +3802,7 @@ function qaApply(id, ch, label, msgKey) {
   if (ch.stage !== undefined) rec.stage = ch.stage;
   if (ch.paid !== undefined) rec.paid = ch.paid;
   if (ch.tracking !== undefined) rec.tracking = ch.tracking;
+  if (ch.paidBy) rec._paidBy = ch.paidBy;                              // Paid-by step (Nov 2026)
   return save('Orders', rec).then(function (saved) {
     delete QA_BUSY[id]; tdSavingOff('o:' + id);
     qaAfter(id);
@@ -3809,8 +3840,24 @@ function qaRun(id, act) {
     if (q.to) ch.stage = q.to;
     if (q.paid) ch.paid = true;
     if (tracking !== undefined) ch.tracking = tracking;
-    qaApply(id, ch, q.paid ? 'marked paid' : 'moved to ' + q.to, q.msg);
+    if (q.paid && paidBy) ch.paidBy = paidBy;
+    qaApply(id, ch, q.paid ? 'marked paid' + (paidBy ? ' (' + payMethodLabel(paidBy) + ')' : '') : 'moved to ' + q.to, q.msg);
   };
+  var paidBy = '';
+  if (q.paid) {   // Paid-by step (Nov 2026): ask how the customer paid
+    qaDialog('<h3 class="qa-title">Mark ' + esc(o.number) + ' paid</h3><p>' + esc(money(o.total)) + (o.customerName ? ' from ' + esc(o.customerName) : '') + '.</p>' +
+      '<div class="field"><label for="qaPaidBy">How did they pay?</label><select class="input" id="qaPaidBy"><option value="">Choose…</option>' +
+        ORDER_PAY_METHODS.map(function (m) { return '<option value="' + m[0] + '">' + esc(m[1]) + '</option>'; }).join('') + '</select>' +
+        '<div class="err small" id="qaPaidErr" style="color:var(--danger,#B3261E)"></div></div>' +
+      (o.paymentLinkId ? '<p class="muted small">If they paid another way, the Stripe payment link is switched off, so it can\'t be paid twice.</p>' : ''),
+      function (m) {
+        var v = m.querySelector('#qaPaidBy').value;
+        if (!v) { m.querySelector('#qaPaidErr').textContent = 'Please choose how they paid.'; m.querySelector('#qaPaidBy').focus(); return false; }
+        paidBy = v; go();
+      }, 'Mark paid');
+    setTimeout(function () { var sel = document.getElementById('qaPaidBy'); if (sel) sel.focus(); }, 40);
+    return;
+  }
   if (!q.confirm) { go(); return; }
   qaDialog('<h3 class="qa-title">' + esc(q.label) + '</h3>' + qaConfirmPara(q.ask) +
     (q.tracking ? '<div class="field"><label for="qaTrack">Tracking number <span class="muted">(optional)</span></label><input class="input" id="qaTrack" autocomplete="off" value="' + esc(o.tracking || '') + '"></div>' : ''),
@@ -5873,6 +5920,15 @@ function repModel(p) {
   });
   var customers = Object.keys(cust).map(function (k) { cust[k].sales = round2(cust[k].sales); return cust[k]; }).sort(function (a, b) { return b.sales - a.sales || b.orders - a.orders; });
   var sources = Object.keys(src).map(function (k) { src[k].sales = round2(src[k].sales); return src[k]; }).sort(function (a, b) { return b.sales - a.sales; });
+  // how customers paid (Paid-by step, Nov 2026): the paid orders among those counted; "Not recorded" = paid before this was tracked
+  var pay = {};
+  inP.forEach(function (o) {
+    if (!repIsPaid(o)) return;
+    var k = orderPaidBy(o) || 'none';
+    pay[k] = pay[k] || { key: k, label: k === 'none' ? 'Not recorded' : payMethodLabel(k), orders: 0, total: 0, ids: [] };
+    pay[k].orders++; pay[k].total += num(o.total); pay[k].ids.push(o.id);
+  });
+  var paidBy = ORDER_PAY_METHODS.map(function (m) { return pay[m[0]]; }).concat([pay.none]).filter(Boolean).map(function (x) { x.total = round2(x.total); return x; });
   // waiting on payment today (whatever the period)
   var unpaidNow = all.filter(function (o) { return !repIsPaid(o); }).sort(function (a, b) { return String(a.dueDate || '9999').localeCompare(String(b.dueDate || '9999')); });
   // what is incomplete in this period
@@ -5886,7 +5942,7 @@ function repModel(p) {
     unpaidIn: { count: unpaidIn.length, total: repSum(unpaidIn), list: unpaidIn },
     expenses: exp, expTotal: expTotal, net: round2(sales - expTotal), mat: mat,
     unknown: { list: unknown, total: repSum(unknown), here: unknownHere, hereTotal: repSum(unknownHere) },
-    months: months, expCats: expCats, best: best, prodCats: prodCats, customers: customers, sources: sources,
+    months: months, expCats: expCats, best: best, prodCats: prodCats, customers: customers, sources: sources, paidBy: paidBy,
     unpaidNow: { list: unpaidNow, total: repSum(unpaidNow) }, gaps: gaps };
 }
 
@@ -5958,10 +6014,13 @@ function renderReports() {
   var srcTbl = '<div class="card card-pad rep-card"><h3>Where orders came from</h3><p class="rep-sub">The orders counted above.</p>' +
     (M.sources.length ? repTable([{ t: 'Source' }, { t: 'Orders', num: 1 }, { t: 'Sales', num: 1 }], M.sources.map(function (s) {
       return '<tr class="rep-tap"' + repTap('src:' + s.label, 'Show orders from ' + s.label) + '><td>' + esc(s.label) + '</td><td class="num">' + s.orders + '</td><td class="num">' + money(s.sales) + '</td></tr>'; }), 'src') : '<p class="muted">No orders in this period.</p>') + '</div>';
+  var payTbl = '<div class="card card-pad rep-card"><h3>How customers paid</h3><p class="rep-sub">The paid orders among those counted above. "Not recorded" means paid before this was tracked.</p>' +
+    (M.paidBy.length ? repTable([{ t: 'Paid by' }, { t: 'Orders', num: 1 }, { t: 'Amount', num: 1 }], M.paidBy.map(function (x) {
+      return '<tr class="rep-tap"' + repTap('pay:' + x.key, 'Show orders paid by ' + x.label) + '><td>' + esc(x.label) + '</td><td class="num">' + x.orders + '</td><td class="num">' + money(x.total) + '</td></tr>'; }), 'pay') : '<p class="muted">No paid orders in this period.</p>') + '</div>';
   var unpaidTbl = '<div class="card card-pad rep-card"><h3>Waiting on payment (today)</h3><p class="rep-sub">Every confirmed order not marked paid, whatever the period. ' + M.unpaidNow.list.length + (M.unpaidNow.list.length === 1 ? ' order' : ' orders') + ' · ' + money(M.unpaidNow.total) + '.</p>' +
     (M.unpaidNow.list.length ? repTable([{ t: 'Order' }, { t: 'Customer' }, { t: 'Total', num: 1 }], M.unpaidNow.list.map(function (o) {
       return '<tr class="rep-tap" data-rep-order="' + o.id + '" tabindex="0"><td>' + esc(o.number) + '</td><td>' + esc(o.customerName || '—') + '</td><td class="num">' + money(o.total) + '</td></tr>'; }), 'unpaid') : '<p class="muted">Nothing is waiting on payment.</p>') + '</div>';
-  return tools + note + warn + kpis + how + chart + '<div class="rep-grid"><div>' + bestTbl + srcTbl + '</div><div>' + custTbl + expTbl + unpaidTbl + '</div></div>' + repDatesCard();
+  return tools + note + warn + kpis + how + chart + '<div class="rep-grid"><div>' + bestTbl + srcTbl + payTbl + '</div><div>' + custTbl + expTbl + unpaidTbl + '</div></div>' + repDatesCard();
 }
 
 /* ---------- Dates to check ---------- */
@@ -6031,6 +6090,7 @@ function repFocus(k) {
   else if (key === 'unknown') { list = M.unknown.list; title = 'No ' + M.basis.field + ' recorded'; extra = money(M.unknown.total) + ' · not counted in any period by ' + M.basis.short; }
   else if (key.indexOf('item:') === 0) { var it = M.best.filter(function (x) { return x.key === key.slice(5); })[0]; if (it) { list = M.orders.filter(function (o) { return it.orderIds.indexOf(o.id) >= 0; }); title = it.name; extra = it.qty + ' sold · ' + money(it.sales) + where; } }
   else if (key.indexOf('cust:') === 0) { var c = M.customers.filter(function (x) { return x.key === key.slice(5); })[0]; if (c) { list = M.orders.filter(function (o) { return c.ids.indexOf(o.id) >= 0; }); title = c.name; extra = money(c.sales) + where; } }
+  else if (key.indexOf('pay:') === 0) { var pb = M.paidBy.filter(function (x) { return x.key === key.slice(4); })[0]; if (pb) { list = M.orders.filter(function (o) { return pb.ids.indexOf(o.id) >= 0; }); title = 'Paid by ' + pb.label; extra = money(pb.total) + where; } }
   else if (key.indexOf('src:') === 0) { var s = M.sources.filter(function (x) { return x.label === key.slice(4); })[0]; if (s) { list = M.orders.filter(function (o) { return s.ids.indexOf(o.id) >= 0; }); title = s.label; extra = money(s.sales) + where; } }
   return list ? { title: title, list: list, extra: extra, back: true } : null;
 }
@@ -6071,6 +6131,7 @@ function repSheets(M) {
     { name: 'Categories', rows: head('Sales by product category').concat([['Category', 'Qty', 'Sales']], M.prodCats.map(function (c) { return [c.label, c.qty, c.sales]; })), header: [3], money: [2] },
     { name: 'Top customers', rows: head('Top customers').concat([['Customer', 'Orders', 'Sales']], M.customers.map(function (c) { return [c.name, c.orders, c.sales]; })), header: [3], money: [2] },
     { name: 'Order sources', rows: head('Where orders came from').concat([['Source', 'Orders', 'Sales']], M.sources.map(function (s) { return [s.label, s.orders, s.sales]; })), header: [3], money: [2] },
+    { name: 'Paid by', rows: head('How customers paid (paid orders among those counted)').concat([['Paid by', 'Orders', 'Amount']], M.paidBy.map(function (x) { return [x.label, x.orders, x.total]; })), header: [3], money: [2] },
     { name: 'Waiting on payment', rows: head('Waiting on payment today (whatever the period)').concat([orderHead], M.unpaidNow.list.map(orderRow)), header: [3], money: [7, 8, 9, 10, 11] },
     { name: 'Unknown dates', rows: head('Orders with no ' + M.basis.field + ' (not counted in any period)').concat([orderHead], M.unknown.list.map(orderRow)), header: [3], money: [7, 8, 9, 10, 11] }
   ];
