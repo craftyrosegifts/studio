@@ -1448,12 +1448,12 @@ html[data-mode="dark"] { --status-bg: var(--sage-50); }
 .offline-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + var(--safe-bottom)); z-index: 120; background: var(--st-red-bg); color: var(--st-red); border: 1px solid var(--st-red); border-radius: 999px; padding: 8px 14px; font-weight: 600; font-size: 13px; display: none; }
 .offline-bar.on { display: block; }
 /* ---------- Phone app speed + bottom bar (Phase 2, Nov 2026) ---------- */
-/* iPhone home-screen apps (iOS 26) can give the page a window shorter than the screen, leaving a band below the bottom bar
-   that a page cannot draw into (measured on Sara's iPhone 15 Plus: window 873 of 932). When that band is there (class os-band),
-   the band takes the bottom bar's colour so it reads as part of the bar, and the bar drops its own home-bar padding because the
-   band already keeps the buttons clear of the iPhone's home bar. */
-html.os-band { background: var(--white) !important; }
-@media (max-width: 820px) { html.os-band .bottom-nav { padding-bottom: 4px !important; } }
+/* iPhone home-screen apps (iOS 26, WebKit bug 301108): when the page is no taller than the window, iOS gives the app a window
+   shorter than the screen by the status-bar height, leaving an empty band below the bottom bar (Sara's iPhone 15 Plus: 873 of 932).
+   Making the page at least as tall as the screen makes iOS use the full screen, so the bar sits at the real bottom again.
+   The min() cap keeps the page from scrolling by the status-bar height once the full window is given. Home-screen app only. */
+@media (display-mode: standalone) { html { min-height: min(100lvh, calc(100% + env(safe-area-inset-top))); } }
+html.os-standalone { min-height: min(100lvh, calc(100% + env(safe-area-inset-top))); }
 .os-upd { position: fixed; left: 50%; transform: translateX(-50%); top: calc(64px + var(--safe-top) + 6px); z-index: 120; display: none;
   background: var(--white); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 600;
   box-shadow: var(--shadow); white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
@@ -1577,7 +1577,7 @@ function osFitBottom() {
     var full = iw <= ih ? Math.max(sw, sh) : Math.min(sw, sh), d = Math.round(full - ih);
     if (d > 0 && d <= 80) g = d;   // only a small band (the iPhone quirk), never e.g. a keyboard
   }
-  document.documentElement.classList.toggle('os-band', g > 0);
+  document.documentElement.classList.toggle('os-standalone', osStandalone());
   OSC.screen = 'screen ' + sw + '×' + sh + ' · window ' + iw + '×' + ih + ' · ' + (osStandalone() ? 'home-screen app' : 'browser') + ' · band ' + g + 'px';
 }
 osFitBottom();
