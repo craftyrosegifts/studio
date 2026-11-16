@@ -7,7 +7,7 @@
 <meta name="description" content="Order a handmade, personalized gift from Crafty Rose Gifts in Kentville, Nova Scotia.">
 <link rel="icon" href="rose64.png" type="image/png"><link rel="apple-touch-icon" href="rose180.png">
 <meta property="og:title" content="Order a custom gift · Crafty Rose Gifts">
-<meta property="og:description" content="Handmade & personalized gifts from Kentville, Nova Scotia. Pick a product, tell me how to personalize it, and approve your proof before you pay.">
+<meta property="og:description" content="Handmade & personalized gifts from Kentville, Nova Scotia. Pick a product, tell me how to personalize it, and I'll confirm everything before you pay.">
 <meta property="og:image" content="https://studio.craftyrosegifts.ca/logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -222,7 +222,7 @@ function render() {
   $('#app').innerHTML =
     '<section class="hero"><h1>Order a custom gift</h1>' +
     (s.intro ? '<p>' + esc(s.intro) + '</p>' : '') +
-    '<ul class="steps"><li><b>1</b>Pick your items</li><li><b>2</b>Tell me how to personalize them</li><li><b>3</b>Approve your proof</li><li><b>4</b>Pay &amp; I make it</li></ul>' +
+    '<ul class="steps"><li><b>1</b>Pick your items</li><li><b>2</b>Tell me how to personalize them</li><li><b>3</b>I confirm the details &amp; price</li><li><b>4</b>Pay &amp; I make it</li></ul>' +
     (s.note ? '<div class="note">' + esc(s.note) + '</div>' : '') + '</section>' +
     (cats.length > 2 ? '<div class="cats">' + cats.map(function (c) { return '<button class="cat' + (c === FILTER ? ' on' : '') + '" type="button" data-cat="' + esc(c) + '">' + esc(c) + '</button>'; }).join('') + '</div>' : '') +
     (list.length ? '<div class="grid">' + list.map(function (p) {
@@ -258,7 +258,8 @@ function openProduct(id, editIdx) {
   }).join('') + '</div>' : '';
   var h = gal + '<div class="pr" style="font-weight:700;color:var(--forest);font-size:20px">' + money(p.price) + ' <span style="font-size:13px;color:var(--muted);font-weight:500">each</span></div>' +
     (p.description ? '<p class="desc">' + esc(p.description) + '</p>' : '') +
-    (p.note ? '<div class="pnote">' + esc(p.note) + '</div>' : '');
+    (p.note ? '<div class="pnote">' + esc(p.note) + '</div>' : '') +
+    (p.needsProof ? '<div class="pnote">I\'ll send you a proof of this item to approve before you pay.</div>' : '');
   if (p.designs.length) {
     h += '<div class="blk"><span class="lbl">Choose a design <span class="req">*</span> <small>(' + p.designs.length + ' to choose from)</small></span>' +
       (p.designs.length > 12 ? '<input class="input dsearch" id="dSearch" placeholder="Search designs…" autocomplete="off">' : '') +
@@ -392,6 +393,8 @@ function itemDetails(c) {
   p.addons.forEach(function (a) { if (c.addons.indexOf(a.id) >= 0) out.push('+ ' + a.label); });
   return out;
 }
+/* Proofs (Nov 2026): a proof is only promised when an item in the cart usually needs one (set per product in Order Studio). */
+function cartNeedsProof() { return CART.some(function (c) { var p = prod(c.productId); return !!(p && p.needsProof); }); }
 function cartTotal() { return CART.reduce(function (s, c) { var p = prod(c.productId); return s + (p ? unitPrice(p, c) * c.qty : 0); }, 0); }
 function cartBar() {
   var n = CART.reduce(function (s, c) { return s + c.qty; }, 0);
@@ -416,7 +419,8 @@ function openCart() {
   }).join('') +
     '<button class="btn btn-s btn-w" type="button" id="more">+ Add another item</button>' +
     '<div class="sum" style="margin-top:14px"><span>Estimated total</span><span>' + money2(cartTotal()) + '</span></div>' +
-    '<div class="note" style="margin-top:4px">' + esc(s.note || 'Additional customization may cost extra. I\'ll confirm the final price with your proof.') + ' You don\'t pay anything until you approve your proof.</div>' +
+    '<div class="note" style="margin-top:4px">' + esc(s.note || 'Additional customization may cost extra. I\'ll confirm the final price before you pay.') +
+      (cartNeedsProof() ? ' I\'ll send you a proof to approve before you pay.' : ' You don\'t pay anything until I\'ve confirmed the details with you.') + '</div>' +
     '<h3 style="margin:24px 0 4px;font-family:\'Amatic SC\',cursive;font-size:30px;color:var(--forest-800)">Your details</h3>' +
     '<div class="blk" style="margin-top:8px"><label class="lbl" for="cName">Your name <span class="req">*</span></label><input class="input" id="cName" autocomplete="name" value="' + esc(CONTACT.name) + '"></div>' +
     '<div class="row2"><div class="blk"><label class="lbl" for="cEmail">Email <span class="req">*</span></label><input class="input" id="cEmail" type="email" autocomplete="email" inputmode="email" value="' + esc(CONTACT.email) + '"></div>' +
@@ -463,7 +467,7 @@ function submit() {
   readContact();
   var err = '';
   if (!CONTACT.name) err = 'Please enter your name.';
-  else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(CONTACT.email)) err = 'Please enter a valid email address so I can send your proof.';
+  else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(CONTACT.email)) err = 'Please enter a valid email address so I can confirm your order.';
   else if (!wayOf(CONTACT.contactBy)) err = 'Please choose the best way to contact you.';
   else if (wayOf(CONTACT.contactBy)[2] && !CONTACT.handle) err = 'Please enter ' + wayOf(CONTACT.contactBy)[2].replace(/^Your/, 'your') + '.';
   else if (CONTACT.contactBy === 'text' && !CONTACT.phone) err = 'Please enter your phone number so I can text you.';
@@ -480,8 +484,9 @@ function submit() {
   body.submissionId = submissionFor(body);
   api({ action: 'submit' }, body).then(function (r) {
     submissionDone();
+    var np = r.needsProof === true || (r.needsProof === undefined && cartNeedsProof());
     CART = []; saveCart(); cartBar();
-    openSheet('Thank you!', '<div class="state" style="padding:30px 6px"><h2>Order sent!</h2><p style="color:var(--ink);font-size:16px;line-height:1.6">Your order number is <b>' + esc(r.number) + '</b>.<br>I\'ll email you a proof to approve before anything is made or paid for.</p><p>A copy of your order is on its way to <b>' + esc(CONTACT.email) + '</b>.</p></div>',
+    openSheet('Thank you!', '<div class="state" style="padding:30px 6px"><h2>Order sent!</h2><p style="color:var(--ink);font-size:16px;line-height:1.6">Your order number is <b>' + esc(r.number) + '</b>.<br>' + (np ? 'I\'ll email you a proof to approve before anything is made or paid for.' : 'I\'ll be in touch to confirm the details and price before anything is made or paid for.') + '</p><p>A copy of your order is on its way to <b>' + esc(CONTACT.email) + '</b>.</p></div>',
       '<button class="btn btn-p btn-w" type="button" id="doneBtn">Done</button>');
     $('#doneBtn').addEventListener('click', closeSheet);
   }).catch(function (e) {

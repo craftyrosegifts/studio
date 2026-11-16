@@ -70,14 +70,16 @@ function fail(msg) { $('#app').innerHTML = '<div class="card state"><h1>Hmm…</
 function render() {
   var b = P.business || {};
   if (b.email || b.instagram) $('#foot').innerHTML = esc(b.businessName || 'Crafty Rose Gifts') + (b.email ? ' · <a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a>' : '') + (b.instagram ? ' · Instagram ' + esc(b.instagram) : '');
-  var h = '<div class="card"><h1>Your proof is ready!</h1><p class="sub">Order ' + esc(P.number) + (P.firstName ? ' · for ' + esc(P.firstName) : '') + '</p>' +
+  var det = !P.images.length;   // a details proof: no picture, the customer checks the order details
+  var h = '<div class="card"><h1>' + (det ? 'Please check your order details' : 'Your proof is ready!') + '</h1><p class="sub">Order ' + esc(P.number) + (P.firstName ? ' · for ' + esc(P.firstName) : '') + '</p>' +
     (P.message ? '<div class="msg">' + esc(P.message) + '</div>' : '') +
+    (det ? '<p class="sub" style="margin:10px 0 4px">Please check the names, spelling, dates and choices below. This is exactly what I\'ll make.</p>' : '') +
     '<div class="imgs">' + P.images.map(function (src, i) { return '<img src="' + src + '" alt="Proof ' + (i + 1) + '">'; }).join('') + '</div>' +
     '<div class="items">' + P.items.map(function (it) { return '<div class="it"><b>' + esc(it.qty) + ' × ' + esc(it.name) + '</b><span>' + it.details.map(esc).join('<br>') + '</span></div>'; }).join('') + '</div>' +
     '<div class="tot"><span>Total</span><span>$' + P.total.toFixed(2) + '</span></div>';
   if (P.paid) h += '<div class="status ok">This order is paid. Thank you! I\'m working on it now.</div>';
   else if (P.status === 'approved') {
-    h += '<div class="status ok">You approved this proof. Thank you!</div>' +
+    h += '<div class="status ok">' + (det ? 'You approved these details. Thank you!' : 'You approved this proof. Thank you!') + '</div>' +
       (P.paymentLink ? '<a class="btn btn-p" href="' + esc(P.paymentLink) + '">Pay now · $' + P.total.toFixed(2) + '</a><p class="sub" style="margin-top:8px;font-size:13px">Secure card payment by Stripe. You can also pay by e-transfer or cash. Just let me know.</p>'
         : '<p class="sub" style="margin-top:10px">I\'ll send you payment details shortly.</p>');
   } else if (MODE === 'changes') {
@@ -85,7 +87,7 @@ function render() {
       '<button class="btn btn-p" type="button" id="sendCh">Send my changes</button><button class="btn btn-s" type="button" id="back">Back</button><div class="err" id="err"></div></div>';
   } else {
     if (P.status === 'changes' && P.comment) h += '<div class="status ch">You asked for: "' + esc(P.comment) + '"<br>I\'ll send an updated proof soon.</div>';
-    h += '<div class="actions"><button class="btn btn-p" type="button" id="ok">Approve this proof</button><button class="btn btn-s" type="button" id="ch">Request changes</button><div class="err" id="err"></div>' +
+    h += '<div class="actions"><button class="btn btn-p" type="button" id="ok">' + (det ? 'Approve these details' : 'Approve this proof') + '</button><button class="btn btn-s" type="button" id="ch">Request changes</button><div class="err" id="err"></div>' +
       '<p class="sub" style="margin-top:10px;font-size:13px">Please check spelling, names and dates carefully. Once approved, I\'ll start making it.</p></div>';
   }
   $('#app').innerHTML = h + '</div>';
