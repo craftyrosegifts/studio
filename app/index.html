@@ -616,6 +616,10 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .proof-box { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 14px; }
 .proof-comment { background: #FFF6E5; border-radius: 8px; padding: 8px 10px; font-size: 13px; margin-bottom: 10px; overflow-wrap: anywhere; }
 .proof-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+/* Proofs step (Nov 2026): optional, folded proof section on the computer + Remove proof */
+.proof-tog { margin-left: auto; font-size: 13px; text-transform: none; letter-spacing: 0; }
+.proof-folded { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+.proof-remove { color: var(--st-red); }
 @media (max-width: 820px) {
   .q-main { flex-wrap: wrap; }
   .q-main > .input:first-child { flex-basis: 100%; }
@@ -3111,6 +3115,8 @@ var MSG_TEMPLATES = [
     'Hi {firstName}!\n\nHere\'s the price for your order {orderNumber}:\n{items}\n\nTotal: {total}\n\nLet me know if you\'d like to go ahead, or if you\'d like to change anything. I\'m happy to help!\n\n{signature}' },
   { key: 'confirm', title: 'Quote approval / order confirmation', body:
     'Hi {firstName}!\n\nGreat news, your order {orderNumber} is confirmed!\n\nHere\'s what I\'ll be making for you:\n{items}\n\nTotal: {total}\nI\'ll have it ready by {dueDate}.\nYou can pay by {paymentOptions}.\nOr pay online here: {paymentLink}\n\nThank you so much for supporting my small business!\n{signature}' },
+  { key: 'proof', title: 'Proof ready for your approval', body:
+    'Hi {firstName}!\n\nYour proof for order {orderNumber} is ready. Please check the names, spelling, dates and choices here:\n{proofLink}\n\nYou can approve it or ask for changes right on that page. Once it\'s approved, I\'ll get started!\n\n{signature}' },
   { key: 'payreminder', title: 'Payment reminder', body:
     'Hi {firstName}!\n\nJust a friendly reminder that order {orderNumber} ({amountDue}) hasn\'t been paid yet.\nYou can pay by {paymentOptions}.\nOr pay online here: {paymentLink}\n\nIf you\'ve already sent it, thank you, and please ignore this message!\n\n{signature}' },
   { key: 'paid', title: 'Payment received', body:
@@ -3132,7 +3138,7 @@ var MSG_FIELDS = [
   ['firstName', 'Customer first name'], ['customerName', 'Customer full name'], ['orderNumber', 'Order number'],
   ['items', 'Items with prices (one per line)'], ['itemNames', 'Item names in a sentence'], ['total', 'Order total'],
   ['amountDue', 'Amount still to pay (left out when paid)'], ['dueDate', 'Due date'], ['paymentOptions', 'Ways to pay (left out when paid)'],
-  ['paymentLink', 'Online payment link (left out when paid)'], ['tracking', 'Tracking number'], ['businessName', 'Business name'],
+  ['paymentLink', 'Online payment link (left out when paid)'], ['proofLink', 'Proof link (left out when no proof has been sent)'], ['tracking', 'Tracking number'], ['businessName', 'Business name'],
   ['signature', 'Your signature'], ['instagram', 'Instagram'], ['facebook', 'Facebook']
 ];
 var MSG = { orderId: null, key: null, edited: false };
@@ -3168,6 +3174,7 @@ function msgValues(o) {
     dueDate: msgLongDate(o.dueDate),
     paymentOptions: o.paid ? '' : msgList(pay, 'or'),          // a paid order never gets payment instructions
     paymentLink: o.paid ? '' : String(o.paymentLink || ''),
+    proofLink: (function () { var p = tdProof(o); return p.token && p.status ? 'https://studio.craftyrosegifts.ca/proof.html?t=' + p.token : ''; })(),
     tracking: String(o.tracking || '').trim(),
     businessName: st.businessName || 'Crafty Rose Gifts',
     signature: st.signature || '',
@@ -3558,7 +3565,8 @@ function tdDaysSince(iso) {
 function tdPlural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
 function tdProof(o) { return o.proof && !Array.isArray(o.proof) && typeof o.proof === 'object' ? o.proof : {}; }
 function tdReplied(o) {
-  return (o.log || []).some(function (l) { return l && (l.emailSendId || l.replied); }) || !!tdProof(o).sentAt;
+  return (o.log || []).some(function (l) { return l && (l.emailSendId || l.replied); }) || !!tdProof(o).sentAt ||
+    (tdProof(o).history || []).some(function (h) { return h && h.event === 'sent'; });   // a proof sent and later removed still counts as a reply
 }
 function tdReadyOn(o) {
   var r = (o.log || []).filter(function (l) { return l && l.readyOn; }).map(function (l) { return String(l.readyOn); }).sort();
@@ -4115,7 +4123,7 @@ function r2OrderPhone() {
   var pv = D.proof && !Array.isArray(D.proof) && typeof D.proof === 'object' ? D.proof : {};
   var want = function (k, auto) { return mem[k] !== undefined ? mem[k] : !!auto; };
   if (tPricing) r2Fold('pricing', 'Pricing', r2Collect(tPricing), want('pricing'));
-  var ps = $('#proofSec'); if (ps) r2Fold('proof', 'Proof', [ps], want('proof', pv.status === 'sent' || pv.status === 'changes'));
+  var ps = $('#proofSec'); if (ps) r2Fold('proof', 'Proof (optional)', [ps], want('proof', pv.status === 'sent' || pv.status === 'changes' || (!pv.status && typeof orderNeedsProof === 'function' && orderNeedsProof(D))));
   var tAtt = r2TitleOf(body, 'Attachments'), tLog = r2TitleOf(body, 'Notes log');
   if (tAtt) r2Fold('attachments', 'Attachments', r2Collect(tAtt), want('attachments'));
   if (tLog) r2Fold('notes', 'Notes log', r2Collect(tLog), want('notes'));
@@ -6796,6 +6804,12 @@ document.addEventListener('change', function (e) {
 });
 
 /* ---------------- Orders: proof section + website badge ---------------- */
+var PROOF_OPEN = {};   // Proofs step (Nov 2026): which orders' Proof section is open on the computer (this visit only)
+/** True when the order has an item whose product usually needs a proof (Catalog → product → Usually needs a proof). */
+function orderNeedsProof(o) {
+  var ids = (S.settings && S.settings.formProofProducts) || [];
+  return !!(o && ids.length && (o.items || []).some(function (it) { return it && it.productId && ids.indexOf(String(it.productId)) >= 0; }));
+}
 var _openOrderF = openOrder;
 openOrder = function (id, stage) {
   _openOrderF(id, stage);
@@ -6811,42 +6825,72 @@ openOrder = function (id, stage) {
   anchor.insertAdjacentElement('beforebegin', sec);
   var P = o && o.proof && !Array.isArray(o.proof) ? JSON.parse(JSON.stringify(o.proof)) : {};
   var files = arr(P.files).slice();
+  // Proofs step (Nov 2026): a proof is optional. On the computer the section starts folded unless a proof was sent or an item
+  // usually needs one (the phone folds it in its own way, see Release 2).
+  var needs = orderNeedsProof(o || D), foldable = !r2Phone(), key = id || 'new';
+  if (PROOF_OPEN[key] === undefined) PROOF_OPEN[key] = !!P.status || needs;
   var statusChip = function () {
-    var st = P.status;
-    if (st === 'approved') return '<span class="chip green">' + ico('check').replace('class="ico"', 'class="ico" style="width:12px;height:12px"') + 'Approved ' + esc(whenStr(P.respondedAt)) + '</span>';
+    var st = P.status, kind = P.kind === 'details' ? 'Details proof' : 'Proof';
+    if (st === 'approved') return '<span class="chip green">' + ico('check').replace('class="ico"', 'class="ico" style="width:12px;height:12px"') + kind + ' approved ' + esc(whenStr(P.respondedAt)) + '</span>';
     if (st === 'changes') return '<span class="chip amber">Changes requested ' + esc(whenStr(P.respondedAt)) + '</span>';
-    if (st === 'sent') return '<span class="chip blue">Sent ' + esc(whenStr(P.sentAt)) + ', waiting</span>';
+    if (st === 'sent') return '<span class="chip blue">' + kind + ' sent ' + esc(whenStr(P.sentAt)) + ', waiting</span>';
     return '<span class="chip gray">No proof yet</span>';
   };
   var draw = function () {
-    sec.innerHTML = '<div class="section-title">' + ico('eye') + 'Proof</div>' +
+    var head = '<div class="section-title">' + ico('eye') + 'Proof <span class="muted" style="font-weight:500;margin-left:4px">(optional)</span>' +
+      (foldable && !P.status ? '<button class="link-btn proof-tog" type="button" id="prTog" aria-expanded="' + !!PROOF_OPEN[key] + '">' + (PROOF_OPEN[key] ? 'Hide' : 'Add a proof') + '</button>' : '') + '</div>';
+    if (foldable && !PROOF_OPEN[key]) {
+      sec.innerHTML = head + '<div class="proof-folded">' + statusChip() + '<span class="muted small">Only if you want the customer to approve a picture or their details first.</span></div>';
+      return;
+    }
+    sec.innerHTML = head +
       '<div class="proof-box"><div style="margin-bottom:10px">' + statusChip() + '</div>' +
+      (needs && !P.status ? '<p class="hint" style="margin:0 0 10px">This order has an item that usually needs a proof.</p>' : '') +
       (P.status === 'changes' && P.comment ? '<div class="proof-comment"><b>Customer asked:</b> ' + esc(P.comment) + '</div>' : '') +
       '<div class="photos" id="prFiles">' + files.map(function (f, i) {
         return '<div class="photo"><img data-photo="' + esc(f.id) + '" alt=""><button class="icon-btn sm" type="button" data-prdel="' + i + '" title="Remove">' + ico('x') + '</button></div>';
       }).join('') + '<label class="photo-add" for="prFile">' + ico('image') + 'Add mockup</label></div>' +
       '<input type="file" id="prFile" accept="image/*" multiple hidden>' +
+      (files.length ? '' : '<p class="hint" id="prDetailsHint" style="margin:8px 0 0">No picture? That\'s fine. The customer will see their order details (names, wording, dates and choices) to check and approve.</p>') +
       '<div class="field" style="margin-top:12px"><label>Message to the customer <span class="muted">(optional)</span></label><textarea class="input" id="prMsg" style="min-height:60px" placeholder="Here\'s your design! Let me know if you\'d like any changes.">' + esc(P.message || '') + '</textarea></div>' +
-      (id ? '<div class="proof-actions"><button class="btn btn-primary btn-sm" type="button" id="prEmail">' + ico('mail') + (P.status ? 'Send again by email' : 'Email proof') + '</button>' +
-        '<button class="btn btn-secondary btn-sm" type="button" id="prCopy">' + ico('link') + 'Copy link for Messenger</button></div>' +
-        '<p class="hint" style="margin:8px 0 0">The customer sees the mockup and taps Approve or Request changes. ' + (S.stripe && S.stripe.connected ? 'When they approve, they get a Stripe payment link.' : 'Connect Stripe in Invoice settings to show them a payment link when they approve.') + '</p>'
-        : '<p class="hint" style="margin:8px 0 0">Save the order first, then you can send the proof.</p>') + '</div>';
+      (id ? '<div class="proof-actions"><button class="btn btn-primary btn-sm" type="button" id="prEmail">' + ico('mail') +
+          (files.length ? (P.status ? 'Send again by email' : 'Email proof') : (P.status ? 'Send details again by email' : 'Email details to check')) + '</button>' +
+        '<button class="btn btn-secondary btn-sm" type="button" id="prCopy">' + ico('link') + 'Copy link for Messenger</button>' +
+        (P.status ? '<button class="btn btn-secondary btn-sm proof-remove" type="button" id="prRemove">' + ico('trash') + 'Remove proof</button>' : '') + '</div>' +
+        '<p class="hint" style="margin:8px 0 0">The customer sees ' + (files.length ? 'the mockup' : 'their order details') + ' and taps Approve or Request changes. ' + (S.stripe && S.stripe.connected ? 'When they approve, they get a Stripe payment link.' : 'Connect Stripe in Invoice settings to show them a payment link when they approve.') + '</p>'
+        : '<p class="hint" style="margin:8px 0 0">Save the order first, then you can send a proof.</p>') + '</div>';
     loadPhotos();
   };
   draw();
   sec.addEventListener('click', function (e) {
+    if (e.target.closest('#prTog')) { PROOF_OPEN[key] = !PROOF_OPEN[key]; draw(); return; }
     var d = e.target.closest('[data-prdel]');
     if (d) { files.splice(+d.getAttribute('data-prdel'), 1); draw(); return; }
+    if (e.target.closest('#prRemove')) {
+      var nm = (o && o.number) || 'this order';
+      qaDialog('<h3 class="qa-title">Remove the proof for ' + esc(nm) + '?</h3>' +
+        '<p>The customer\'s proof link will stop working and this order will show <b>No proof yet</b>.</p>' +
+        '<p>Nothing is sent to the customer, and the mockup pictures stay in your Drive.' + (P.status === 'approved' ? ' The customer\'s approval (' + esc(whenStr(P.respondedAt)) + ') stays in the order history.' : '') + '</p>',
+        function () {
+          saveOrder(function (saved) {
+            call('removeProof', saved.id).then(function (r) {
+              var i = S.data.Orders.findIndex(function (x) { return x.id === saved.id; }); if (i >= 0) S.data.Orders[i] = r.order;
+              openOrder(saved.id); toast('Proof removed');
+            }).catch(function (err) { openOrder(saved.id); fail(err); });
+          });
+        }, 'Remove proof');
+      return;
+    }
     var em = e.target.closest('#prEmail'), cp = e.target.closest('#prCopy');
     if (!em && !cp) return;
-    if (!files.length) { toast('Add a mockup image first.', true); return; }
     var btn = em || cp; busy(btn, em ? 'Sending…' : 'Making link…');
     var msg = $('#prMsg').value.trim();
     saveOrder(function (saved) {
       call('sendProof', saved.id, files, msg, !!em).then(function (r) {
         var i = S.data.Orders.findIndex(function (x) { return x.id === saved.id; }); if (i >= 0) S.data.Orders[i] = r.order;
         openOrder(saved.id);
-        if (em) toast('Proof emailed to ' + r.emailedTo); else copyText(r.link, 'Proof link copied, paste it into Messenger');
+        var what = files.length ? 'Proof' : 'Details proof';
+        if (em) toast(what + ' emailed to ' + r.emailedTo); else copyText(r.link, what + ' link copied, paste it into Messenger');
       }).catch(function (err) { openOrder(saved.id); fail(err); });
     });
   });
@@ -6880,6 +6924,9 @@ openProduct = function (id, preset) {
     sec.innerHTML = '<div class="section-title">' + ico('globe') + 'Website order form</div>' +
       '<label class="feat"><span class="feat-ico">' + ico('globe') + '</span><span class="feat-txt"><strong>Show on my order form</strong><span class="muted small">Customers can order this from your website</span></span>' +
         '<span class="switch"><input type="checkbox" id="fShow"' + (F.show ? ' checked' : '') + '><span></span></span></label>' +
+      '<label class="feat"><span class="feat-ico">' + ico('eye') + '</span><span class="feat-txt"><strong>Usually needs a proof</strong><span class="muted small">' +
+        (D.id ? 'The order form and the customer\'s confirmation email will say you\'ll send a proof for orders with this product' : 'Save the product first, then you can turn this on') + '</span></span>' +
+        '<span class="switch"><input type="checkbox" id="fProof"' + (D.id && ((S.settings && S.settings.formProofProducts) || []).indexOf(String(D.id)) >= 0 ? ' checked' : '') + (D.id ? '' : ' disabled') + '><span></span></span></label>' +
       '<div id="fBody" style="' + (F.show ? '' : 'display:none') + '">' +
       '<div class="field" style="margin-top:14px"><label>Note for customers <span class="muted">(optional)</span></label><input class="input" id="fNote" value="' + esc(F.note) + '" placeholder="e.g. Price includes 1 name. Extra names +$3 each."></div>' +
 
@@ -6933,6 +6980,17 @@ openProduct = function (id, preset) {
   sec.addEventListener('change', function (e) {
     var t = e.target;
     if (t.id === 'fShow') { F.show = t.checked; $('#fBody').style.display = F.show ? '' : 'none'; return; }
+    if (t.id === 'fProof' && D.id) {   // Proofs step (Nov 2026): saved straight away, in the business settings
+      var pid = String(D.id), on = t.checked;
+      var list = ((S.settings && S.settings.formProofProducts) || []).filter(function (x) { return String(x) !== pid; });
+      if (on) list.push(pid);
+      t.disabled = true;
+      call('saveSettings', { formProofProducts: list }).then(function (saved) {
+        S.settings = saved; t.disabled = false;
+        toast(on ? 'Saved: this product usually needs a proof' : 'Saved: no proof needed for this product');
+      }).catch(function (err) { t.checked = !on; t.disabled = false; fail(err); });
+      return;
+    }
     if (t.getAttribute('data-ph') === 'kind') { F.photos[+t.closest('.form-photo').getAttribute('data-i')].kind = t.value; return; }
     if (t.getAttribute('data-q') === 'type') { F.questions[+t.closest('.q-row').getAttribute('data-i')].type = t.value; draw(); return; }
     if (t.getAttribute('data-q') === 'required') { F.questions[+t.closest('.q-row').getAttribute('data-i')].required = t.checked; return; }
