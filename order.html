@@ -30,6 +30,8 @@ header.top img{width:48px;height:48px;object-fit:contain}
 .steps{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0;padding:0;list-style:none}
 .steps li{background:var(--white);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--forest-700)}
 .steps b{color:var(--forest);margin-right:4px}
+.olink{background:#E8F1EA;border:1px solid #C9DCCD;border-radius:12px;padding:12px 16px;margin:0 0 14px;font-size:15px;line-height:1.5;color:var(--forest-800)}
+.olink b{font-size:17px}
 .note{background:#FFF6E5;border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.5;margin:14px 0 0;color:#5B4513}
 .cats{display:flex;gap:8px;overflow-x:auto;padding:18px 0 4px;scrollbar-width:none}
 .cats::-webkit-scrollbar{display:none}
@@ -163,6 +165,10 @@ footer a{color:var(--forest)}
 <script>
 var API = 'https://script.google.com/macros/s/AKfycbzg84RXS8672czlZKC7Y78cQ2ieEuD6-y3MO1_yFlNdU67Vxj4zXEDIMLaPXWYfZbo/exec';
 var CAT = null, CART = [], FILTER = 'All', CUR = null;
+/* Order form link (Nov 2026): order.html?o=<link> lets a customer choose the items for an order Sara already has.
+   Their choices replace that order's items (no new order). The link works once. */
+var LINK = (function () { var m = /[?&]o=([a-f0-9]{40})(?:&|$)/.exec(location.search); return m ? m[1] : ''; })(), LINKINFO = null;
+var CART_KEY = LINK ? 'crg_cart_o' + LINK.slice(0, 10) : 'crg_cart';
 var $ = function (s, r) { return (r || document).querySelector(s); };
 function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
 function money(n) { n = Number(n) || 0; return '$' + (n % 1 ? n.toFixed(2) : n.toFixed(0)); }
@@ -191,15 +197,27 @@ function submissionFor(body) {
   return PENDING.id;
 }
 function submissionDone() { PENDING = null; try { localStorage.removeItem('crg_pending'); } catch (e) {} }
-function saveCart() { try { localStorage.setItem('crg_cart', JSON.stringify(CART, function (k, v) { return k === 'data' || k === 'preview' ? undefined : v; })); } catch (e) {} }
-function loadCart() { try { CART = JSON.parse(localStorage.getItem('crg_cart') || '[]') || []; } catch (e) { CART = []; } }
+function saveCart() { try { localStorage.setItem(CART_KEY, JSON.stringify(CART, function (k, v) { return k === 'data' || k === 'preview' ? undefined : v; })); } catch (e) {} }
+function loadCart() { try { CART = JSON.parse(localStorage.getItem(CART_KEY) || '[]') || []; } catch (e) { CART = []; } }
 function prod(id) { return CAT.products.filter(function (p) { return p.id === id; })[0]; }
 function firstPhoto(p) { var x = p.photos.filter(function (f) { return f.kind !== 'example'; })[0] || p.photos[0]; return x ? x.url : ''; }
 
 /* ---------- catalog ---------- */
 function load() {
   loadCart();
-  api({ action: 'catalog' }).then(function (d) {
+  var info = LINK ? api({ action: 'proof', t: 'L' + LINK }) : Promise.resolve(null);
+  Promise.all([api({ action: 'catalog' }), info]).then(function (res) {
+    var d = res[0], li = res[1] && res[1].orderLink;
+    if (LINK && !li) throw new Error('This link couldn\'t be checked right now.');
+    if (li && !li.ok) {
+      $('#app').innerHTML = '<div class="state"><h2>' + (li.used ? 'Already sent' : 'Link not working') + '</h2><p>' + esc(li.message) + '</p></div>';
+      $('#cartbar').classList.remove('on');
+      return;
+    }
+    if (li) {
+      LINKINFO = li;
+      CONTACT.name = li.contact.name || CONTACT.name; CONTACT.email = li.contact.email || CONTACT.email; CONTACT.phone = li.contact.phone || CONTACT.phone;
+    }
     CAT = d;
     // drop cart items that no longer exist
     CART = CART.filter(function (c) { return prod(c.productId); }); saveCart();
@@ -220,7 +238,9 @@ function render() {
   var cats = ['All'].concat(CAT.products.map(function (p) { return p.category; }).filter(function (c, i, a) { return c && a.indexOf(c) === i; }));
   var list = CAT.products.filter(function (p) { return FILTER === 'All' || p.category === FILTER; });
   $('#app').innerHTML =
-    '<section class="hero"><h1>Order a custom gift</h1>' +
+    '<section class="hero">' + (LINKINFO ? '<div class="olink" id="olink"><b>Choosing items for order ' + esc(LINKINFO.number) + '</b><br>Hi ' + esc(LINKINFO.firstName || 'there') +
+      '! Pick your items below, then tap <b>Send my choices</b>. Your choices go straight onto your order, no new order is made.</div>' : '') +
+    '<h1>' + (LINKINFO ? 'Choose your items' : 'Order a custom gift') + '</h1>' +
     (s.intro ? '<p>' + esc(s.intro) + '</p>' : '') +
     '<ul class="steps"><li><b>1</b>Pick your items</li><li><b>2</b>Tell me how to personalize them</li><li><b>3</b>I confirm the details &amp; price</li><li><b>4</b>Pay &amp; I make it</li></ul>' +
     (s.note ? '<div class="note">' + esc(s.note) + '</div>' : '') + '</section>' +
@@ -425,23 +445,23 @@ function openCart() {
     '<div class="blk" style="margin-top:8px"><label class="lbl" for="cName">Your name <span class="req">*</span></label><input class="input" id="cName" autocomplete="name" value="' + esc(CONTACT.name) + '"></div>' +
     '<div class="row2"><div class="blk"><label class="lbl" for="cEmail">Email <span class="req">*</span></label><input class="input" id="cEmail" type="email" autocomplete="email" inputmode="email" value="' + esc(CONTACT.email) + '"></div>' +
     '<div class="blk"><label class="lbl" for="cPhone">Phone <small>(optional, needed for Text)</small></label><input class="input" id="cPhone" type="tel" autocomplete="tel" value="' + esc(CONTACT.phone) + '"></div></div>' +
-    '<div class="blk"><span class="lbl">Best way to contact you <span class="req">*</span></span><div class="seg" id="waySeg" style="grid-template-columns:repeat(2,1fr)">' + CONTACT_WAYS.map(function (w) {
+    (LINKINFO ? '' : '<div class="blk"><span class="lbl">Best way to contact you <span class="req">*</span></span><div class="seg" id="waySeg" style="grid-template-columns:repeat(2,1fr)">' + CONTACT_WAYS.map(function (w) {
       return '<label class="' + (CONTACT.contactBy === w[0] ? 'on' : '') + '"><input type="radio" name="way" value="' + w[0] + '"' + (CONTACT.contactBy === w[0] ? ' checked' : '') + '>' + w[1] + '</label>';
     }).join('') + '</div></div>' +
     '<div class="blk" id="handleBlk" style="' + (wayOf(CONTACT.contactBy) && wayOf(CONTACT.contactBy)[2] ? '' : 'display:none') + '"><label class="lbl" for="cHandle" id="handleLbl">' + esc((wayOf(CONTACT.contactBy) || [])[2] || '') + ' <span class="req">*</span></label><input class="input" id="cHandle" autocomplete="off" value="' + esc(CONTACT.handle || '') + '"></div>' +
     '<div class="blk"><span class="lbl">Pickup</span><div class="note" style="margin-top:4px">Once your items are ready, I\'ll get in touch to arrange pickup with you. – Sara</div></div>' +
-    '<div class="blk"><label class="lbl" for="cNeed">Need it by? <small>(optional)</small></label><input class="input" id="cNeed" type="date" value="' + esc(CONTACT.neededBy) + '"></div>' +
+    '<div class="blk"><label class="lbl" for="cNeed">Need it by? <small>(optional)</small></label><input class="input" id="cNeed" type="date" value="' + esc(CONTACT.neededBy) + '"></div>') +
     '<div class="blk"><label class="lbl" for="cNotes">Anything else? <small>(optional)</small></label><textarea class="input" id="cNotes" placeholder="Colours, special requests, gift message…">' + esc(CONTACT.notes) + '</textarea></div>' +
     '<div class="hp" aria-hidden="true"><label>Website<input id="cWeb" tabindex="-1" autocomplete="off"></label></div>' +
     '<div class="err" id="cErr"></div>';
   CUR = null;
-  openSheet('Your order', h, '<div class="tot">Estimated total<b>' + money2(cartTotal()) + '</b></div><button class="btn btn-p" type="button" id="sendBtn">Send my order</button>');
-  var t = new Date(); t.setDate(t.getDate() + 1); $('#cNeed').min = t.toISOString().slice(0, 10);
+  openSheet(LINKINFO ? 'Your choices for ' + LINKINFO.number : 'Your order', h, '<div class="tot">Estimated total<b>' + money2(cartTotal()) + '</b></div><button class="btn btn-p" type="button" id="sendBtn">' + (LINKINFO ? 'Send my choices' : 'Send my order') + '</button>');
+  var t = new Date(); t.setDate(t.getDate() + 1); if ($('#cNeed')) $('#cNeed').min = t.toISOString().slice(0, 10);
 }
 function readContact() {
   if (!$('#cName')) return;
-  CONTACT = { name: $('#cName').value.trim(), email: $('#cEmail').value.trim(), phone: $('#cPhone').value.trim(), delivery: 'pickup', address: '', neededBy: $('#cNeed').value, notes: $('#cNotes').value.trim(),
-    contactBy: (document.querySelector('input[name=way]:checked') || {}).value || '', handle: $('#cHandle').value.trim() };
+  CONTACT = { name: $('#cName').value.trim(), email: $('#cEmail').value.trim(), phone: $('#cPhone').value.trim(), delivery: 'pickup', address: '', neededBy: $('#cNeed') ? $('#cNeed').value : '', notes: $('#cNotes').value.trim(),
+    contactBy: (document.querySelector('input[name=way]:checked') || {}).value || CONTACT.contactBy || '', handle: $('#cHandle') ? $('#cHandle').value.trim() : (CONTACT.handle || '') };
   try { localStorage.setItem('crg_contact', JSON.stringify({ name: CONTACT.name, email: CONTACT.email, phone: CONTACT.phone, delivery: CONTACT.delivery, address: CONTACT.address, contactBy: CONTACT.contactBy, handle: CONTACT.handle })); } catch (e) {}
 }
 $('#sheet').addEventListener('click', function (e) {
@@ -468,6 +488,7 @@ function submit() {
   var err = '';
   if (!CONTACT.name) err = 'Please enter your name.';
   else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(CONTACT.email)) err = 'Please enter a valid email address so I can confirm your order.';
+  else if (LINKINFO) err = '';
   else if (!wayOf(CONTACT.contactBy)) err = 'Please choose the best way to contact you.';
   else if (wayOf(CONTACT.contactBy)[2] && !CONTACT.handle) err = 'Please enter ' + wayOf(CONTACT.contactBy)[2].replace(/^Your/, 'your') + '.';
   else if (CONTACT.contactBy === 'text' && !CONTACT.phone) err = 'Please enter your phone number so I can text you.';
@@ -475,22 +496,31 @@ function submit() {
   var btn = $('#sendBtn'); btn.disabled = true; btn.textContent = 'Sending…'; $('#cErr').textContent = '';
   var body = {
     website: $('#cWeb').value, contact: { name: CONTACT.name, email: CONTACT.email, phone: CONTACT.phone, address: CONTACT.address },
-    delivery: CONTACT.delivery, neededBy: CONTACT.neededBy, notes: contactLine() + (CONTACT.notes ? '\n\n' + CONTACT.notes : ''),
+    delivery: CONTACT.delivery, neededBy: LINKINFO ? '' : CONTACT.neededBy, notes: LINKINFO ? CONTACT.notes : contactLine() + (CONTACT.notes ? '\n\n' + CONTACT.notes : ''),
     items: CART.map(function (c) {
       var ans = {}; Object.keys(c.answers).forEach(function (k) { var v = c.answers[k]; ans[k] = v && typeof v === 'object' ? { name: v.name, mime: v.mime, data: v.data } : v; });
       return { productId: c.productId, qty: c.qty, design: c.design, variants: c.variants, addons: c.addons, answers: ans };
     })
   };
+  if (LINKINFO) body.orderLink = LINK;
   body.submissionId = submissionFor(body);
   api({ action: 'submit' }, body).then(function (r) {
     submissionDone();
     var np = r.needsProof === true || (r.needsProof === undefined && cartNeedsProof());
     CART = []; saveCart(); cartBar();
+    if (r.orderLink) {
+      openSheet('Thank you!', '<div class="state" style="padding:30px 6px"><h2>Choices sent!</h2><p style="color:var(--ink);font-size:16px;line-height:1.6">Your choices are now on order <b>' + esc(r.number) + '</b>.<br>' +
+        (np ? 'I\'ll email you a proof to approve before anything is made or paid for.' : 'I\'ll be in touch to confirm the details and price before anything is made or paid for.') +
+        '</p><p>A copy is on its way to your email. This link has now been used, so if you\'d like to change anything, just message me.</p></div>',
+        '<button class="btn btn-p btn-w" type="button" id="doneBtn">Done</button>');
+      $('#doneBtn').addEventListener('click', function () { closeSheet(); $('#app').innerHTML = '<div class="state"><h2>All done!</h2><p>Your choices are on order ' + esc(r.number) + '. If you\'d like to change anything, please message me.</p></div>'; });
+      return;
+    }
     openSheet('Thank you!', '<div class="state" style="padding:30px 6px"><h2>Order sent!</h2><p style="color:var(--ink);font-size:16px;line-height:1.6">Your order number is <b>' + esc(r.number) + '</b>.<br>' + (np ? 'I\'ll email you a proof to approve before anything is made or paid for.' : 'I\'ll be in touch to confirm the details and price before anything is made or paid for.') + '</p><p>A copy of your order is on its way to <b>' + esc(CONTACT.email) + '</b>.</p></div>',
       '<button class="btn btn-p btn-w" type="button" id="doneBtn">Done</button>');
     $('#doneBtn').addEventListener('click', closeSheet);
   }).catch(function (e) {
-    btn.disabled = false; btn.textContent = 'Send my order';
+    btn.disabled = false; btn.textContent = LINKINFO ? 'Send my choices' : 'Send my order';
     $('#cErr').textContent = e.message; $('#cErr').scrollIntoView({ block: 'center', behavior: 'smooth' });
   });
 }
