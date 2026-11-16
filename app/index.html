@@ -781,7 +781,7 @@ table.tbl { width: 100%; border-collapse: collapse; }
   .r2-fold-chev { flex: none; width: 18px; height: 18px; color: var(--forest); transition: transform .15s; }
   .r2-fold.open .r2-fold-chev { transform: rotate(180deg); }
   .r2-fold-body { padding: 0 14px 14px; }
-  .r2-fold-body > .section-title.r2-t, .r2-fold-body #proofSec > .section-title { display: none; }
+  .r2-fold-body > .section-title.r2-t, .r2-fold-body #proofSec > .section-title, .r2-fold-body #linkSec > .section-title { display: none; }
   .r2-contact { margin: 10px 0 6px; }
   .r2-way { margin-bottom: 8px; font-size: 14px; }
   .r2-cbtns { display: flex; gap: 8px; }
@@ -3111,6 +3111,8 @@ var MSG_TEMPLATES = [
     'Hi {firstName}!\n\nThank you so much for reaching out to {businessName}. I got your request (order {orderNumber}) and I\'m excited to help with it.\n\nI\'ll take a look and get back to you soon with any questions and a price.\n\nTalk soon,\n{signature}' },
   { key: 'moreinfo', title: 'Request for more information', body:
     'Hi {firstName}!\n\nThanks again for your order request ({orderNumber}). Before I get started, I just need a few more details:\n\n- [question]\n- [question]\n\nOnce I have those, I\'ll get everything ready for you.\n\nThank you!\n{signature}' },
+  { key: 'choose', title: 'Choose your items', body:
+    'Hi {firstName}!\n\nWhen you\'re ready, you can pick your items for order {orderNumber} here:\n{orderLink}\n\nJust choose what you\'d like and tap "Send my choices". The link works once, so if you\'d like to change anything afterwards, just message me.\n\n{signature}' },
   { key: 'quote', title: 'Quote / estimate', body:
     'Hi {firstName}!\n\nHere\'s the price for your order {orderNumber}:\n{items}\n\nTotal: {total}\n\nLet me know if you\'d like to go ahead, or if you\'d like to change anything. I\'m happy to help!\n\n{signature}' },
   { key: 'confirm', title: 'Quote approval / order confirmation', body:
@@ -3138,7 +3140,7 @@ var MSG_FIELDS = [
   ['firstName', 'Customer first name'], ['customerName', 'Customer full name'], ['orderNumber', 'Order number'],
   ['items', 'Items with prices (one per line)'], ['itemNames', 'Item names in a sentence'], ['total', 'Order total'],
   ['amountDue', 'Amount still to pay (left out when paid)'], ['dueDate', 'Due date'], ['paymentOptions', 'Ways to pay (left out when paid)'],
-  ['paymentLink', 'Online payment link (left out when paid)'], ['proofLink', 'Proof link (left out when no proof has been sent)'], ['tracking', 'Tracking number'], ['businessName', 'Business name'],
+  ['paymentLink', 'Online payment link (left out when paid)'], ['proofLink', 'Proof link (left out when no proof has been sent)'], ['orderLink', 'Order form link (left out when no link is waiting)'], ['tracking', 'Tracking number'], ['businessName', 'Business name'],
   ['signature', 'Your signature'], ['instagram', 'Instagram'], ['facebook', 'Facebook']
 ];
 var MSG = { orderId: null, key: null, edited: false };
@@ -3175,6 +3177,7 @@ function msgValues(o) {
     paymentOptions: o.paid ? '' : msgList(pay, 'or'),          // a paid order never gets payment instructions
     paymentLink: o.paid ? '' : String(o.paymentLink || ''),
     proofLink: (function () { var p = tdProof(o); return p.token && p.status ? 'https://studio.craftyrosegifts.ca/proof.html?t=' + p.token : ''; })(),
+    orderLink: (function () { var l = orderLinkState(o); return l.status === 'waiting' ? 'https://studio.craftyrosegifts.ca/order.html?o=' + l.token : ''; })(),
     tracking: String(o.tracking || '').trim(),
     businessName: st.businessName || 'Crafty Rose Gifts',
     signature: st.signature || '',
@@ -4074,7 +4077,7 @@ function r2Paint(el, html) { if (el && el.getAttribute('data-html') !== html) { 
 function r2TitleOf(body, name) { return $$('.section-title', body).filter(function (t) { return t.textContent.trim() === name; })[0] || null; }
 function r2Collect(first) {   // a section: its title and everything after it up to the next section
   var out = [first], n = first.nextElementSibling;
-  while (n && !n.classList.contains('section-title') && n.id !== 'proofSec') { out.push(n); n = n.nextElementSibling; }
+  while (n && !n.classList.contains('section-title') && n.id !== 'proofSec' && n.id !== 'linkSec') { out.push(n); n = n.nextElementSibling; }
   return out;
 }
 function r2Fold(key, label, nodes, open) {
@@ -4094,6 +4097,7 @@ function r2Sums() {
   var paid = $('#oPaid');
   set('pricing', 'Total ' + money(calcOrder(D).total) + ' · ' + (paid && paid.checked ? 'paid' : 'unpaid'));
   var pc = $('#proofSec .chip'); set('proof', pc ? pc.textContent.trim() : '');
+  var lc = $('#linkSec .chip'); set('link', lc ? lc.textContent.trim() : '');
   var na = $$('#xAtt .att-row').length; set('attachments', na ? na + (na === 1 ? ' file' : ' files') : 'None yet');
   var nn = $$('#xNotes .note').length, last = (D.log || []).map(function (l) { return String((l && l.at) || ''); }).sort().pop();
   set('notes', nn ? nn + (nn === 1 ? ' note' : ' notes') + (last ? ', latest ' + niceDate(last.slice(0, 10)) : '') : 'None yet');
@@ -4123,6 +4127,7 @@ function r2OrderPhone() {
   var pv = D.proof && !Array.isArray(D.proof) && typeof D.proof === 'object' ? D.proof : {};
   var want = function (k, auto) { return mem[k] !== undefined ? mem[k] : !!auto; };
   if (tPricing) r2Fold('pricing', 'Pricing', r2Collect(tPricing), want('pricing'));
+  var ls = $('#linkSec'); if (ls) r2Fold('link', 'Order form link', [ls], want('link', typeof orderLinkState === 'function' && orderLinkState(D).status === 'waiting'));
   var ps = $('#proofSec'); if (ps) r2Fold('proof', 'Proof (optional)', [ps], want('proof', pv.status === 'sent' || pv.status === 'changes' || (!pv.status && typeof orderNeedsProof === 'function' && orderNeedsProof(D))));
   var tAtt = r2TitleOf(body, 'Attachments'), tLog = r2TitleOf(body, 'Notes log');
   if (tAtt) r2Fold('attachments', 'Attachments', r2Collect(tAtt), want('attachments'));
@@ -6823,6 +6828,7 @@ openOrder = function (id, stage) {
   var sec = document.createElement('div');
   sec.id = 'proofSec';
   anchor.insertAdjacentElement('beforebegin', sec);
+  if (id) drawOrderLink(o, sec);   // Order form link (Nov 2026), just above the Proof section
   var P = o && o.proof && !Array.isArray(o.proof) ? JSON.parse(JSON.stringify(o.proof)) : {};
   var files = arr(P.files).slice();
   // Proofs step (Nov 2026): a proof is optional. On the computer the section starts folded unless a proof was sent or an item
@@ -6905,6 +6911,89 @@ openOrder = function (id, stage) {
     }, Promise.resolve()).then(function () { toast('Mockup added'); }).catch(fail);
   });
 };
+
+/* ---------------- Orders: order form link (Nov 2026) ----------------
+   A one-time link to the website order form for THIS order: the customer's picks replace the order's items.
+   The link's state is kept in the order's notes log (see FormServer.gs). */
+var LINK_OPEN = {};   // which orders' Order form link section is open on the computer (this visit only)
+function orderLinkState(o) {
+  var st = { status: 'none', token: '', madeAt: '', at: '' };
+  ((o && o.log) || []).forEach(function (l) {
+    if (!l) return;
+    if (l.orderLink) st = { status: 'waiting', token: String(l.orderLink), madeAt: l.at || '', at: '' };
+    else if (st.token && l.orderLinkUsed === st.token && st.status === 'waiting') { st.status = 'used'; st.at = l.at || ''; }
+    else if (st.token && l.orderLinkCancelled === st.token && st.status === 'waiting') { st.status = 'cancelled'; st.at = l.at || ''; }
+  });
+  return st;
+}
+function orderLinkBlocked(o) {
+  if (!o) return 'Save the order first.';
+  if (o.paid) return 'This order is paid, so its items can\'t be replaced from the order form.';
+  if (o.stage === DONE) return 'This order is finished.';
+  if (o.stockUsed && typeof o.stockUsed === 'object' && Object.keys(o.stockUsed).length) return 'This order has already taken materials from stock, so its items can\'t be replaced from the order form.';
+  return '';
+}
+function orderLinkUrl(token) { return 'https://studio.craftyrosegifts.ca/order.html?o=' + token; }
+function drawOrderLink(o, before) {
+  var st = orderLinkState(o), why = orderLinkBlocked(o);
+  if (why && st.status !== 'waiting') return;           // nothing to offer on a paid, finished or stock-taken order
+  var box = document.createElement('div'); box.id = 'linkSec';
+  before.insertAdjacentElement('beforebegin', box);
+  var foldable = !r2Phone(), key = o.id;
+  if (LINK_OPEN[key] === undefined) LINK_OPEN[key] = st.status === 'waiting';
+  var sm = 'class="ico" style="width:12px;height:12px"';
+  var chip = st.status === 'waiting' ? '<span class="chip blue">' + ico('link').replace('class="ico"', sm) + 'Link sent ' + esc(whenStr(st.madeAt)) + ', waiting</span>'
+    : st.status === 'used' ? '<span class="chip green">' + ico('check').replace('class="ico"', sm) + 'Items chosen ' + esc(whenStr(st.at)) + '</span>'
+    : st.status === 'cancelled' ? '<span class="chip gray">Link cancelled ' + esc(whenStr(st.at)) + '</span>'
+    : '<span class="chip gray">Not sent yet</span>';
+  var draw = function () {
+    var head = '<div class="section-title">' + ico('link') + 'Order form link <span class="muted" style="font-weight:500;margin-left:4px">(optional)</span>' +
+      (foldable ? '<button class="link-btn proof-tog" type="button" id="olTog" aria-expanded="' + !!LINK_OPEN[key] + '">' + (LINK_OPEN[key] ? 'Hide' : (st.status === 'none' ? 'Set up' : 'Show')) + '</button>' : '') + '</div>';
+    if (foldable && !LINK_OPEN[key]) {
+      box.innerHTML = head + '<div class="proof-folded">' + chip + '<span class="muted small">Let the customer pick their own items for this order.</span></div>';
+      return;
+    }
+    var hint = st.status === 'waiting' ? 'The customer opens the order form with this link, picks their items and taps <b>Send my choices</b>. Their choices replace the items on this order. The link works once.'
+      : st.status === 'used' ? 'The customer\'s choices replaced the items. The old item list is in the Notes log. You can make a new link if they need to choose again.'
+      : 'Send the customer a link to your order form for this order. Their choices replace the items here (shipping, discount, dates, payment and proof stay as they are). The link works once.';
+    box.innerHTML = head + '<div class="proof-box"><div style="margin-bottom:10px">' + chip + '</div>' +
+      '<p class="hint" style="margin:0 0 10px">' + hint + '</p>' +
+      (why ? '<p class="hint" style="margin:0 0 10px">' + esc(why) + '</p>' : '') +
+      '<div class="proof-actions">' + (st.status === 'waiting'
+        ? '<button class="btn btn-secondary btn-sm" type="button" id="olCopy">' + ico('link') + 'Copy link</button>' +
+          '<button class="btn btn-secondary btn-sm proof-remove" type="button" id="olCancel">' + ico('x') + 'Cancel link</button>'
+        : '<button class="btn btn-primary btn-sm" type="button" id="olMake">' + ico('link') + (st.status === 'none' ? 'Make link' : 'Make a new link') + '</button>') + '</div>' +
+      (st.status === 'waiting' ? '<p class="hint" style="margin:8px 0 0">Paste it into Messenger, or send the <b>Choose your items</b> message, which has the link filled in.</p>' : '') + '</div>';
+  };
+  draw();
+  box.addEventListener('click', function (e) {
+    if (e.target.closest('#olTog')) { LINK_OPEN[key] = !LINK_OPEN[key]; draw(); return; }
+    if (e.target.closest('#olCopy')) { copyText(orderLinkUrl(st.token), 'Order form link copied, paste it into Messenger'); return; }
+    if (e.target.closest('#olCancel')) {
+      qaDialog('<h3 class="qa-title">Cancel the order form link for ' + esc(o.number || 'this order') + '?</h3>' +
+        '<p>The link will stop working. Nothing is sent to the customer, and the items on this order stay as they are.</p>',
+        function () {
+          saveOrder(function (saved) {
+            call('cancelOrderLink', saved.id).then(function (r) {
+              var i = S.data.Orders.findIndex(function (x) { return x.id === saved.id; }); if (i >= 0) S.data.Orders[i] = r.order;
+              openOrder(saved.id); toast('Link cancelled');
+            }).catch(function (err) { openOrder(saved.id); fail(err); });
+          });
+        }, 'Cancel link');
+      return;
+    }
+    var mk = e.target.closest('#olMake'); if (!mk) return;
+    busy(mk, 'Making link…');
+    saveOrder(function (saved) {
+      call('makeOrderLink', saved.id).then(function (r) {
+        var i = S.data.Orders.findIndex(function (x) { return x.id === saved.id; }); if (i >= 0) S.data.Orders[i] = r.order;
+        LINK_OPEN[saved.id] = true;
+        openOrder(saved.id);
+        copyText(r.link, 'Order form link copied, paste it into Messenger');
+      }).catch(function (err) { openOrder(saved.id); fail(err); });
+    });
+  });
+}
 
 /* ---------------- Products: website order form settings ---------------- */
 var _openProductF = openProduct;
