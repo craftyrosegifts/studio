@@ -1447,6 +1447,15 @@ html[data-mode="dark"] { --status-bg: var(--sage-50); }
 .pair-help ol { margin: 4px 0 0; padding-left: 18px; }
 .offline-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(16px + var(--safe-bottom)); z-index: 120; background: var(--st-red-bg); color: var(--st-red); border: 1px solid var(--st-red); border-radius: 999px; padding: 8px 14px; font-weight: 600; font-size: 13px; display: none; }
 .offline-bar.on { display: block; }
+/* ---------- Phone app speed + bottom bar (Phase 2, Nov 2026) ---------- */
+/* iPhone home-screen apps can report a window shorter than the screen, which left the bottom bar floating with an empty band
+   below it. --ios-gap is measured on the phone (0 when there is no such band) and moves the bar down to the real bottom. */
+@media (max-width: 820px) { .bottom-nav { bottom: calc(-1 * var(--ios-gap, 0px)) !important; } }
+.os-upd { position: fixed; left: 50%; transform: translateX(-50%); top: calc(64px + var(--safe-top) + 6px); z-index: 120; display: none;
+  background: var(--white); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: 12px; font-weight: 600;
+  box-shadow: var(--shadow); white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.os-upd.on { display: block; }
+.os-upd.err { color: var(--st-red); border-color: var(--st-red); white-space: normal; text-align: center; cursor: pointer; pointer-events: auto; }
 </style>
 <script>
 /* ================================================================
@@ -1457,7 +1466,7 @@ html[data-mode="dark"] { --status-bg: var(--sage-50); }
 var API_URL = 'https://script.google.com/macros/s/AKfycbzg84RXS8672czlZKC7Y78cQ2ieEuD6-y3MO1_yFlNdU67Vxj4zXEDIMLaPXWYfZbo/exec';
 var PAIR = { waiting: [] };
 function devToken() { try { return localStorage.getItem('os.deviceToken') || ''; } catch (e) { return ''; } }
-function setDevToken(t) { try { t ? localStorage.setItem('os.deviceToken', t) : localStorage.removeItem('os.deviceToken'); } catch (e) {} }
+function setDevToken(t) { try { t ? localStorage.setItem('os.deviceToken', t) : localStorage.removeItem('os.deviceToken'); } catch (e) {} if (!t) osCacheClear(); }
 function deviceName() {
   var ua = navigator.userAgent;
   var n = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android phone' : /Mac/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows computer' : 'Device';
@@ -1495,12 +1504,89 @@ google.script = {
         if (name === 'withSuccessHandler') return function (f) { ok = f; return runner; };
         if (name === 'withFailureHandler') return function (f) { bad = f; return runner; };
         if (name === 'withUserObject') return function () { return runner; };
-        return function () { var args = Array.prototype.slice.call(arguments); rpc(String(name), args).then(function (r) { ok(r); }, function (e) { bad(e); }); };
+        return function () {
+          var args = Array.prototype.slice.call(arguments), fn = String(name);
+          if (fn === 'getAll' && !OSC.started) { osOpen(args, ok, bad); return; }   // first load: show the saved copy at once, then the latest
+          osAfterFresh().then(function () { return rpc(fn, args); }).then(function (r) { ok(r); }, function (e) { bad(e); });
+        };
       }
     });
     return runner;
   }
 };
+
+/* ---------- Open instantly with the last data (Phase 2, Nov 2026) ----------
+   The phone keeps a copy of the data from the last time it loaded from the studio (only what the studio sent: never
+   unsaved edits). On opening, that copy is shown at once with a small "Updating…" label while the latest data loads;
+   then the screen is refreshed with the latest data. Anything that saves waits until the latest data has arrived, and
+   every save still goes through the studio's "changed meanwhile" check. The copy lives only in this app on this phone
+   and is removed when the phone is disconnected. */
+var OSC = { key: 'os.cache.v1', started: false, fresh: null, done: false };
+function osCacheRead() { try { var j = JSON.parse(localStorage.getItem(OSC.key) || 'null'); return j && j.v === 1 && j.data && Array.isArray(j.data.Orders) ? j : null; } catch (e) { return null; } }
+function osCacheWrite(data) { try { localStorage.setItem(OSC.key, JSON.stringify({ v: 1, at: new Date().toISOString(), data: data })); } catch (e) { osCacheClear(); } }
+function osCacheClear() { try { localStorage.removeItem(OSC.key); } catch (e) {} }
+function osAfterFresh() { return OSC.fresh && !OSC.done ? OSC.fresh.then(function () {}, function () {}) : Promise.resolve(); }
+function osWhen(iso) {
+  var d = new Date(iso); if (isNaN(d)) return 'earlier';
+  var t = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }), today = new Date().toDateString() === d.toDateString();
+  return today ? t : d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + t;
+}
+function osLabel(text, err) {
+  var el = document.getElementById('osUpd');
+  if (!el) { el = document.createElement('div'); el.id = 'osUpd'; el.className = 'os-upd'; el.setAttribute('role', 'status'); document.body.appendChild(el);
+    el.addEventListener('click', function () { if (el.classList.contains('err')) location.reload(); }); }
+  if (!text) { el.className = 'os-upd'; el.textContent = ''; return; }
+  el.textContent = text; el.className = 'os-upd on' + (err ? ' err' : '');
+}
+function osApply(data) {   // same steps as the app's own first load, then redraw the page that is open
+  if (!window.S || !S.data) return;
+  Object.keys(S.data).forEach(function (k) { S.data[k] = data[k] || []; });
+  S.dataUrl = data.dataUrl; S.settings = data.settings || {}; S.expenseCategories = data.expenseCategories || [];
+  S.stripe = data.stripe || null; S.trash = data.trash || [];
+  var sl = document.getElementById('sheetLink'); if (sl) sl.href = data.dataUrl;
+  if (typeof rememberVersions === 'function') rememberVersions(data);
+  osRedrawWhenIdle();
+}
+function osRedrawWhenIdle() {   // don't redraw the page under someone typing in it: wait until they leave the box
+  var a = document.activeElement, view = document.getElementById('view');
+  if (a && view && view.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) {
+    a.addEventListener('blur', function once() { a.removeEventListener('blur', once); setTimeout(osRedrawWhenIdle, 60); });
+    return;
+  }
+  if (typeof render === 'function') render();
+}
+function osOpen(args, ok, bad) {
+  OSC.started = true;
+  var c = devToken() ? osCacheRead() : null;
+  OSC.fresh = rpc('getAll', args).then(function (d) { OSC.done = true; osCacheWrite(d); return d; }, function (e) { OSC.done = true; throw e; });
+  if (!c) { OSC.fresh.then(function (d) { ok(d); }, function (e) { bad(e); }); return; }
+  setTimeout(function () { ok(c.data); osLabel('Updating…'); }, 0);
+  OSC.fresh.then(function (d) { osApply(d); osLabel(''); }, function () {
+    osLabel('Couldn’t update. Showing your data from ' + osWhen(c.at) + '. Tap to try again.', true);
+  });
+}
+
+/* ---------- Bottom bar on iPhone home-screen apps ---------- */
+function osStandalone() { return window.navigator.standalone === true || !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches); }
+function osFitBottom() {
+  var g = 0, sw = screen.width, sh = screen.height, iw = window.innerWidth, ih = window.innerHeight;
+  if (osStandalone() && sw && sh) {
+    var full = iw <= ih ? Math.max(sw, sh) : Math.min(sw, sh), d = Math.round(full - ih);
+    if (d > 0 && d <= 80) g = d;   // only a small band (the iPhone quirk), never e.g. a keyboard
+  }
+  document.documentElement.style.setProperty('--ios-gap', g + 'px');
+  OSC.screen = 'screen ' + sw + '×' + sh + ' · window ' + iw + '×' + ih + ' · ' + (osStandalone() ? 'home-screen app' : 'browser') + ' · bottom fix ' + g + 'px';
+}
+osFitBottom();
+window.addEventListener('resize', osFitBottom);
+window.addEventListener('orientationchange', function () { setTimeout(osFitBottom, 300); });
+window.addEventListener('pageshow', osFitBottom);
+/* Screen check: tap the page title three times quickly to see the measurements (for checking the bottom bar) */
+document.addEventListener('click', function (e) {
+  if (!e.target.closest || !e.target.closest('#pageTitle')) return;
+  var now = Date.now(); OSC.taps = (OSC.taps || []).filter(function (t) { return now - t < 900; }).concat(now);
+  if (OSC.taps.length >= 3) { OSC.taps = []; osFitBottom(); if (typeof toast === 'function') toast('Screen check: ' + OSC.screen); }
+});
 
 /* ---------- Connect screen ---------- */
 function showPair(msg) {
