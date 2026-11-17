@@ -42,6 +42,7 @@ header.top img{width:48px;height:48px;object-fit:contain}
 .card:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
 .card .ph{aspect-ratio:1;background:var(--sage-100);overflow:hidden;position:relative}
 .card .ph img{width:100%;height:100%;object-fit:cover}
+img.nophoto{background:#E8F1EA}
 .card .ph .noimg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:"Amatic SC",cursive;font-size:34px;color:var(--forest)}
 .card .bd{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px}
 .card .nm{font-weight:700;font-size:16px}
@@ -200,6 +201,25 @@ function submissionDone() { PENDING = null; try { localStorage.removeItem('crg_p
 function saveCart() { try { localStorage.setItem(CART_KEY, JSON.stringify(CART, function (k, v) { return k === 'data' || k === 'preview' ? undefined : v; })); } catch (e) {} }
 function loadCart() { try { CART = JSON.parse(localStorage.getItem(CART_KEY) || '[]') || []; } catch (e) { CART = []; } }
 function prod(id) { return CAT.products.filter(function (p) { return p.id === id; })[0]; }
+/* Photos (Nov 2026): load Drive photos straight from Google's image server (lh3.googleusercontent.com), which some
+   blockers and networks allow when drive.google.com is stopped. If that fails the drive.google.com address is tried,
+   and if both fail a plain placeholder is shown instead of a broken image. */
+var PHOTO_PLACEHOLDER = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#E8F1EA"/><g fill="none" stroke="#7FA088" stroke-width="3" stroke-linejoin="round"><rect x="28" y="32" width="44" height="36" rx="5"/><circle cx="41" cy="44" r="5"/><path d="M30 64l14-13 9 8 7-6 10 10"/></g></svg>');
+function directPhoto(url) {
+  var m = /^https:\/\/drive\.google\.com\/thumbnail\?id=([A-Za-z0-9_-]+)(?:&sz=(w\d+|h\d+|s\d+))?/.exec(String(url || ''));
+  return m ? 'https://lh3.googleusercontent.com/d/' + m[1] + '=' + (m[2] || 'w1200') : '';
+}
+function imgSrc(url) {
+  var d = directPhoto(url);
+  return d ? 'src="' + esc(d) + '" data-alt="' + esc(url) + '"' : 'src="' + esc(url) + '" data-alt=""';
+}
+document.addEventListener('error', function (e) {
+  var img = e.target;
+  if (!img || img.tagName !== 'IMG' || !img.hasAttribute('data-alt')) return;
+  var alt = img.getAttribute('data-alt');
+  if (alt) { img.setAttribute('data-alt', ''); img.src = alt; return; }      // second try: the drive.google.com address
+  img.removeAttribute('data-alt'); img.classList.add('nophoto'); img.src = PHOTO_PLACEHOLDER;   // both failed
+}, true);
 function firstPhoto(p) { var x = p.photos.filter(function (f) { return f.kind !== 'example'; })[0] || p.photos[0]; return x ? x.url : ''; }
 
 /* ---------- catalog ---------- */
@@ -247,7 +267,7 @@ function render() {
     (cats.length > 2 ? '<div class="cats">' + cats.map(function (c) { return '<button class="cat' + (c === FILTER ? ' on' : '') + '" type="button" data-cat="' + esc(c) + '">' + esc(c) + '</button>'; }).join('') + '</div>' : '') +
     (list.length ? '<div class="grid">' + list.map(function (p) {
       var ph = firstPhoto(p);
-      return '<button class="card" type="button" data-p="' + esc(p.id) + '"><div class="ph">' + (ph ? '<img src="' + esc(ph) + '" alt="" loading="lazy">' : '<div class="noimg">' + esc(p.name) + '</div>') + '</div>' +
+      return '<button class="card" type="button" data-p="' + esc(p.id) + '"><div class="ph">' + (ph ? '<img ' + imgSrc(ph) + ' alt="" loading="lazy">' : '<div class="noimg">' + esc(p.name) + '</div>') + '</div>' +
         '<div class="bd"><div class="nm">' + esc(p.name) + '</div><div class="pr">' + money(p.price) + (p.addons.length || p.designs.some(function (d) { return d.price; }) ? ' <small>+ options</small>' : '') + '</div>' +
         (p.description ? '<div class="ds">' + esc(p.description) + '</div>' : '') + '</div></button>';
     }).join('') + '</div>' : '<div class="state"><p>New products are coming soon!</p></div>');
@@ -274,7 +294,7 @@ function openProduct(id, editIdx) {
   var old = editIdx != null ? CART[editIdx] : null;
   CUR = { p: p, editIdx: editIdx, qty: old ? old.qty : 1, design: old ? old.design : '', variants: old ? JSON.parse(JSON.stringify(old.variants)) : {}, addons: old ? old.addons.slice() : [], answers: old ? JSON.parse(JSON.stringify(old.answers)) : {} };
   var gal = p.photos.length ? '<div class="gal">' + p.photos.map(function (f) {
-    return '<figure><img src="' + esc(f.url) + '" alt="' + esc(f.caption || p.name) + '" loading="lazy"><figcaption>' + (f.kind === 'example' ? '<span class="tag">Finished example</span>' : '') + esc(f.caption) + '</figcaption></figure>';
+    return '<figure><img ' + imgSrc(f.url) + ' alt="' + esc(f.caption || p.name) + '" loading="lazy"><figcaption>' + (f.kind === 'example' ? '<span class="tag">Finished example</span>' : '') + esc(f.caption) + '</figcaption></figure>';
   }).join('') + '</div>' : '';
   var h = gal + '<div class="pr" style="font-weight:700;color:var(--forest);font-size:20px">' + money(p.price) + ' <span style="font-size:13px;color:var(--muted);font-weight:500">each</span></div>' +
     (p.description ? '<p class="desc">' + esc(p.description) + '</p>' : '') +
@@ -285,13 +305,13 @@ function openProduct(id, editIdx) {
       (p.designs.length > 12 ? '<input class="input dsearch" id="dSearch" placeholder="Search designs…" autocomplete="off">' : '') +
       '<div class="designs" id="designs">' + p.designs.map(function (d) {
         return '<button class="dz' + (CUR.design === d.id ? ' on' : '') + '" type="button" data-d="' + esc(d.id) + '" data-name="' + esc(d.name.toLowerCase()) + '">' +
-          (d.photo ? '<img src="' + esc(d.photo) + '" alt="" loading="lazy">' : '<div class="ni">' + esc(d.name.slice(0, 1)) + '</div>') + esc(d.name) + (d.price ? '<small>+' + money(d.price) + '</small>' : '') + '</button>';
+          (d.photo ? '<img ' + imgSrc(d.photo) + ' alt="" loading="lazy">' : '<div class="ni">' + esc(d.name.slice(0, 1)) + '</div>') + esc(d.name) + (d.price ? '<small>+' + money(d.price) + '</small>' : '') + '</button>';
       }).join('') + '</div></div>';
   }
   p.choices.forEach(function (ch) {
     h += '<div class="blk"><span class="lbl">' + esc(ch.label) + ' <span class="req">*</span>' + (CUR.variants[ch.materialId] ? ' <small id="chosen-' + esc(ch.materialId) + '">' + esc((ch.options.filter(function (o) { return o.id === CUR.variants[ch.materialId]; })[0] || {}).name || '') + '</small>' : ' <small id="chosen-' + esc(ch.materialId) + '"></small>') + '</span>' +
       (ch.options.length ? '<div class="sw">' + ch.options.map(function (o) {
-        return '<button class="swb' + (o.photo ? '' : ' np') + (CUR.variants[ch.materialId] === o.id ? ' on' : '') + '" type="button" data-ch="' + esc(ch.materialId) + '" data-o="' + esc(o.id) + '">' + (o.photo ? '<img src="' + esc(o.photo) + '" alt="">' : '') + esc(o.name) + '</button>';
+        return '<button class="swb' + (o.photo ? '' : ' np') + (CUR.variants[ch.materialId] === o.id ? ' on' : '') + '" type="button" data-ch="' + esc(ch.materialId) + '" data-o="' + esc(o.id) + '">' + (o.photo ? '<img ' + imgSrc(o.photo) + ' alt="">' : '') + esc(o.name) + '</button>';
       }).join('') + '</div>' : '<div class="none">Sorry, this is sold out right now. Message me and I\'ll let you know when it\'s back!</div>') + '</div>';
   });
   var tipsShown = false;
@@ -434,7 +454,7 @@ function openCart() {
   var s = CAT.settings || {};
   var h = CART.map(function (c, i) {
     var p = prod(c.productId), ph = firstPhoto(p);
-    return '<div class="line">' + (ph ? '<img src="' + esc(ph) + '" alt="">' : '') + '<div class="m"><div class="n">' + c.qty + ' × ' + esc(p.name) + '</div><div class="d">' + itemDetails(c).map(esc).join('<br>') + '</div>' +
+    return '<div class="line">' + (ph ? '<img ' + imgSrc(ph) + ' alt="">' : '') + '<div class="m"><div class="n">' + c.qty + ' × ' + esc(p.name) + '</div><div class="d">' + itemDetails(c).map(esc).join('<br>') + '</div>' +
       '<button class="rm" type="button" data-edit="' + i + '" style="color:var(--forest);margin-right:14px">Edit</button><button class="rm" type="button" data-rm="' + i + '">Remove</button></div><div class="p">' + money2(unitPrice(p, c) * c.qty) + '</div></div>';
   }).join('') +
     '<button class="btn btn-s btn-w" type="button" id="more">+ Add another item</button>' +
