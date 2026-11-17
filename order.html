@@ -74,6 +74,9 @@ img.nophoto{background:#E8F1EA}
 .gal .tag{display:inline-block;background:var(--sage-100);color:var(--forest-700);font-weight:700;font-size:11px;border-radius:6px;padding:2px 6px;margin-right:4px}
 .desc{line-height:1.55;margin:10px 0}
 .pnote{font-size:13px;background:var(--sage-100);border-radius:10px;padding:8px 12px;color:var(--forest-800)}
+.bulk{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 2px}.bulk span{font-size:13px;font-weight:700;color:var(--forest-800);background:#FFF3D6;border:1px solid #F1D9A0;border-radius:999px;padding:3px 10px}
+.bulk-now{font-size:14px;color:var(--forest-800);margin-top:6px}.bulk-now:empty{display:none}
+.card .bk{display:block;font-size:12px;color:#8A6417;font-weight:700;margin-top:2px}
 .blk{margin-top:20px}
 .lbl{font-weight:700;margin-bottom:8px;display:block}
 .lbl .req{color:var(--red)}
@@ -269,6 +272,7 @@ function render() {
       var ph = firstPhoto(p);
       return '<button class="card" type="button" data-p="' + esc(p.id) + '"><div class="ph">' + (ph ? '<img ' + imgSrc(ph) + ' alt="" loading="lazy">' : '<div class="noimg">' + esc(p.name) + '</div>') + '</div>' +
         '<div class="bd"><div class="nm">' + esc(p.name) + '</div><div class="pr">' + money(p.price) + (p.addons.length || p.designs.some(function (d) { return d.price; }) ? ' <small>+ options</small>' : '') + '</div>' +
+        ((p.bulk || []).length ? '<span class="bk">Bulk savings from ' + p.bulk[0].min + '+</span>' : '') +
         (p.description ? '<div class="ds">' + esc(p.description) + '</div>' : '') + '</div></button>';
     }).join('') + '</div>' : '<div class="state"><p>New products are coming soon!</p></div>');
   cartBar();
@@ -297,6 +301,7 @@ function openProduct(id, editIdx) {
     return '<figure><img ' + imgSrc(f.url) + ' alt="' + esc(f.caption || p.name) + '" loading="lazy"><figcaption>' + (f.kind === 'example' ? '<span class="tag">Finished example</span>' : '') + esc(f.caption) + '</figcaption></figure>';
   }).join('') + '</div>' : '';
   var h = gal + '<div class="pr" style="font-weight:700;color:var(--forest);font-size:20px">' + money(p.price) + ' <span style="font-size:13px;color:var(--muted);font-weight:500">each</span></div>' +
+    ((p.bulk || []).length ? '<div class="bulk">' + p.bulk.map(function (lv) { return '<span>' + esc(bulkText(lv)) + '</span>'; }).join('') + '</div>' : '') +
     (p.description ? '<p class="desc">' + esc(p.description) + '</p>' : '') +
     (p.note ? '<div class="pnote">' + esc(p.note) + '</div>' : '') +
     (p.needsProof ? '<div class="pnote">I\'ll send you a proof of this item to approve before you pay.</div>' : '');
@@ -332,7 +337,7 @@ function openProduct(id, editIdx) {
     }).join('') + '</div>';
   }
   h += '<div class="blk"><span class="lbl">How many?</span><div class="qty"><button type="button" data-qty="-1" aria-label="Less">−</button><input class="input" id="qty" type="number" min="1" max="50" inputmode="numeric" value="' + CUR.qty + '"><button type="button" data-qty="1" aria-label="More">+</button></div></div>' +
-    '<div class="err" id="pErr"></div>';
+    '<div class="bulk-now" id="bulkNow"></div><div class="err" id="pErr"></div>';
   openSheet(p.name, h, '<div class="tot">Item total<b id="lineTot"></b></div><button class="btn btn-p" type="button" id="addBtn">' + (old ? 'Update item' : 'Add to order') + '</button>');
   lineTotal();
 }
@@ -346,13 +351,25 @@ function tipsHtml() {
     (items.length ? '<ol>' + items.map(function (x) { return '<li>' + bold(x) + '</li>'; }).join('') + '</ol>' : '') +
     foot.map(function (l) { return '<div class="t-foot">' + esc(l) + '</div>'; }).join('') + '</div>';
 }
-function unitPrice(p, c) {
-  var u = p.price;
+/* Bulk prices (Nov 2026): per product, the same maths as Order Studio (which works out the final total itself) */
+function bulkLevel(p, qty) { var lv = null; (p.bulk || []).forEach(function (x) { if (qty >= x.min) lv = x; }); return lv; }
+function bulkUnit(base, lv) { if (!lv) return base; return Math.max(0, Math.round((lv.kind === 'pct' ? base * (1 - lv.amount / 100) : base - lv.amount) * 100) / 100); }
+function bulkText(lv) { return 'Buy ' + lv.min + '+: ' + (lv.kind === 'pct' ? lv.amount + '% off each' : 'save ' + money2(lv.amount) + ' each'); }
+function cartQtyFor(pid, skipIdx) { return CART.reduce(function (s, c, i) { return s + (c.productId === pid && i !== skipIdx ? c.qty : 0); }, 0); }
+function unitPrice(p, c, totalQty) {
+  if (totalQty == null) totalQty = cartQtyFor(p.id);
+  var u = bulkUnit(p.price, bulkLevel(p, totalQty));
   var d = p.designs.filter(function (x) { return x.id === c.design; })[0]; if (d) u += d.price;
   p.addons.forEach(function (a) { if (c.addons.indexOf(a.id) >= 0) u += a.price; });
   return u;
 }
-function lineTotal() { if (!CUR) return; $('#lineTot').textContent = money2(unitPrice(CUR.p, CUR) * CUR.qty); }
+function curTotalQty() { return cartQtyFor(CUR.p.id, CUR.editIdx != null ? CUR.editIdx : -1) + CUR.qty; }
+function lineTotal() {
+  if (!CUR) return;
+  var tq = curTotalQty(), lv = bulkLevel(CUR.p, tq);
+  $('#lineTot').textContent = money2(unitPrice(CUR.p, CUR, tq) * CUR.qty);
+  var bn = $('#bulkNow'); if (bn) bn.innerHTML = lv ? 'Bulk price: <b>' + money2(bulkUnit(CUR.p.price, lv)) + ' each</b> instead of ' + money2(CUR.p.price) + (cartQtyFor(CUR.p.id, CUR.editIdx != null ? CUR.editIdx : -1) ? ' (counting the ' + CUR.p.name + ' already in your order)' : '') : '';
+}
 $('#sheet').addEventListener('click', function (e) {
   if (!CUR) return;
   var t;
@@ -431,6 +448,7 @@ function itemDetails(c) {
   p.choices.forEach(function (ch) { var o = ch.options.filter(function (x) { return x.id === c.variants[ch.materialId]; })[0]; if (o) out.push(ch.label + ': ' + o.name); });
   p.questions.forEach(function (q) { var v = c.answers[q.id]; if (q.type === 'photo') { if (v && v.data) out.push(q.label + ': photo added'); } else if (String(v || '').trim()) out.push(q.label + ': ' + String(v).trim()); });
   p.addons.forEach(function (a) { if (c.addons.indexOf(a.id) >= 0) out.push('+ ' + a.label); });
+  var lv = bulkLevel(p, cartQtyFor(p.id)); if (lv) out.push('Bulk price (' + lv.min + '+): ' + money2(bulkUnit(p.price, lv)) + ' each');
   return out;
 }
 /* Proofs (Nov 2026): a proof is only promised when an item in the cart usually needs one (set per product in Order Studio). */
