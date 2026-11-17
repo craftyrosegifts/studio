@@ -2,7 +2,7 @@
 <html lang="en-CA">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
   <title>Order Studio</title>
   <meta name="robots" content="noindex">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -572,10 +572,10 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .cat-field { position: relative; }
 .pick-list { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; margin-top: 4px; max-height: 260px; overflow-y: auto; background: var(--white); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 4px; }
 .pick-list.static { position: static; box-shadow: none; margin-top: 8px; max-height: 320px; }
-.pick-row { display: flex; width: 100%; align-items: baseline; justify-content: space-between; gap: 10px; text-align: left; background: none; border: 0; border-radius: 8px; padding: 9px 10px; font: inherit; color: inherit; cursor: pointer; }
+.pick-row { display: flex; flex-wrap: wrap; width: 100%; align-items: baseline; justify-content: space-between; gap: 10px; text-align: left; background: none; border: 0; border-radius: 8px; padding: 9px 10px; font: inherit; color: inherit; cursor: pointer; }
 .pick-row:hover, .pick-row:focus-visible { background: var(--sage-25); outline: none; }
-.pick-name { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
-.pick-sub { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.pick-name { font-weight: 600; flex: 1 1 140px; min-width: 120px; overflow-wrap: break-word; }   /* never squeezed to one letter per line */
+.pick-sub { color: var(--muted); font-size: 12px; flex: 0 1 auto; min-width: 0; overflow-wrap: break-word; }
 .pick-new { justify-content: flex-start; color: var(--forest, #2F473C); font-weight: 600; }
 .pick-new .ico { width: 14px; height: 14px; }
 .mat-search { margin-top: 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--sage-25); padding: 10px; }
@@ -591,6 +591,16 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .mat-size label { flex: 1 1 90px; }
 .mat-calc { margin-top: 6px; }
 .mat-warn { margin-top: 4px; color: #8A5A00; }
+.ss-box { border: 1px solid var(--line); border-radius: 12px; background: var(--white); padding: 10px; margin-bottom: 14px; }
+.ss-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.ss-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ss-name { flex: 1 1 160px; min-width: 120px; font-weight: 600; overflow-wrap: break-word; }
+.ss-name .muted { margin-left: 6px; font-weight: 500; }
+.ss-qty { width: 76px; flex: 0 0 76px; }
+.ss-vid { width: auto; flex: 1 1 120px; }
+.ss-none { margin: 0 0 4px; }
+.ss-foot { margin-top: 8px; }
+#qaShip .ss-q { margin-top: 2px; }
 .qm-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .stripe-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
 .ship-help { background: var(--white); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: -4px 0 14px; font-size: 13px; }
@@ -826,6 +836,11 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .kf-txt b { font-size: 16px; color: var(--forest-800); }
 .kf-txt span { font-size: 13px; color: var(--muted); }
 @media (max-width: 820px) { .kf-bar .btn { min-height: 44px; flex: 1 1 100%; justify-content: center; } }
+/* Phone fix (Nov 2026): no typing box may be smaller than 16px on a phone, or iPhone zooms in when it is tapped.
+   Placed last and marked important so no later, smaller rule can undo it. */
+@media (max-width: 820px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px !important; }
+}
 </style>
 
   <style>
@@ -1870,7 +1885,7 @@ function itemUnitPrice(it) {
 function itemTotal(it) { return round2(num(it.qty) * itemUnitPrice(it)); }
 function calcOrder(o) {
   var subtotal = round2((o.items || []).reduce(function (s, it) { return s + itemTotal(it); }, 0));
-  var cost = round2((o.items || []).reduce(function (s, it) { return s + num(it.qty) * num(it.unitCost); }, 0));
+  var cost = round2((o.items || []).reduce(function (s, it) { return s + num(it.qty) * num(it.unitCost); }, 0) + (typeof shipSuppliesCost === 'function' ? shipSuppliesCost(o) : 0));
   var total = round2(subtotal + num(o.shipping) - num(o.discount));
   var profit = round2(subtotal - num(o.discount) - cost);
   return { subtotal: subtotal, cost: cost, total: total, profit: profit };
@@ -2387,6 +2402,14 @@ function saveOrder(after) {
   var c = calcOrder(D);
   D.subtotal = c.subtotal; D.total = c.total; D.cost = c.cost; D.profit = c.profit;
   var custSel = $('#oCustomer').value;
+  // (asked before anything is saved, so Cancel leaves everything as it was)
+  // Shipping supplies step (Nov 2026): a Shipping order becoming Delivered/Shipped asks which supplies were used
+  if (D.stage === DONE && D.delivery === 'Shipping' && !(storedO && storedO.stage === DONE) && !D._shipAsked && typeof shipSuppliesDialog === 'function') {
+    shipSuppliesDialog(D, '<h3 class="qa-title">Mark ' + esc(D.number || 'this order') + ' shipped</h3>', 'Save order', function (list) {
+      D.shipSupplies = list; D._shipAsked = true; if (typeof refreshShipSec === 'function') refreshShipSec(); saveOrder(after);
+    }, false);
+    return;
+  }
   busy(btn, 'Saving…');
   var step = Promise.resolve();
   if (custSel === '__new') {
@@ -2399,7 +2422,7 @@ function saveOrder(after) {
     var cu = byId('Customers', custSel);
     D.customerName = cu ? cu.name : (custSel && custSel === D.customerId ? D.customerName : '');   // a customer in Trash keeps their name on the order
   }
-  var rec = Object.assign({}, D); delete rec._newCustomer;
+  var rec = Object.assign({}, D); delete rec._newCustomer; delete rec._shipAsked;
   if (paidBy) rec._paidBy = paidBy;
   step.then(function () { rec.customerId = D.customerId; rec.customerName = D.customerName; return save('Orders', rec); })
     .then(function (o) { if (typeof after === 'function') { render(); after(o); return; } closeDrawer(); render(); toast('Saved ' + o.number); })
@@ -3594,7 +3617,7 @@ function orderFormChanged() {
   var o = D && D.id ? byId('Orders', D.id) : null; if (!o) return true;
   var v = function (id) { var el = $('#' + id); return el ? (el.type === 'checkbox' ? el.checked : el.value) : undefined; };
   var same = function (a, b) { return String(a == null ? '' : a) === String(b == null ? '' : b); };
-  return !(same(v('oStage'), o.stage) && same(v('oDue'), o.dueDate) && same(v('oDelivery'), o.delivery) && !!v('oPaid') === !!o.paid && (!v('oPaidBy') || v('oPaidBy') === orderPaidBy(o)) &&
+  return !(same(v('oStage'), o.stage) && same(v('oDue'), o.dueDate) && same(v('oDelivery'), o.delivery) && !!v('oPaid') === !!o.paid && JSON.stringify(D.shipSupplies || []) === JSON.stringify(o.shipSupplies || []) && (!v('oPaidBy') || v('oPaidBy') === orderPaidBy(o)) &&
     same(v('oNotes'), o.notes) && same(v('oPayLink'), o.paymentLink) && same(v('oCustomer'), o.customerId) &&
     (v('oDelivery') !== 'Shipping' || same(String(v('oTracking') || '').trim(), o.tracking)) &&
     JSON.stringify(D.items || []) === JSON.stringify(o.items || []) && same(D.shipping, o.shipping) && same(D.discount, o.discount));
@@ -4018,7 +4041,8 @@ function qaApply(id, ch, label, msgKey) {
   if (ch.stage !== undefined) rec.stage = ch.stage;
   if (ch.paid !== undefined) rec.paid = ch.paid;
   if (ch.tracking !== undefined) rec.tracking = ch.tracking;
-  if (ch.paidBy) rec._paidBy = ch.paidBy;                              // Paid-by step (Nov 2026)
+  if (ch.paidBy) rec._paidBy = ch.paidBy;
+  if (ch.shipSupplies) rec.shipSupplies = ch.shipSupplies;                 // Shipping supplies step (Nov 2026)                              // Paid-by step (Nov 2026)
   return save('Orders', rec).then(function (saved) {
     delete QA_BUSY[id]; tdSavingOff('o:' + id);
     qaAfter(id);
@@ -4057,9 +4081,10 @@ function qaRun(id, act) {
     if (q.paid) ch.paid = true;
     if (tracking !== undefined) ch.tracking = tracking;
     if (q.paid && paidBy) ch.paidBy = paidBy;
+    if (shipList) ch.shipSupplies = shipList;
     qaApply(id, ch, q.paid ? 'marked paid' + (paidBy ? ' (' + payMethodLabel(paidBy) + ')' : '') : 'moved to ' + q.to, q.msg);
   };
-  var paidBy = '';
+  var paidBy = '', shipList = null;
   if (q.paid) {   // Paid-by step (Nov 2026): ask how the customer paid
     qaDialog('<h3 class="qa-title">Mark ' + esc(o.number) + ' paid</h3><p>' + esc(money(o.total)) + (o.customerName ? ' from ' + esc(o.customerName) : '') + '.</p>' +
       '<div class="field"><label for="qaPaidBy">How did they pay?</label><select class="input" id="qaPaidBy"><option value="">Choose…</option>' +
@@ -4075,6 +4100,12 @@ function qaRun(id, act) {
     return;
   }
   if (!q.confirm) { go(); return; }
+  if (q.to === DONE && o.delivery === 'Shipping' && typeof shipSuppliesDialog === 'function') {   // Shipping supplies step (Nov 2026)
+    shipSuppliesDialog(o, '<h3 class="qa-title">' + esc(q.label) + '</h3>' + qaConfirmPara(q.ask), q.label, function (list, m) {
+      shipList = list; go(m.querySelector('#qaTrack').value.trim());
+    }, true);
+    return;
+  }
   qaDialog('<h3 class="qa-title">' + esc(q.label) + '</h3>' + qaConfirmPara(q.ask) +
     (q.tracking ? '<div class="field"><label for="qaTrack">Tracking number <span class="muted">(optional)</span></label><input class="input" id="qaTrack" autocomplete="off" value="' + esc(o.tracking || '') + '"></div>' : ''),
     function (m) { go(q.tracking ? m.querySelector('#qaTrack').value.trim() : undefined); }, q.label);
@@ -4084,8 +4115,13 @@ function qaMove(id, stage) {
   var o = byId('Orders', id);
   if (!o || o.stage === stage) return;
   var takes = o.stage === 'Inquiry' && stage !== 'Inquiry', finish = stage === DONE;
-  var go = function () { qaApply(id, { stage: stage }, 'moved to ' + stage, ''); };
+  var go = function (list) { var ch = { stage: stage }; if (list) ch.shipSupplies = list; qaApply(id, ch, 'moved to ' + stage, ''); };
   if (!takes && !finish) { go(); return; }
+  if (finish && o.delivery === 'Shipping' && typeof shipSuppliesDialog === 'function') {   // Shipping supplies step (Nov 2026)
+    shipSuppliesDialog(o, '<h3 class="qa-title">Move ' + esc(o.number) + ' to ' + esc(stage) + '?</h3>' + (takes ? '<p>The materials for its items are taken from stock.</p>' : '') + '<p>Today becomes its date completed.</p>',
+      'Move', function (list) { go(list); }, false);
+    render(); return;
+  }
   qaDialog('<h3 class="qa-title">Move ' + esc(o.number) + ' to ' + esc(stage) + '?</h3>' +
     (takes ? '<p>The materials for its items are taken from stock.</p>' : '') + (finish ? '<p>Today becomes its date completed.</p>' : ''),
     function () { go(); }, 'Move');
@@ -4126,7 +4162,7 @@ var QA_SNAP = null;
 function qaFormState() {
   var body = $('#drawerBody'); if (!body) return '';
   return [].map.call(body.querySelectorAll('input,select,textarea'), function (el) {
-    if (el.closest('#qaBar') || el.type === 'file') return '';
+    if (el.closest('#qaBar') || el.type === 'file' || el.classList.contains('ss-q')) return '';
     return (el.id || el.name || el.className) + '=' + (el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.value);
   }).join('|') + '#' + body.querySelectorAll('.item').length;
 }
@@ -4340,7 +4376,7 @@ function r2Paint(el, html) { if (el && el.getAttribute('data-html') !== html) { 
 function r2TitleOf(body, name) { return $$('.section-title', body).filter(function (t) { return t.textContent.trim() === name; })[0] || null; }
 function r2Collect(first) {   // a section: its title and everything after it up to the next section
   var out = [first], n = first.nextElementSibling;
-  while (n && !n.classList.contains('section-title') && n.id !== 'proofSec' && n.id !== 'linkSec') { out.push(n); n = n.nextElementSibling; }
+  while (n && !n.classList.contains('section-title') && n.id !== 'proofSec' && n.id !== 'linkSec' && n.id !== 'shipSec') { out.push(n); n = n.nextElementSibling; }
   return out;
 }
 function r2Fold(key, label, nodes, open) {
@@ -4361,6 +4397,8 @@ function r2Sums() {
   set('pricing', 'Total ' + money(calcOrder(D).total) + ' · ' + (paid && paid.checked ? 'paid' : 'unpaid'));
   var pc = $('#proofSec .chip'); set('proof', pc ? pc.textContent.trim() : '');
   var lc = $('#linkSec .chip'); set('link', lc ? lc.textContent.trim() : '');
+  var shn = (D.shipSupplies || []).length; set('ship', shn ? shn + (shn === 1 ? ' supply' : ' supplies') + ' · ' + money(typeof shipSuppliesCost === 'function' ? shipSuppliesCost(D) : 0) : 'None yet');
+  var shf2 = body.querySelector('[data-fold="ship"]'), shs2 = $('#shipSec'); if (shf2 && shs2) shf2.hidden = shs2.hidden;
   var na = $$('#xAtt .att-row').length; set('attachments', na ? na + (na === 1 ? ' file' : ' files') : 'None yet');
   var nn = $$('#xNotes .note').length, last = (D.log || []).map(function (l) { return String((l && l.at) || ''); }).sort().pop();
   set('notes', nn ? nn + (nn === 1 ? ' note' : ' notes') + (last ? ', latest ' + niceDate(last.slice(0, 10)) : '') : 'None yet');
@@ -4390,6 +4428,7 @@ function r2OrderPhone() {
   var pv = D.proof && !Array.isArray(D.proof) && typeof D.proof === 'object' ? D.proof : {};
   var want = function (k, auto) { return mem[k] !== undefined ? mem[k] : !!auto; };
   if (tPricing) r2Fold('pricing', 'Pricing', r2Collect(tPricing), want('pricing'));
+  var shs = $('#shipSec'); if (shs) { r2Fold('ship', 'Shipping supplies', [shs], want('ship', !!(D.shipSupplies && D.shipSupplies.length))); var shf = body.querySelector('[data-fold="ship"]'); if (shf) shf.hidden = shs.hidden; }
   var ls = $('#linkSec'); if (ls) r2Fold('link', 'Order form link', [ls], want('link', typeof orderLinkState === 'function' && orderLinkState(D).status === 'waiting'));
   var ps = $('#proofSec'); if (ps) r2Fold('proof', 'Proof (optional)', [ps], want('proof', pv.status === 'sent' || pv.status === 'changes' || (!pv.status && typeof orderNeedsProof === 'function' && orderNeedsProof(D))));
   var tAtt = r2TitleOf(body, 'Attachments'), tLog = r2TitleOf(body, 'Notes log');
@@ -7113,6 +7152,7 @@ openOrder = function (id, stage) {
   var sec = document.createElement('div');
   sec.id = 'proofSec';
   anchor.insertAdjacentElement('beforebegin', sec);
+  drawShipSec(sec);               // Shipping supplies (Nov 2026), shown for Shipping orders
   if (id) drawOrderLink(o, sec);   // Order form link (Nov 2026), just above the Proof section
   var P = o && o.proof && !Array.isArray(o.proof) ? JSON.parse(JSON.stringify(o.proof)) : {};
   var files = arr(P.files).slice();
@@ -7279,6 +7319,99 @@ function drawOrderLink(o, before) {
     });
   });
 }
+
+/* ---------------- Orders: shipping supplies (Nov 2026) ----------------
+   Mailers and boxes are chosen per order (one larger box can hold several items), not on products. They are taken from
+   stock when a Shipping order is marked Delivered/Shipped (server: applyStock_) and counted in the order's material cost. */
+function shipSuppliesCost(o) {
+  if (!o || o.delivery !== 'Shipping' || !Array.isArray(o.shipSupplies)) return 0;
+  return round2(o.shipSupplies.reduce(function (s, x) { var m = byId('Materials', x.materialId); return s + (m ? (x.vid ? vCost(m, x.vid) : num(m.costPerUnit)) * num(x.qty) : 0); }, 0));
+}
+/** The supplies picker (used on the order and in the "shipped" question). list is changed in place. */
+function shipPickerHtml(list) {
+  return '<div class="ss-list">' + (list.length ? list.map(function (x, i) {
+    var m = byId('Materials', x.materialId), vs = m ? variantsOf(m) : [];
+    return '<div class="ss-row" data-ss="' + i + '"><div class="ss-name">' + esc(m ? m.name : 'A material that no longer exists') +
+      '<span class="muted small">' + (m ? ' ' + money(x.vid ? vCost(m, x.vid) : num(m.costPerUnit)) + '/' + esc(m.unit || 'each') : '') + '</span></div>' +
+      (vs.length ? '<select class="input ss-vid" data-ssvid="' + i + '"><option value="">' + esc(m.variantLabel || 'Colour') + '…</option>' + vs.map(function (v) { return '<option value="' + esc(v.id) + '"' + (v.id === x.vid ? ' selected' : '') + '>' + esc(v.name) + '</option>'; }).join('') + '</select>' : '') +
+      '<input class="input ss-qty" type="number" min="0" step="any" inputmode="decimal" data-ssqty="' + i + '" value="' + esc(x.qty) + '" aria-label="How many">' +
+      '<button class="icon-btn sm" type="button" data-ssdel="' + i + '" title="Remove">' + ico('x') + '</button></div>';
+  }).join('') : '<p class="muted small ss-none">No shipping supplies chosen.</p>') + '</div>' +
+    '<input class="input ss-q" type="search" placeholder="Search supplies (e.g. mailer, box)" autocomplete="off" enterkeyhint="search" aria-label="Search shipping supplies">' +
+    '<div class="pick-list static ss-res" role="listbox" hidden></div>';
+}
+function wireShipPicker(root, list, onChange) {
+  var redraw = function (keepQ) {
+    var q = $('.ss-q', root), qv = q ? q.value : '';
+    root.innerHTML = shipPickerHtml(list);
+    if (keepQ) { $('.ss-q', root).value = qv; }
+    onChange && onChange();
+  };
+  var drawRes = function () {
+    var q = $('.ss-q', root).value, box = $('.ss-res', root);
+    if (!q.trim()) { box.hidden = true; box.innerHTML = ''; return; }
+    var res = matSearch(q).slice(0, 12);
+    box.innerHTML = res.length ? res.map(function (m) {
+      return '<button type="button" class="pick-row" role="option" data-ssadd="' + esc(m.id) + '"><span class="pick-name">' + esc(m.name) + '</span><span class="pick-sub">' + money(m.costPerUnit) + '/' + esc(m.unit || 'each') + (tracked(m) ? ' · ' + (variantsOf(m).length ? 'by colour' : num(m.onHand) + ' in stock') : '') + '</span></button>';
+    }).join('') : '<p class="muted small" style="margin:6px 8px">No material matches "' + esc(q) + '".</p>';
+    box.hidden = false;
+  };
+  root.addEventListener('input', function (e) {
+    if (e.target.classList.contains('ss-q')) { drawRes(); return; }
+    var qi = e.target.getAttribute('data-ssqty'); if (qi !== null && list[+qi]) { list[+qi].qty = e.target.value === '' ? '' : num(e.target.value); onChange && onChange(); }
+  });
+  root.addEventListener('change', function (e) {
+    var vi = e.target.getAttribute('data-ssvid'); if (vi !== null && list[+vi]) { if (e.target.value) list[+vi].vid = e.target.value; else delete list[+vi].vid; redraw(); }
+  });
+  root.addEventListener('keydown', function (e) { if (e.target.classList.contains('ss-q') && e.key === 'Enter') { e.preventDefault(); var f = $('.ss-res [data-ssadd]', root); if (f) f.click(); } });
+  root.addEventListener('click', function (e) {
+    var a = e.target.closest('[data-ssadd]');
+    if (a) {
+      var id = a.getAttribute('data-ssadd'), have = list.filter(function (x) { return x.materialId === id && !x.vid; })[0];
+      if (have && !variantsOf(byId('Materials', id)).length) have.qty = num(have.qty) + 1; else list.push({ materialId: id, qty: 1 });
+      redraw(); var qs = $$('.ss-qty', root); if (qs.length) qs[qs.length - 1].focus(); return;
+    }
+    var d = e.target.closest('[data-ssdel]'); if (d) { list.splice(+d.getAttribute('data-ssdel'), 1); redraw(); }
+  });
+  redraw();
+}
+function cleanShipList(list) { return list.filter(function (x) { return x.materialId && num(x.qty) > 0; }).map(function (x) { var o = { materialId: x.materialId, qty: num(x.qty) }; if (x.vid) o.vid = x.vid; return o; }); }
+/** The question when a Shipping order is marked Delivered/Shipped. onOk(list, modal). */
+function shipSuppliesDialog(o, headHtml, okLabel, onOk, withTracking) {
+  var list = JSON.parse(JSON.stringify(Array.isArray(o.shipSupplies) ? o.shipSupplies : []));
+  var m = qaDialog(headHtml + (withTracking ? '<div class="field"><label for="qaTrack">Tracking number <span class="muted">(optional)</span></label><input class="input" id="qaTrack" autocomplete="off" value="' + esc(o.tracking || '') + '"></div>' : '') +
+    '<div class="field"><label>Which shipping supplies did you use? <span class="muted">(mailers, boxes)</span></label><div id="qaShip"></div>' +
+    '<p class="hint" style="margin:6px 0 0">They\'re taken from stock now and counted in this order\'s cost. Leave it empty if you didn\'t use any.</p>' +
+    '<div class="err small" id="qaShipErr" style="color:var(--danger,#B3261E)"></div></div>',
+    function (modal) {
+      var bad = list.filter(function (x) { var mt = byId('Materials', x.materialId); return mt && variantsOf(mt).length && !x.vid; })[0];
+      if (bad) { modal.querySelector('#qaShipErr').textContent = 'Please choose the ' + ((byId('Materials', bad.materialId) || {}).variantLabel || 'colour').toLowerCase() + ' for ' + byId('Materials', bad.materialId).name + '.'; return false; }
+      onOk(cleanShipList(list), modal);
+    }, okLabel);
+  wireShipPicker(m.querySelector('#qaShip'), list);
+  return m;
+}
+/** The Shipping supplies section on an order (only for Shipping orders). */
+function drawShipSec(before) {
+  if (!D || !$('#oDelivery')) return;
+  var box = document.createElement('div'); box.id = 'shipSec';
+  before.insertAdjacentElement('beforebegin', box);
+  D.shipSupplies = Array.isArray(D.shipSupplies) ? JSON.parse(JSON.stringify(D.shipSupplies)) : [];
+  box.innerHTML = '<div class="section-title">' + ico('truck') + 'Shipping supplies <span class="muted" style="font-weight:500;margin-left:4px">(mailers, boxes)</span></div>' +
+    '<div class="ss-box"><div id="ssPick"></div><div class="ss-foot muted small" id="ssFoot"></div></div>';
+  var foot = function () {
+    var shipped = D.stage === DONE || ($('#oStage') && $('#oStage').value === DONE), c = shipSuppliesCost(Object.assign({}, D, { delivery: 'Shipping' }));
+    $('#ssFoot').textContent = (D.shipSupplies.length ? 'Cost ' + money(c) + ', counted in this order\'s material cost. ' : '') +
+      (shipped ? 'Taken from stock (changes adjust stock when you save).' : 'You\'ll be asked when you mark the order shipped. Stock is taken then.');
+  };
+  var sums = function () { if ($('#oSummary') && $('#oSummary').innerHTML) renderSummary(); };   // material cost and profit include the supplies
+  wireShipPicker($('#ssPick', box), D.shipSupplies, function () { foot(); sums(); });
+  var show = function () { D.delivery = $('#oDelivery').value; box.hidden = D.delivery !== 'Shipping'; var f = box.closest('.r2-fold'); if (f) f.hidden = box.hidden; foot(); sums(); };
+  $('#oDelivery').addEventListener('change', show);
+  if ($('#oStage')) $('#oStage').addEventListener('change', foot);
+  show();
+}
+function refreshShipSec() { var p = $('#ssPick'); if (p && D) { p.replaceWith(p.cloneNode(false)); wireShipPicker($('#ssPick'), D.shipSupplies, function () { if ($('#oSummary')) renderSummary(); }); } }
 
 /* ---------------- Products: website order form settings ---------------- */
 var _openProductF = openProduct;
