@@ -591,6 +591,16 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .mat-size label { flex: 1 1 90px; }
 .mat-calc { margin-top: 6px; }
 .mat-warn { margin-top: 4px; color: #8A5A00; }
+.bk-box { border: 1px solid var(--line); border-radius: 12px; background: var(--white); padding: 10px; margin-bottom: 14px; }
+.bk-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.bk-row:last-of-type { border-bottom: 0; margin-bottom: 8px; }
+.bk-lbl { font-size: 14px; color: var(--ink-2); }
+.bk-min { width: 76px; flex: 0 0 76px; }
+.bk-kind { width: auto; flex: 0 1 130px; }
+.bk-amt { width: 90px; flex: 0 0 90px; }
+.bk-out { flex: 1 1 100%; }
+.bulk-note { margin: 4px 0 0; }
+.bulk-note:empty { display: none; }
 .ss-box { border: 1px solid var(--line); border-radius: 12px; background: var(--white); padding: 10px; margin-bottom: 14px; }
 .ss-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 .ss-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -1922,6 +1932,90 @@ function itemUnitPrice(it) {
   return num(it.unitPrice) + (it.addons || []).reduce(function (s, a) { return s + num(a.price); }, 0);
 }
 function itemTotal(it) { return round2(num(it.qty) * itemUnitPrice(it)); }
+/* ---------- Bulk prices step (Nov 2026): per product, e.g. "10 or more: 15% off" / "$1 off each" (same maths as the server) ---------- */
+function bulkClean(v) {
+  if (typeof v === 'string') { try { v = v ? JSON.parse(v) : []; } catch (e) { v = []; } }
+  if (!Array.isArray(v)) return [];
+  var seen = {}, out = [];
+  v.forEach(function (x) {
+    if (!x) return;
+    var min = Math.round(num(x.min)), kind = x.kind === 'each' ? 'each' : x.kind === 'pct' ? 'pct' : '', amt = round2(num(x.amount));
+    if (!(min >= 2) || !kind || !(amt > 0) || (kind === 'pct' && amt > 100) || seen[min]) return;
+    seen[min] = 1; out.push({ min: min, kind: kind, amount: amt });
+  });
+  return out.sort(function (a, b) { return a.min - b.min; }).slice(0, 3);
+}
+function bulkLevel(levels, qty) { var lv = null; bulkClean(levels).forEach(function (x) { if (num(qty) >= x.min) lv = x; }); return lv; }
+function bulkUnit(base, lv) { base = num(base); if (!lv) return base; return Math.max(0, round2(lv.kind === 'pct' ? base * (1 - lv.amount / 100) : base - lv.amount)); }
+function bulkWhat(lv) { return lv.kind === 'pct' ? (lv.amount + '% off') : (money(lv.amount) + ' off each'); }
+/** Re-price an order's catalog items after a quantity/item change. A price typed by hand (priceManual) is never changed. */
+function bulkReprice(o) {
+  var tot = {};
+  (o.items || []).forEach(function (it) { if (it.productId) tot[it.productId] = (tot[it.productId] || 0) + num(it.qty); });
+  (o.items || []).forEach(function (it) {
+    var p = it.productId ? byId('Products', it.productId) : null; if (!p || it.priceManual) return;
+    var auto = !!it.bulk || it.basePrice != null || num(it.unitPrice) === num(p.price);
+    if (!auto) return;
+    var base = it.basePrice != null ? num(it.basePrice) : num(p.price), lv = bulkLevel(p.bulkPrices, tot[it.productId]);
+    if (lv) { it.basePrice = base; it.unitPrice = bulkUnit(base, lv); it.bulk = { min: lv.min, kind: lv.kind, amount: lv.amount }; }
+    else if (it.bulk) { it.unitPrice = base; delete it.bulk; }
+  });
+}
+/** Product screen: up to 3 bulk levels (min quantity, % off or $ off each, amount), with the price each shown live. */
+function bulkEditor(box, P) {
+  var rows = bulkClean(P.bulkPrices).map(function (x) { return { min: x.min, kind: x.kind, amount: x.amount }; });
+  var price = function () { var el = $('#pPrice'); return num(el ? el.value : P.price); };
+  var draw = function () {
+    box.innerHTML = '<p class="hint" style="margin:0 0 8px">Lower the price each when someone orders more of this product (the same product on several lines counts together). Personalization stays full price.</p>' +
+      rows.map(function (r, i) {
+        return '<div class="bk-row" data-bk="' + i + '"><span class="bk-lbl">From</span><input class="input bk-min" type="number" min="2" step="1" inputmode="numeric" data-bkf="min" value="' + esc(r.min) + '" aria-label="Minimum quantity" placeholder="10">' +
+          '<span class="bk-lbl">or more:</span><select class="input bk-kind" data-bkf="kind" aria-label="Kind of discount"><option value="pct"' + (r.kind !== 'each' ? ' selected' : '') + '>% off</option><option value="each"' + (r.kind === 'each' ? ' selected' : '') + '>$ off each</option></select>' +
+          '<input class="input bk-amt" type="number" min="0" step="0.01" inputmode="decimal" data-bkf="amount" value="' + esc(r.amount) + '" aria-label="Amount" placeholder="' + (r.kind === 'each' ? '1.00' : '15') + '">' +
+          '<button class="icon-btn sm" type="button" data-bkdel="' + i + '" title="Remove">' + ico('x') + '</button>' +
+          '<div class="bk-out muted small" data-bkout="' + i + '"></div></div>';
+      }).join('') +
+      (rows.length < 3 ? '<button class="btn btn-secondary btn-sm" type="button" data-bkadd>' + ico('plus') + 'Add a bulk price</button>' : '');
+    figures();
+  };
+  var figures = function () {
+    rows.forEach(function (r, i) {
+      var out = $('[data-bkout="' + i + '"]', box); if (!out) return;
+      var lv = bulkClean([r])[0], base = price();
+      out.textContent = lv ? lv.min + ' or more: ' + money(bulkUnit(base, lv)) + ' each (save ' + money(round2(base - bulkUnit(base, lv))) + ' each)' : (r.min !== '' || r.amount !== '' ? 'Enter a quantity of 2 or more and an amount' + (r.kind === 'pct' ? ' up to 100' : '') + '.' : '');
+    });
+  };
+  box.addEventListener('input', function (e) {
+    var row = e.target.closest('[data-bk]'), f = e.target.getAttribute('data-bkf'); if (!row || !f) return;
+    var r = rows[+row.getAttribute('data-bk')]; r[f] = f === 'kind' ? e.target.value : (e.target.value === '' ? '' : num(e.target.value)); figures();
+  });
+  box.addEventListener('change', function (e) { if (e.target.getAttribute('data-bkf') === 'kind') { rows[+e.target.closest('[data-bk]').getAttribute('data-bk')].kind = e.target.value; figures(); } });
+  box.addEventListener('click', function (e) {
+    if (e.target.closest('[data-bkadd]')) { var last = rows[rows.length - 1]; rows.push({ min: last ? num(last.min) * 2 || '' : 10, kind: last ? last.kind : 'pct', amount: '' }); draw(); var a = $$('.bk-amt', box); if (a.length) a[a.length - 1].focus(); return; }
+    var d = e.target.closest('[data-bkdel]'); if (d) { rows.splice(+d.getAttribute('data-bkdel'), 1); draw(); }
+  });
+  var pp = $('#pPrice'); if (pp) pp.addEventListener('input', figures);
+  box._get = function () { return rows; };
+  draw();
+}
+/** Read the bulk levels for saving: { list } or { error }. Empty rows are ignored. */
+function bulkRead() {
+  var box = $('#pBulk'); if (!box || !box._get) return { list: [] };
+  var rows = box._get().filter(function (r) { return !(r.min === '' && r.amount === ''); }), list = bulkClean(rows);
+  if (list.length !== rows.length) {
+    var mins = rows.map(function (r) { return Math.round(num(r.min)); });
+    if (mins.some(function (m, i) { return mins.indexOf(m) !== i; })) return { error: 'Two bulk prices have the same quantity. Please use different quantities.' };
+    return { error: 'Please finish the bulk prices: a quantity of 2 or more, and an amount (a % can\'t be more than 100).' };
+  }
+  return { list: list };
+}
+function bulkNoteHtml(it, o) {
+  if (it.bulk) return 'Bulk price (' + it.bulk.min + '+, ' + bulkWhat(it.bulk) + '): was ' + money(it.basePrice) + ' each';
+  var p = it.productId ? byId('Products', it.productId) : null; if (!p) return '';
+  var tot = (o.items || []).filter(function (x) { return x.productId === it.productId; }).reduce(function (s, x) { return s + num(x.qty); }, 0);
+  var lv = bulkLevel(p.bulkPrices, tot); if (!lv) return '';
+  var bp = bulkUnit(it.basePrice != null ? it.basePrice : p.price, lv);
+  return bp !== num(it.unitPrice) ? 'Bulk price available (' + lv.min + '+): ' + money(bp) + ' each <button class="link-btn" type="button" data-use-bulk>Use it</button>' : '';
+}
 function calcOrder(o) {
   var subtotal = round2((o.items || []).reduce(function (s, it) { return s + itemTotal(it); }, 0));
   var cost = round2((o.items || []).reduce(function (s, it) { return s + num(it.qty) * num(it.unitCost); }, 0) + (typeof shipSuppliesCost === 'function' ? shipSuppliesCost(o) : 0));
@@ -2311,6 +2405,15 @@ function orderFoot(existing) {
     '<button class="btn btn-secondary" type="button" data-close>Cancel</button>' +
     '<button class="btn btn-primary" type="button" id="dSave">Save order</button>';
 }
+/** Update every item line's price, total and bulk note without redrawing (keeps the cursor where it is). */
+function bulkRefreshItems(typingIn) {
+  $$('#oItems .item').forEach(function (el) {
+    var it = D.items[+el.getAttribute('data-i')]; if (!it) return;
+    var pr = $('[data-f="unitPrice"]', el); if (pr && document.activeElement !== pr && num(pr.value) !== num(it.unitPrice)) pr.value = it.unitPrice;
+    $('.line-total', el).textContent = money(itemTotal(it));
+    var bn = $('[data-bulk-note]', el); if (bn) bn.innerHTML = bulkNoteHtml(it, D);
+  });
+}
 function renderItems() {
   var wrap = $('#oItems');
   if (!D.items.length) {
@@ -2327,6 +2430,7 @@ function renderItems() {
             '<div class="money-in"><input class="input" data-a="price" type="number" min="0" step="0.01" value="' + esc(a.price === 0 ? '' : a.price) + '" placeholder="each"></div>' +
             '<button class="icon-btn sm" type="button" data-del-addon title="Remove">' + ico('x') + '</button></div>';
         }).join('') + '</div>' +
+        '<div class="bulk-note muted small" data-bulk-note>' + bulkNoteHtml(it, D) + '</div>' +
         '<div class="item-total"><button class="link-btn" type="button" data-add-addon>' + ico('sparkle') + 'Add personalization</button>' +
         '<span><span class="muted small item-cost">' + (num(it.unitCost) ? 'Materials ' + money(num(it.unitCost) * num(it.qty)) + ' · ' : '') + '</span><strong class="line-total">' + money(itemTotal(it)) + '</strong></span></div></div>';
     }).join('');
@@ -2368,7 +2472,7 @@ function bindOrderForm() {
   bindCustomerPicker();
   $('#addProduct').addEventListener('change', function (e) {
     var p = byId('Products', e.target.value);
-    if (p) D.items.push({ productId: p.id, name: p.name, qty: 1, unitPrice: num(p.price), unitCost: productCost(p), addons: [] });
+    if (p) { D.items.push({ productId: p.id, name: p.name, qty: 1, unitPrice: num(p.price), basePrice: num(p.price), unitCost: productCost(p), addons: [] }); bulkReprice(D); }
     e.target.value = '';
     renderItems();
   });
@@ -2387,6 +2491,9 @@ function bindOrderForm() {
     if (t.hasAttribute('data-f')) {
       var f = t.getAttribute('data-f');
       it[f] = f === 'name' ? t.value : num(t.value);
+      if (f === 'unitPrice' && it.productId) { it.priceManual = true; delete it.bulk; }   // a price typed by hand is kept
+      if (f === 'qty') { bulkReprice(D); bulkRefreshItems(itemEl); }
+      var bn = $('[data-bulk-note]', itemEl); if (bn) bn.innerHTML = bulkNoteHtml(it, D);
     } else if (t.hasAttribute('data-a')) {
       var a = it.addons[+t.closest('.addon').getAttribute('data-j')];
       a[t.getAttribute('data-a')] = t.getAttribute('data-a') === 'price' ? num(t.value) : t.value;
@@ -2399,7 +2506,8 @@ function bindOrderForm() {
     var itemEl = e.target.closest('.item');
     if (!itemEl) return;
     var i = +itemEl.getAttribute('data-i');
-    if (e.target.closest('[data-del-item]')) { D.items.splice(i, 1); renderItems(); }
+    if (e.target.closest('[data-del-item]')) { D.items.splice(i, 1); bulkReprice(D); renderItems(); }
+    else if (e.target.closest('[data-use-bulk]')) { delete D.items[i].priceManual; if (D.items[i].basePrice == null) { var bp0 = byId('Products', D.items[i].productId); if (bp0) D.items[i].basePrice = num(bp0.price); } bulkReprice(D); renderItems(); }
     else if (e.target.closest('[data-add-addon]')) {
       D.items[i].addons = D.items[i].addons || [];
       D.items[i].addons.push({ label: '', price: '' });
@@ -2556,10 +2664,12 @@ function openProduct(id, preset) {
     (S.data.Materials.length ? '<button class="btn btn-secondary btn-sm" type="button" id="pAddMat">' + ico('plus') + 'Add material</button>' : '') +
     '<button class="btn btn-secondary btn-sm" type="button" id="pNewMat">' + ico('plus') + 'New material</button></div>' +
     '<div class="qm" id="pQuickMat" style="display:none"></div>' +
-    '<div class="summary" style="margin-top:14px" id="pSum"></div>';
+    '<div class="summary" style="margin-top:14px" id="pSum"></div>' +
+    '<div class="section-title">' + ico('tag') + 'Bulk prices <span class="muted" style="font-weight:500;margin-left:4px">(optional)</span></div><div class="bk-box" id="pBulk"></div>';
   openDrawer(p ? p.name : 'New product', body + extrasHtml(D),
     (p ? '<button class="btn btn-danger" type="button" id="dDelete">' + ico('trash') + 'Delete</button>' : '') +
     '<span class="spacer"></span><button class="btn btn-secondary" type="button" data-close>Cancel</button><button class="btn btn-primary" type="button" id="dSave">Save product</button>');
+  bulkEditor($('#pBulk'), D);   // Bulk prices step (Nov 2026)
 
   var matOptions = function (sel) {
     return '<option value="">Choose material…</option>' + S.data.Materials.slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function (m) {
@@ -2734,6 +2844,7 @@ function openProduct(id, preset) {
     var bad = D.materials.filter(function (m) { return m.bad && m.materialId; }); D.materials.forEach(function (m) { delete m.bad; });
     if (bad.length) { toast('Please finish the amount for ' + (byId('Materials', bad[0].materialId) || {}).name + ' (piece size or how many one does).', true); return; }
     D.description = $('#pDesc').value; D.active = $('#pActive').checked;
+    var bk = bulkRead(); if (bk.error) { toast(bk.error, true); return; } D.bulkPrices = bk.list;   // Bulk prices step (Nov 2026)
     D.materials = D.materials.filter(function (m) { return m.materialId; });
     if (!D.name) { toast('Please enter a product name.', true); return; }
     var ideaId = D._fromIdea; delete D._fromIdea;
