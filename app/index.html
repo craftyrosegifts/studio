@@ -601,6 +601,16 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .bk-out { flex: 1 1 100%; }
 .bulk-note { margin: 4px 0 0; }
 .bulk-note:empty { display: none; }
+/* Product options step (Nov 2026) */
+.op-box { border: 1px solid var(--line); border-radius: 12px; background: var(--white); padding: 10px; margin-bottom: 4px; }
+.op-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.op-row:last-of-type { margin-bottom: 8px; }
+.op-name { flex: 1 1 auto; min-width: 0; }
+.op-price { flex: 0 0 120px; width: 120px; }
+.op-warn { margin: 10px 0 0; color: var(--ink-2); background: #FFF6E0; border-radius: 8px; padding: 8px 10px; }
+.mat-for { display: flex; align-items: center; gap: 8px; margin: 8px 0 2px; }
+.mat-for select { width: auto; flex: 0 1 240px; }
+.item-opt { margin: 8px 0 0; max-width: 340px; }
 .ss-box { border: 1px solid var(--line); border-radius: 12px; background: var(--white); padding: 10px; margin-bottom: 14px; }
 .ss-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 .ss-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -1922,8 +1932,23 @@ function wireCatPicker() {
     inp.dispatchEvent(new Event('change', { bubbles: true }));
   });
 }
-function productCost(p) {
-  return round2((p.materials || []).reduce(function (sum, m) {
+/* ---------- Product options step (Nov 2026): one product, versions with their own price (e.g. Set of 2 / Set of 4) ---------- */
+function prodOpts(p) {
+  var v = p && p.options;
+  if (typeof v === 'string') { try { v = v ? JSON.parse(v) : []; } catch (e) { v = []; } }
+  return Array.isArray(v) ? v.filter(function (o) { return o && o.id && String(o.name || '').trim(); }) : [];
+}
+function prodOpt(p, id) { return id ? prodOpts(p).filter(function (o) { return o.id === id; })[0] || null : null; }
+/** Material lines used for one option (lines not marked for an option are used by every option). */
+function prodMats(p, optId) { return ((p && p.materials) || []).filter(function (m) { return m && (!m.opt || (optId && m.opt === optId)); }); }
+function cheapestOpt(p) { return prodOpts(p).slice().sort(function (a, b) { return num(a.price) - num(b.price); })[0] || null; }
+function fromPrice(p) { var c = cheapestOpt(p); return c ? num(c.price) : num(p && p.price); }
+/** An order line's normal price: its option's price, or the product's price. */
+function linePrice(p, it) { var o = prodOpt(p, it && it.option); return num(o ? o.price : p.price); }
+function optLineName(p, o) { return p.name + ' \u2013 ' + o.name; }
+function productCost(p, optId) {
+  if (optId === undefined) { var c0 = cheapestOpt(p); optId = c0 ? c0.id : ''; }   // a product with options: its lowest-priced option
+  return round2(prodMats(p, optId).reduce(function (sum, m) {
     var mat = byId('Materials', m.materialId);
     return sum + (mat ? num(mat.costPerUnit) * matShare(m) : 0);
   }, 0));
@@ -1954,9 +1979,9 @@ function bulkReprice(o) {
   (o.items || []).forEach(function (it) { if (it.productId) tot[it.productId] = (tot[it.productId] || 0) + num(it.qty); });
   (o.items || []).forEach(function (it) {
     var p = it.productId ? byId('Products', it.productId) : null; if (!p || it.priceManual) return;
-    var auto = !!it.bulk || it.basePrice != null || num(it.unitPrice) === num(p.price);
+    var auto = !!it.bulk || it.basePrice != null || num(it.unitPrice) === linePrice(p, it);
     if (!auto) return;
-    var base = it.basePrice != null ? num(it.basePrice) : num(p.price), lv = bulkLevel(p.bulkPrices, tot[it.productId]);
+    var base = it.basePrice != null ? num(it.basePrice) : linePrice(p, it), lv = bulkLevel(p.bulkPrices, tot[it.productId]);
     if (lv) { it.basePrice = base; it.unitPrice = bulkUnit(base, lv); it.bulk = { min: lv.min, kind: lv.kind, amount: lv.amount }; }
     else if (it.bulk) { it.unitPrice = base; delete it.bulk; }
   });
@@ -2013,7 +2038,7 @@ function bulkNoteHtml(it, o) {
   var p = it.productId ? byId('Products', it.productId) : null; if (!p) return '';
   var tot = (o.items || []).filter(function (x) { return x.productId === it.productId; }).reduce(function (s, x) { return s + num(x.qty); }, 0);
   var lv = bulkLevel(p.bulkPrices, tot); if (!lv) return '';
-  var bp = bulkUnit(it.basePrice != null ? it.basePrice : p.price, lv);
+  var bp = bulkUnit(it.basePrice != null ? it.basePrice : linePrice(p, it), lv);
   return bp !== num(it.unitPrice) ? 'Bulk price available (' + lv.min + '+): ' + money(bp) + ' each <button class="link-btn" type="button" data-use-bulk>Use it</button>' : '';
 }
 function calcOrder(o) {
@@ -2391,7 +2416,7 @@ function orderForm() {
     '<div class="toolbar" style="margin:12px 0 0">' +
       '<select class="input" id="addProduct" style="flex:1;min-width:180px"><option value="">+ Add from catalog…</option>' +
       S.data.Products.filter(function (p) { return p.active !== false; }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); })
-        .map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + ' — ' + money(p.price) + '</option>'; }).join('') +
+        .map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + ' — ' + (prodOpts(p).length ? 'from ' + money(fromPrice(p)) : money(p.price)) + '</option>'; }).join('') +
       '</select><button class="btn btn-secondary" type="button" id="addCustom">' + ico('plus') + 'Custom item</button></div>' +
 
     '<div class="section-title">Pricing</div><div class="summary" id="oSummary"></div>' +
@@ -2414,6 +2439,12 @@ function bulkRefreshItems(typingIn) {
     var bn = $('[data-bulk-note]', el); if (bn) bn.innerHTML = bulkNoteHtml(it, D);
   });
 }
+function itemOptHtml(it) {
+  var p = it.productId ? byId('Products', it.productId) : null, os = prodOpts(p); if (!os.length) return '';
+  var cur = prodOpt(p, it.option);
+  return '<div class="field item-opt"><label>Option</label><select class="input" data-opt>' + (cur ? '' : '<option value="">Choose an option…</option>') +
+    os.map(function (o) { return '<option value="' + esc(o.id) + '"' + (cur && cur.id === o.id ? ' selected' : '') + '>' + esc(o.name) + ' — ' + money(o.price) + '</option>'; }).join('') + '</select></div>';
+}
 function renderItems() {
   var wrap = $('#oItems');
   if (!D.items.length) {
@@ -2425,6 +2456,7 @@ function renderItems() {
         '<div class="field"><label>Qty</label><input class="input" data-f="qty" type="number" min="0" step="1" value="' + esc(it.qty) + '"></div>' +
         '<div class="field"><label>Price each</label><div class="money-in"><input class="input" data-f="unitPrice" type="number" min="0" step="0.01" value="' + esc(it.unitPrice) + '"></div></div>' +
         '<button class="icon-btn sm" type="button" data-del-item title="Remove item">' + ico('trash') + '</button></div>' +
+        itemOptHtml(it) +
         '<div class="addons">' + (it.addons || []).map(function (a, j) {
           return '<div class="addon" data-j="' + j + '"><input class="input" data-a="label" value="' + esc(a.label) + '" placeholder="Personalization (e.g. name, colour)">' +
             '<div class="money-in"><input class="input" data-a="price" type="number" min="0" step="0.01" value="' + esc(a.price === 0 ? '' : a.price) + '" placeholder="each"></div>' +
@@ -2472,7 +2504,9 @@ function bindOrderForm() {
   bindCustomerPicker();
   $('#addProduct').addEventListener('change', function (e) {
     var p = byId('Products', e.target.value);
-    if (p) { D.items.push({ productId: p.id, name: p.name, qty: 1, unitPrice: num(p.price), basePrice: num(p.price), unitCost: productCost(p), addons: [] }); bulkReprice(D); }
+    var o1 = p ? prodOpts(p)[0] : null;   // Product options step: starts on the first option (change it on the line)
+    if (p) { D.items.push(o1 ? { productId: p.id, name: optLineName(p, o1), option: o1.id, qty: 1, unitPrice: num(o1.price), basePrice: num(o1.price), unitCost: productCost(p, o1.id), addons: [] }
+      : { productId: p.id, name: p.name, qty: 1, unitPrice: num(p.price), basePrice: num(p.price), unitCost: productCost(p), addons: [] }); bulkReprice(D); }
     e.target.value = '';
     renderItems();
   });
@@ -2486,7 +2520,7 @@ function bindOrderForm() {
     var itemEl = t.closest('.item');
     if (t.id === 'oShipping') { D.shipping = num(t.value); renderSummary(); return; }
     if (t.id === 'oDiscount') { D.discount = num(t.value); renderSummary(); return; }
-    if (!itemEl) return;
+    if (!itemEl || t.hasAttribute('data-opt')) return;
     var it = D.items[+itemEl.getAttribute('data-i')];
     if (t.hasAttribute('data-f')) {
       var f = t.getAttribute('data-f');
@@ -2507,7 +2541,7 @@ function bindOrderForm() {
     if (!itemEl) return;
     var i = +itemEl.getAttribute('data-i');
     if (e.target.closest('[data-del-item]')) { D.items.splice(i, 1); bulkReprice(D); renderItems(); }
-    else if (e.target.closest('[data-use-bulk]')) { delete D.items[i].priceManual; if (D.items[i].basePrice == null) { var bp0 = byId('Products', D.items[i].productId); if (bp0) D.items[i].basePrice = num(bp0.price); } bulkReprice(D); renderItems(); }
+    else if (e.target.closest('[data-use-bulk]')) { delete D.items[i].priceManual; if (D.items[i].basePrice == null) { var bp0 = byId('Products', D.items[i].productId); if (bp0) D.items[i].basePrice = linePrice(bp0, D.items[i]); } bulkReprice(D); renderItems(); }
     else if (e.target.closest('[data-add-addon]')) {
       D.items[i].addons = D.items[i].addons || [];
       D.items[i].addons.push({ label: '', price: '' });
@@ -2516,6 +2550,16 @@ function bindOrderForm() {
     } else if (e.target.closest('[data-del-addon]')) {
       D.items[i].addons.splice(+e.target.closest('.addon').getAttribute('data-j'), 1); renderItems();
     }
+  });
+  body.addEventListener('change', function (e) {   // Product options step: choose / change a line's option
+    var t = e.target; if (!t.hasAttribute('data-opt')) return;
+    var el = t.closest('.item'), it = el && D.items[+el.getAttribute('data-i')], p = it && byId('Products', it.productId);
+    var o = p && prodOpt(p, t.value); if (!o) return;
+    var old = prodOpt(p, it.option);
+    if (!it.name || it.name === p.name || (old && it.name === optLineName(p, old))) it.name = optLineName(p, o);   // a name typed by hand is kept
+    it.option = o.id; it.unitCost = productCost(p, o.id);
+    if (!it.priceManual) { it.basePrice = num(o.price); it.unitPrice = num(o.price); delete it.bulk; }
+    bulkReprice(D); renderItems();
   });
   renderItems();
   $('#dSave').addEventListener('click', function () { saveOrder(); });
@@ -2637,12 +2681,12 @@ function renderCatalog() {
   var list = S.data.Products.filter(function (p) { return matches(p, ['name', 'category', 'description']); })
     .sort(function (a, b) { return String(a.category + a.name).localeCompare(String(b.category + b.name)); });
   return toolbar + '<div class="grid-cards">' + list.map(function (p) {
-    var cost = productCost(p);
-    var margin = num(p.price) ? Math.round((num(p.price) - cost) / num(p.price) * 100) : 0;
+    var cost = productCost(p), pos = prodOpts(p), pprice = fromPrice(p);   // with options: the lowest-priced option
+    var margin = pprice ? Math.round((pprice - cost) / pprice * 100) : 0;
     return '<div class="card pcard" data-product="' + p.id + '">' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (p.category ? '<span class="tag">' + esc(p.category) + '</span>' : '') + (p.active === false ? '<span class="chip gray">Hidden</span>' : '') + '</div>' +
       '<div class="p-name">' + esc(p.name) + '</div>' +
-      '<div class="p-price">' + money(p.price) + '</div>' +
+      '<div class="p-price">' + (pos.length ? '<span class="muted small">From </span>' + money(pprice) + '<span class="muted small"> · ' + pos.length + ' options</span>' : money(p.price)) + '</div>' +
       (p.description ? '<div class="muted small" style="line-height:1.5">' + esc(String(p.description).slice(0, 110)) + '</div>' : '') +
       '<div class="p-meta"><span>Materials ' + money(cost) + '</span><span class="' + (margin >= 50 ? 'margin-good' : 'margin-low') + '">' + (cost ? margin + '% margin' : 'Add materials') + '</span></div></div>';
   }).join('') + '</div>';
@@ -2651,14 +2695,16 @@ function openProduct(id, preset) {
   var p = id ? byId('Products', id) : null;
   D = p ? JSON.parse(JSON.stringify(p)) : Object.assign({ name: '', category: '', price: 0, description: '', materials: [], active: true }, preset || {});
   D.materials = D.materials || [];
+  D.options = prodOpts(D).map(function (o) { return { id: o.id, name: o.name, price: o.price }; });   // Product options step
   var cats = Array.from(new Set(S.data.Products.map(function (x) { return x.category; }).filter(Boolean)));
   var body =
     '<div class="field"><label>Product name</label><input class="input" id="pName" value="' + esc(D.name) + '"></div>' +
     '<div class="row"><div class="field cat-field"><label for="pCat">Category</label><input class="input" id="pCat" value="' + esc(D.category || '') + '" placeholder="Choose or type a new one" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="catPick">' +
     '<div class="pick-list" id="catPick" role="listbox" hidden></div></div>' +
-    '<div class="field"><label>Selling price</label><div class="money-in"><input class="input" type="number" min="0" step="0.01" id="pPrice" value="' + esc(D.price) + '"></div></div></div>' +
+    '<div class="field"><label>Selling price</label><div class="money-in"><input class="input" type="number" min="0" step="0.01" id="pPrice" value="' + esc(D.price) + '"></div><span class="hint" id="pPriceHint" hidden>Set by the options (the lowest price)</span></div></div>' +
     '<div class="field"><label>Description</label><textarea class="input" id="pDesc">' + esc(D.description || '') + '</textarea></div>' +
     '<div class="field"><label class="check"><input type="checkbox" id="pActive"' + (D.active !== false ? ' checked' : '') + '> Show in the order item list</label></div>' +
+    '<div class="section-title">' + ico('list') + 'Options <span class="muted" style="font-weight:500;margin-left:4px">(optional)</span></div><div class="op-box" id="pOpts"></div>' +
     '<div class="section-title">Materials per item</div>' +
     '<div id="pMats" class="items"></div><div class="mat-search" id="pMatFind" hidden></div><div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
     (S.data.Materials.length ? '<button class="btn btn-secondary btn-sm" type="button" id="pAddMat">' + ico('plus') + 'Add material</button>' : '') +
@@ -2720,6 +2766,8 @@ function openProduct(id, preset) {
       return '<div class="item mat-item" data-i="' + i + '"><div class="mat-top">' +
         '<button class="input mat-pick" type="button" data-pick="' + i + '" aria-label="Change material">' + (mat ? esc(matLabel(mat)) : '<span class="muted">Choose material…</span>') + ico('search') + '</button>' +
         '<button class="icon-btn sm" type="button" data-del title="Remove">' + ico('trash') + '</button></div>' +
+        (D.options.length ? '<label class="mat-for"><span class="muted small">Used for</span><select class="input" data-mfor aria-label="Used for which option"><option value="">Every option</option>' +
+          D.options.map(function (o) { return '<option value="' + esc(o.id) + '"' + (m.opt === o.id ? ' selected' : '') + '>Only ' + esc(o.name || 'this option') + '</option>'; }).join('') + '</select></label>' : '') +
         (mat ? amountHtml(m, mat, i) : '') +
         '<div class="item-total"><span class="muted small">' + (mat ? money(mat.costPerUnit) + ' × ' + (Math.round(share * 10000) / 10000) : '') + '</span><strong>' + money(mat ? num(mat.costPerUnit) * share : 0) + '</strong></div></div>';
     }).join('') || '<p class="muted" style="margin:0">No materials added.</p>';
@@ -2735,6 +2783,15 @@ function openProduct(id, preset) {
     drawSum();
   };
   var drawSum = function () {
+    var named = D.options.filter(function (o) { return String(o.name || '').trim(); });
+    if (named.length) {   // Product options step: cost and profit for each option
+      $('#pSum').innerHTML = named.map(function (o) {
+        var c = productCost(D, o.id), pr = num(o.price), mg = pr ? Math.round((pr - c) / pr * 100) : 0;
+        return '<div class="sum-row"><span>' + esc(o.name) + ' <span class="muted small">· materials ' + money(c) + '</span></span><span class="' + (mg >= 50 ? 'margin-good' : 'margin-low') + '">' +
+          money(pr) + ' · profit ' + money(pr - c) + (pr ? ' · ' + mg + '%' : '') + '</span></div>';
+      }).join('');
+      return;
+    }
     var cost = productCost(D), price = num($('#pPrice').value);
     var margin = price ? Math.round((price - cost) / price * 100) : 0;
     $('#pSum').innerHTML = '<div class="sum-row"><span>Material cost per item</span><strong>' + money(cost) + '</strong></div>' +
@@ -2779,6 +2836,49 @@ function openProduct(id, preset) {
     else { var mt = byId('Materials', id); D.materials.push(sheetOf(mt) ? { materialId: id, qty: 0, how: 'size', w: '', h: '', pieces: 1 } : { materialId: id, qty: 1 }); }
     closeFind(); renderMats(); $('#pMats').dispatchEvent(new Event('change', { bubbles: true }));
   });
+  /* Product options step (Nov 2026): name + price for each option; materials can be marked for one option */
+  var optBox = $('#pOpts');
+  var optsUsedOn = function () {   // orders with this product but no option chosen (made before it had options)
+    return D.id ? S.data.Orders.filter(function (o) { return (o.items || []).some(function (it) { return it.productId === D.id && !it.option; }); }).length : 0;
+  };
+  var optSync = function () {   // the selling price follows the lowest option price
+    var named = D.options.filter(function (o) { return String(o.name || '').trim() && o.price !== '' && o.price != null; }), pp = $('#pPrice');
+    if (D.options.length) { pp.disabled = true; pp.title = 'Set by the options'; if (named.length) { pp.value = Math.min.apply(null, named.map(function (o) { return num(o.price); })); pp.dispatchEvent(new Event('input', { bubbles: true })); } }
+    else { pp.disabled = false; pp.title = ''; }
+    var hint = $('#pPriceHint'); if (hint) hint.hidden = !D.options.length;
+  };
+  var optDraw = function () {
+    var used = D.options.length ? optsUsedOn() : 0;
+    optBox.innerHTML = '<p class="hint" style="margin:0 0 8px">Sell this product in versions with their own price, e.g. <b>Set of 2</b> and <b>Set of 4</b>. Customers choose one. Below, mark any material that only one option uses.</p>' +
+      D.options.map(function (o, i) {
+        return '<div class="op-row" data-op="' + i + '"><input class="input op-name" data-opf="name" value="' + esc(o.name || '') + '" placeholder="e.g. Set of 2" aria-label="Option name" maxlength="60">' +
+          '<div class="money-in op-price"><input class="input" type="number" min="0" step="0.01" inputmode="decimal" data-opf="price" value="' + esc(o.price === '' || o.price == null ? '' : o.price) + '" aria-label="Price" placeholder="Price"></div>' +
+          '<button class="icon-btn sm" type="button" data-opdel="' + i + '" title="Remove option">' + ico('x') + '</button></div>';
+      }).join('') +
+      (D.options.length < 10 ? '<button class="btn btn-secondary btn-sm" type="button" data-opadd>' + ico('plus') + 'Add an option</button>' : '') +
+      (used ? '<p class="op-warn small">This product is already on ' + used + ' order' + (used === 1 ? '' : 's') + ' without an option. Those orders only use the materials marked "Every option". Tip: for options, you can make a new product instead.</p>' : '');
+    optSync();
+  };
+  optBox.addEventListener('input', function (e) {
+    var row = e.target.closest('[data-op]'), f = e.target.getAttribute('data-opf'); if (!row || !f) return;
+    var o = D.options[+row.getAttribute('data-op')]; o[f] = f === 'price' ? (e.target.value === '' ? '' : num(e.target.value)) : e.target.value;
+    optSync(); renderMats();
+  });
+  optBox.addEventListener('click', function (e) {
+    if (e.target.closest('[data-opadd]')) {
+      var had = D.options.length;
+      D.options.push({ id: 'o' + Math.random().toString(36).slice(2, 9), name: '', price: '' });
+      optDraw(); renderMats(); var ns = $$('.op-name', optBox); if (ns.length) ns[ns.length - 1].focus();
+      if (!had) toast('Add a name and price for each option');
+      return;
+    }
+    var d = e.target.closest('[data-opdel]'); if (!d) return;
+    var i = +d.getAttribute('data-opdel'), o = D.options[i], rows = D.materials.filter(function (m) { return m.opt === o.id; });
+    if (rows.length && !confirm('Remove the option "' + (o.name || 'this option') + '"? The ' + rows.length + ' material line' + (rows.length === 1 ? '' : 's') + ' marked for it will be removed too.')) return;
+    D.materials = D.materials.filter(function (m) { return m.opt !== o.id; });
+    D.options.splice(i, 1); optDraw(); renderMats();
+  });
+  optDraw();
   renderMats();
   wireCatPicker();
   $('#pPrice').addEventListener('input', renderMats);
@@ -2806,6 +2906,7 @@ function openProduct(id, preset) {
     w.addEventListener('change', function (e) {
       var el = e.target.closest('.item'); if (!el) return;
       var m = D.materials[+el.getAttribute('data-i')];
+      if (e.target.hasAttribute('data-mfor') && m) { if (e.target.value) m.opt = e.target.value; else delete m.opt; drawSum(); return; }   // Product options step
       var k = e.target.getAttribute('data-m'); if (!k || !m) return;
       m[k] = e.target.value === '' ? '' : num(e.target.value);
       m.qty = matShare(m);
@@ -2845,6 +2946,14 @@ function openProduct(id, preset) {
     if (bad.length) { toast('Please finish the amount for ' + (byId('Materials', bad[0].materialId) || {}).name + ' (piece size or how many one does).', true); return; }
     D.description = $('#pDesc').value; D.active = $('#pActive').checked;
     var bk = bulkRead(); if (bk.error) { toast(bk.error, true); return; } D.bulkPrices = bk.list;   // Bulk prices step (Nov 2026)
+    // Product options step (Nov 2026): rows left completely empty (and not used by any material) are ignored
+    var opRows = D.options.filter(function (o) { return String(o.name || '').trim() || (o.price !== '' && o.price != null) || D.materials.some(function (m) { return m.opt === o.id; }); });
+    if (opRows.some(function (o) { return !String(o.name || '').trim() || o.price === '' || o.price == null || num(o.price) < 0; })) { toast('Please give every option a name and a price.', true); return; }
+    var opNames = opRows.map(function (o) { return String(o.name).trim().toLowerCase(); });
+    if (opNames.some(function (n, i) { return opNames.indexOf(n) !== i; })) { toast('Two options have the same name. Please use different names.', true); return; }
+    D.options = opRows.map(function (o) { return { id: o.id, name: String(o.name).trim(), price: round2(num(o.price)) }; });
+    if (D.options.length) D.price = Math.min.apply(null, D.options.map(function (o) { return o.price; }));
+
     D.materials = D.materials.filter(function (m) { return m.materialId; });
     if (!D.name) { toast('Please enter a product name.', true); return; }
     var ideaId = D._fromIdea; delete D._fromIdea;
@@ -7237,12 +7346,12 @@ function itemVariantMats(it) {
   var p = it.productId && byId('Products', it.productId);
   if (!p) return [];
   var seen = {};
-  return (p.materials || []).map(function (x) { return byId('Materials', x.materialId); })
+  return (typeof prodMats === 'function' ? prodMats(p, it.option) : (p.materials || [])).map(function (x) { return byId('Materials', x.materialId); })   // Product options step: the line's option
     .filter(function (m) { if (!m || !variantsOf(m).length || seen[m.id]) return false; seen[m.id] = 1; return true; });
 }
 function itemCostWithVariants(it) {
   var p = byId('Products', it.productId); if (!p) return num(it.unitCost);
-  return round2((p.materials || []).reduce(function (s, x) {
+  return round2((typeof prodMats === 'function' ? prodMats(p, it.option) : (p.materials || [])).reduce(function (s, x) {
     var m = byId('Materials', x.materialId); if (!m) return s;
     var vid = it.variants && it.variants[m.id];
     return s + (vid ? vCost(m, vid) : num(m.costPerUnit)) * num(x.qty);
