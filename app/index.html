@@ -4618,14 +4618,13 @@ function r2Card(o, showStage) {
 
 /* ---------- contact buttons ---------- */
 function r2Dial(p) { return String(p || '').replace(/[^\d+]/g, ''); }
-function r2Prefers(way) { return /text|sms/i.test(way) ? 'text' : /call|phone/i.test(way) ? 'call' : /e-?mail/i.test(way) ? 'email' : ''; }
+function r2Prefers(way) { return /text|sms/i.test(way) ? 'text' : /e-?mail/i.test(way) ? 'email' : ''; }   // no Call button (Nov 2026): Sara doesn't phone customers
 function r2ContactHtml(phone, email, way, emailHint) {
   var tel = r2Dial(phone), pref = r2Prefers(way || '');
   if (!tel && !email) return '';
   var b = function (k) { return 'btn ' + (pref === k ? 'btn-primary' : 'btn-secondary') + ' r2-cbtn'; };
   return (way ? '<div class="r2-way">Prefers: <b>' + esc(way) + '</b></div>' : '') + '<div class="r2-cbtns">' +
-    (tel ? '<a class="' + b('call') + '" href="tel:' + esc(tel) + '" data-r2-call>' + ico('phone') + 'Call</a>' +
-           '<a class="' + b('text') + '" href="sms:' + esc(tel) + '" data-r2-text>' + ico('chat') + 'Text</a>' : '') +
+    (tel ? '<a class="' + b('text') + '" href="sms:' + esc(tel) + '" data-r2-text>' + ico('chat') + 'Text</a>' : '') +
     (email && emailHint !== null ? '<button class="' + b('email') + '" type="button" data-r2-email>' + ico('mail') + 'Email</button>' : '') + '</div>' +
     (email && emailHint ? '<div class="muted small r2-ehint">' + esc(emailHint) + '</div>' : '');
 }
