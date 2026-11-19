@@ -611,6 +611,46 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .mat-for { display: flex; align-items: center; gap: 8px; margin: 8px 0 2px; }
 .mat-for select { width: auto; flex: 0 1 240px; }
 .item-opt { margin: 8px 0 0; max-width: 340px; }
+/* Shopping list step (Nov 2026): shopping list, restock, stock count, stock history */
+.shop-bar { margin-top: -6px; }
+.sl-group { margin: 0 0 16px; }
+.sl-ghead { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 2px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+.sl-line { border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); padding: 10px 12px; margin-bottom: 8px; }
+.sl-line.sl-ordered { background: var(--sage-50); }
+.sl-top { display: flex; gap: 10px; align-items: flex-start; }
+.sl-top .title { font-weight: 600; }
+.sl-top .sub { font-size: 13px; color: var(--muted); }
+.sl-need { color: var(--ink-2) !important; }
+.sl-sugg { font-size: 14px; margin-top: 4px; }
+.sl-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.sl-acts .btn, .rs-btns .btn { min-height: 40px; }
+.sl-panel { margin-top: 10px; }
+.sl-empty { display: flex; gap: 8px; align-items: center; }
+.sl-unchosen .sub { font-size: 13px; color: var(--muted); margin: 2px 0; }
+.rs-panel { border: 1px dashed var(--line); border-radius: var(--radius-sm); padding: 10px; background: var(--sage-25); }
+.rs-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; }
+.rs-row .field { flex: 1 1 140px; margin-bottom: 6px; }
+.rs-seg { margin-bottom: 6px; }
+.rs-exp { margin: 8px 0 4px; }
+.rs-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.restock2 { margin: -4px 0 10px; }
+.rs-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.rs-ord { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sc-tools { flex-wrap: wrap; gap: 8px 14px; }
+.sc-tools .input { flex: 1 1 200px; }
+.sc-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--line); }
+.sc-row .title { font-weight: 600; }
+.sc-row .sub { font-size: 13px; color: var(--muted); }
+.sc-row.sc-changed { background: var(--st-amber-bg); border-radius: var(--radius-sm); }
+.sc-step { display: flex; align-items: center; gap: 4px; flex: none; }
+.sc-step .input { width: 76px; text-align: center; }
+.sc-step .icon-btn { width: 40px; height: 40px; font-size: 20px; }
+.sl-hist { display: flex; flex-direction: column; gap: 2px; }
+.sl-hrow { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
+.sl-hwhen { flex: 0 0 52px; }
+.sl-hd { font-weight: 600; }
+.sl-hd.up { color: var(--st-green); }
+.sl-hd.down { color: var(--st-red); }
 .ss-box { border: 1px solid var(--line); border-radius: 12px; background: var(--white); padding: 10px; margin-bottom: 14px; }
 .ss-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
 .ss-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
@@ -6725,7 +6765,8 @@ function renderMaterials() {
   var toolbar = '<div class="toolbar">' + searchBox('Search materials or suppliers…') + '<span class="spacer"></span>' +
     '<div class="seg"><button type="button" data-mat-mode="suppliers" class="' + (S.matMode !== 'all' ? 'on' : '') + '">' + ico('store') + 'By supplier</button>' +
     '<button type="button" data-mat-mode="all" class="' + (S.matMode === 'all' ? 'on' : '') + '">' + ico('list') + 'All materials</button></div>' +
-    '<button class="btn btn-secondary" type="button" data-act="new-supplier">' + ico('plus') + 'Supplier</button></div>';
+    '<button class="btn btn-secondary" type="button" data-act="new-supplier">' + ico('plus') + 'Supplier</button></div>' +
+    (typeof shopToolbarHtml === 'function' ? shopToolbarHtml() : '');   // Shopping list step (Nov 2026)
   if (!S.data.Materials.length && !(S.data.Suppliers || []).length) return toolbar + '<div class="card">' + emptyState('No materials yet', 'Add supplies with their cost per unit, then attach them to products to see your profit.', 'new-material', 'New material') + '</div>';
   var q = (S.q || '').toLowerCase();
   var list = S.data.Materials.filter(function (m) { return !q || [m.name, m.supplier, m.notes, m.unit].join(' ').toLowerCase().indexOf(q) >= 0; })
@@ -6786,10 +6827,13 @@ function openMaterial(id, presetSupplier) {
     '<div class="row"><div class="field"><label>Cost per unit</label><div class="money-in"><input class="input" type="number" min="0" step="0.0001" id="mCost" value="' + esc(D.costPerUnit || '') + '"></div></div>' +
     '<div class="field"><label>Unit</label><input class="input" id="mUnit" list="unitList" value="' + esc(D.unit || '') + '">' +
     '<datalist id="unitList"><option value="each"><option value="sheet"><option value="ft"><option value="m"><option value="yard"><option value="oz"><option value="g"><option value="ml"><option value="pack"></datalist></div></div>' +
-    '<p class="hint">Tip: if a 12-pack costs $18, enter $1.50 per "each".</p>' +
+    '<div class="row"><div class="field"><label>Pack size <span class="muted">(optional)</span></label><input class="input" type="number" min="0" step="any" inputmode="decimal" id="mPackSize" value="' + esc(D.packSize === undefined ? '' : D.packSize) + '" placeholder="e.g. 12"></div>' +
+    '<div class="field"><label>Pack price <span class="muted">(optional)</span></label><div class="money-in"><input class="input" type="number" min="0" step="0.01" inputmode="decimal" id="mPackPrice" value="' + esc(D.packPrice === undefined ? '' : D.packPrice) + '" placeholder="e.g. 18.00"></div></div></div>' +
+    '<p class="hint" id="mPackHint">Bought in packs? Fill in both and the cost per unit is worked out for you.</p>' +
     '<div class="row"><div class="field"><label>In stock now <span class="muted">(optional)</span></label><input class="input" type="number" step="any" inputmode="decimal" id="mOnHand" value="' + esc(D.onHand === undefined ? '' : D.onHand) + '" placeholder="Leave blank to not track"></div>' +
     '<div class="field"><label>Alert me when at or below</label><input class="input" type="number" step="any" min="0" inputmode="decimal" id="mLowAt" value="' + esc(D.lowAt === undefined ? '' : D.lowAt) + '" placeholder="e.g. 10"></div></div>' +
-    '<div class="restock"><span class="muted small">Received more?</span><input class="input" type="number" step="any" min="0" inputmode="decimal" id="mAddQty" placeholder="Qty"><button class="btn btn-secondary btn-sm" type="button" id="mAddBtn">' + ico('plus') + 'Add to stock</button></div>' +
+    (m ? '<div class="restock2" id="mRestockRow"></div>' : '') +   // Shopping list step: Restocked (saved straight away) + ordered status
+
     '<p class="hint">Stock goes down automatically when an order with this material moves to In Progress.</p>' +
     '<div class="field"><label>Supplier</label><select class="input" id="mSupplier">' + supOpts + '</select></div>' +
     '<div class="field" id="mNewSupWrap" style="display:none"><label>New supplier name</label><input class="input" id="mNewSup" placeholder="e.g. Cricut, Dollarama"></div>' +
@@ -6813,11 +6857,7 @@ function openMaterial(id, presetSupplier) {
   if (typeof sheetFieldsSum === 'function') sheetFieldsSum();
   $('#mSupplier').addEventListener('change', showShop);
   $('#mLink').addEventListener('change', showShop);
-  $('#mAddBtn').addEventListener('click', function () {
-    var q = num($('#mAddQty').value); if (!q) { $('#mAddQty').focus(); return; }
-    $('#mOnHand').value = Math.round((num($('#mOnHand').value) + q) * 1000) / 1000; $('#mAddQty').value = '';
-    toast('Added ' + q + ', remember to save');
-  });
+  if (typeof matEditorStock === 'function') matEditorStock(m);   // Shopping list step (Nov 2026): pack cost, Restocked, ordered, stock history
   $('#dSave').addEventListener('click', function () {
     var btn = this;
     var sel = $('#mSupplier').value;
@@ -6827,6 +6867,10 @@ function openMaterial(id, presetSupplier) {
     D.notes = $('#mNotes').value;
     D.onHand = $('#mOnHand').value === '' ? '' : num($('#mOnHand').value);
     D.lowAt = $('#mLowAt').value === '' ? '' : num($('#mLowAt').value);
+    D.packSize = $('#mPackSize').value === '' ? '' : num($('#mPackSize').value);     // Shopping list step: pack size / price
+    D.packPrice = $('#mPackPrice').value === '' ? '' : num($('#mPackPrice').value);
+    if ((D.packSize === '') !== (D.packPrice === '') ) { toast('Please fill in both the pack size and the pack price (or leave both blank).', true); return; }
+    if (D.packSize !== '' && !(D.packSize > 0)) { toast('Pack size must be more than 0.', true); return; }
     if (!D.name) { toast('Please enter a name.', true); return; }
     if (sel === '__new' && !D.supplier) { toast('Please enter the new supplier\'s name.', true); $('#mNewSup').focus(); return; }
     if (typeof readSheetFields === 'function') { var sh = readSheetFields(); if (sh === false) return; D.sheet = sh; }
@@ -6899,6 +6943,8 @@ document.addEventListener('click', function (e) {
   var a = t.closest('[data-act]');
   if (a) {
     var k = a.getAttribute('data-act');
+    if (k === 'shop-list') { e.stopImmediatePropagation(); openShoppingList(); return; }     // Shopping list step (Nov 2026)
+    if (k === 'count-stock') { e.stopImmediatePropagation(); openStockCount(); return; }
     if (k === 'new-supplier') openSupplier(null);
     else if (k === 'new-material' && a.hasAttribute('data-sup')) { e.stopImmediatePropagation(); openMaterial(null, a.getAttribute('data-sup')); }
     return;
@@ -6906,6 +6952,315 @@ document.addEventListener('click', function (e) {
   var s = t.closest('[data-supplier]');
   if (s) { openSupplier(s.getAttribute('data-supplier')); }
 }, true);
+
+/* ================================================================
+   Shopping list step (Nov 2026): what to buy, Restocked, "ordered, not
+   arrived", pack sizes, quick stock count and stock history.
+   Stock changes are made on the server (they add or set, never overwrite
+   stock an order took at the same moment) and each one is noted in the
+   material's stock history.
+   ================================================================ */
+function slOrdered(m) { var o = m && m.ordered; return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; }
+function slLog(m) { return Array.isArray(m && m.stockLog) ? m.stockLog : []; }
+function slTracked(x) { return x !== '' && x !== undefined && x !== null; }
+function slVar(m, vid) { return vid ? (variantsOf(m).find(function (v) { return v.id === vid; }) || null) : null; }
+function slName(m, vid) { var v = slVar(m, vid); return m.name + (v ? ' – ' + (v.name || '') : ''); }
+function slUnit(m) { var u = m.unit || ''; return u && u !== 'each' ? ' ' + u : ''; }
+function slQty(x) { return Math.round(num(x) * 1000) / 1000; }
+function slCost(m, vid) { return typeof vCost === 'function' && vid ? vCost(m, vid) : num(m.costPerUnit); }
+/** What upcoming orders (still at Inquiry, so no stock taken yet) will use, per material / colour. */
+function slNeeds() {
+  var need = {}, refs = {}, unchosen = {};
+  S.data.Orders.forEach(function (o) {
+    if (o.deleted || o.stage !== 'Inquiry') return;
+    (o.items || []).forEach(function (it) {
+      var p = it.productId && byId('Products', it.productId); if (!p) return;
+      (typeof prodMats === 'function' ? prodMats(p, it.option) : (p.materials || [])).forEach(function (x) {
+        var m = byId('Materials', x.materialId); if (!m) return;
+        var key = m.id;
+        if (variantsOf(m).length) {
+          var vid = it.variants && it.variants[m.id];
+          if (!vid) { (unchosen[m.id] = unchosen[m.id] || {})[o.number] = 1; return; }
+          key += ':' + vid;
+        }
+        need[key] = (need[key] || 0) + num(x.qty) * num(it.qty);
+        (refs[key] = refs[key] || {})[o.number] = 1;
+      });
+    });
+  });
+  return { need: need, refs: refs, unchosen: unchosen };
+}
+/** One line per material/colour that is running low or short for upcoming orders. */
+function slLines() {
+  var N = slNeeds(), out = [];
+  S.data.Materials.forEach(function (m) {
+    if (m.deleted) return;
+    var rows = variantsOf(m).length ? variantsOf(m).map(function (v) { return { vid: v.id, onHand: v.onHand, lowAt: v.lowAt }; }) : [{ vid: '', onHand: m.onHand, lowAt: m.lowAt }];
+    rows.forEach(function (r) {
+      if (!slTracked(r.onHand)) return;
+      var key = m.id + (r.vid ? ':' + r.vid : ''), need = slQty(N.need[key] || 0), on = num(r.onHand), hasLow = slTracked(r.lowAt), low = hasLow && on <= num(r.lowAt);
+      if (!low && !(need > on + 1e-9)) return;
+      var short = need + (hasLow ? num(r.lowAt) : 0) - on;
+      if (short <= 1e-9) short = low ? 1 : 0;
+      var units = Math.ceil(short - 1e-9), pack = num(m.packSize), packs = pack > 0 ? Math.max(1, Math.ceil(units / pack - 1e-9)) : 0;
+      if (pack > 0) units = slQty(packs * pack);
+      var ord = slOrdered(m)[r.vid || ''];
+      out.push({ m: m, vid: r.vid, key: key, onHand: on, lowAt: hasLow ? num(r.lowAt) : '', low: low, need: need, refs: Object.keys(N.refs[key] || {}), units: units, packs: packs, ordered: ord || null });
+    });
+  });
+  return { lines: out.sort(function (a, b) { return String(a.m.supplier || '~').localeCompare(String(b.m.supplier || '~')) || slName(a.m, a.vid).localeCompare(slName(b.m, b.vid)); }), unchosen: N.unchosen };
+}
+function shopCount() { try { return slLines().lines.filter(function (l) { return !l.ordered; }).length; } catch (e) { return 0; } }
+function shopToolbarHtml() {
+  if (!S.data.Materials.some(function (m) { return !m.deleted; })) return '';
+  var n = shopCount();
+  return '<div class="toolbar shop-bar"><button class="btn btn-primary" type="button" data-act="shop-list">' + ico('cart') + 'Shopping list' + (n ? ' <span class="badge red">' + n + '</span>' : '') + '</button>' +
+    '<button class="btn btn-secondary" type="button" data-act="count-stock">' + ico('list') + 'Count stock</button></div>';
+}
+function slSuggestText(l) {
+  return l.packs ? l.packs + (l.packs === 1 ? ' pack' : ' packs') + ' (' + l.units + slUnit(l.m) + ')' : l.units + slUnit(l.m);
+}
+function slLineHtml(l) {
+  var link = l.m.link || ((supplierByName(l.m.supplier) || {}).website);
+  var facts = [l.onHand + slUnit(l.m) + ' on hand'];
+  if (l.lowAt !== '') facts.push('alert at ' + l.lowAt);
+  return '<div class="sl-line' + (l.ordered ? ' sl-ordered' : '') + '" data-sl="' + esc(l.key) + '">' +
+    '<div class="sl-top"><div class="grow"><div class="title">' + esc(slName(l.m, l.vid)) + '</div>' +
+      '<div class="sub">' + esc(facts.join(' · ')) + '</div>' +
+      (l.need ? '<div class="sub sl-need">Upcoming orders need ' + l.need + slUnit(l.m) + (l.refs.length ? ' (' + esc(l.refs.join(', ')) + ')' : '') + '</div>' : '') +
+      '<div class="sl-sugg">' + (l.ordered ? 'Ordered ' + esc(niceDate(String(l.ordered.at).slice(0, 10)) || '') + (l.ordered.qty ? ' (' + l.ordered.qty + slUnit(l.m) + ')' : '') + ', waiting to arrive' : 'Suggested: <b>' + esc(slSuggestText(l)) + '</b>') + '</div></div>' +
+      '<span class="chip ' + (l.onHand <= 0 ? 'red' : 'amber') + '">' + (l.onHand <= 0 ? 'Out' : l.low ? 'Low' : 'Short') + '</span></div>' +
+    '<div class="sl-acts"><button class="btn btn-primary btn-sm" type="button" data-sl-restock>' + ico('plus') + 'Restocked</button>' +
+      (l.ordered ? '<button class="btn btn-secondary btn-sm" type="button" data-sl-unorder>Not ordered</button>' : '<button class="btn btn-secondary btn-sm" type="button" data-sl-order>' + ico('check') + 'Mark ordered</button>') +
+      (link ? '<a class="btn btn-secondary btn-sm shop-btn" href="' + esc(link) + '" target="_blank" rel="noopener">' + ico('cart') + 'Reorder</a>' : '') + '</div>' +
+    '<div class="sl-panel" hidden></div></div>';
+}
+function shopListHtml() {
+  var r = slLines(), lines = r.lines, groups = [], by = {};
+  lines.forEach(function (l) { var k = String(l.m.supplier || '').trim() || 'No supplier'; if (!by[k]) { by[k] = []; groups.push(k); } by[k].push(l); });
+  var html = '<p class="hint" style="margin-top:0">Everything running low, plus what your upcoming orders (still at Inquiry) will use that you don\'t have enough of. Suggested amounts get you back above the alert level' + (lines.some(function (l) { return l.packs; }) ? ', in whole packs' : '') + '.</p>';
+  if (!lines.length) html += '<div class="card card-pad sl-empty">' + ico('check') + ' Nothing to buy right now. Everything tracked is above its alert level and covers your upcoming orders.</div>';
+  html += groups.map(function (g) {
+    var s = supplierByName(g);
+    return '<section class="sl-group"><div class="sl-ghead"><b>' + esc(g) + '</b>' + (s && s.website ? shopBtn(s.website, 'Shop', true) : '') + '</div>' + by[g].map(slLineHtml).join('') + '</section>';
+  }).join('');
+  var un = Object.keys(r.unchosen);
+  if (un.length) html += '<div class="sl-unchosen"><div class="section-title">Waiting on a colour choice</div>' + un.map(function (id) {
+    var m = byId('Materials', id); return m ? '<div class="sub">' + esc(m.name) + ': ' + String((m.variantLabel || 'colour')).toLowerCase() + ' not chosen yet on ' + esc(Object.keys(r.unchosen[id]).join(', ')) + '</div>' : '';
+  }).join('') + '</div>';
+  return html;
+}
+function slFindLine(key) { return slLines().lines.find(function (l) { return l.key === key; }); }
+function slPutMaterial(rec) {
+  if (!rec || !rec.id) return;
+  var list = S.data.Materials, i = list.findIndex(function (x) { return x.id === rec.id; });
+  if (i >= 0) list[i] = rec; else list.push(rec);
+}
+function openShoppingList() {
+  openDrawer('Shopping list', '<div id="slBody">' + shopListHtml() + '</div>', '<span class="spacer"></span><button class="btn btn-secondary" type="button" data-close>Done</button>');
+  var body = $('#slBody');
+  var redraw = function () { body.innerHTML = shopListHtml(); };
+  body.addEventListener('click', function (e) {
+    var row = e.target.closest('[data-sl]'); if (!row || e.target.closest('a')) return;
+    var l = slFindLine(row.getAttribute('data-sl')); if (!l) { redraw(); return; }
+    var b;
+    if ((b = e.target.closest('[data-sl-restock]'))) {
+      var panel = $('.sl-panel', row);
+      if (!panel.hidden) { panel.hidden = true; panel.innerHTML = ''; return; }
+      restockPanel(panel, l.m, l.vid, l.ordered && l.ordered.qty ? num(l.ordered.qty) : l.units, function () { redraw(); render(); });
+      return;
+    }
+    if ((b = e.target.closest('[data-sl-order]'))) {
+      busy(b, 'Saving…');
+      call('markOrdered', l.m.id, l.vid, l.units).then(function (rec) { slPutMaterial(rec); redraw(); render(); toast('Marked as ordered: ' + slName(l.m, l.vid)); }).catch(function (err) { unbusy(b); fail(err); });
+      return;
+    }
+    if ((b = e.target.closest('[data-sl-unorder]'))) {
+      busy(b, 'Saving…');
+      call('clearOrdered', l.m.id, l.vid).then(function (rec) { slPutMaterial(rec); redraw(); render(); }).catch(function (err) { unbusy(b); fail(err); });
+    }
+  });
+}
+/** The Restocked panel (shopping list and material screen). onDone(result) after it is saved. */
+function restockPanel(box, m, vid, suggestUnits, onDone) {
+  var vs = variantsOf(m), pack = num(m.packSize), packPrice = num(m.packPrice);
+  var usePacks = pack > 0 && (!suggestUnits || Math.abs(suggestUnits / pack - Math.round(suggestUnits / pack)) < 1e-9);
+  var amtTouched = false;
+  box.hidden = false;
+  box.innerHTML = '<div class="rs-panel">' +
+    (vs.length && !vid ? '<div class="field"><label>Which ' + esc(String(m.variantLabel || 'colour').toLowerCase()) + '?</label><select class="input" data-rs="vid"><option value="">Choose…</option>' +
+      vs.map(function (v) { return '<option value="' + esc(v.id) + '">' + esc(v.name || '') + (slTracked(v.onHand) ? ' (' + slQty(v.onHand) + ' on hand)' : '') + '</option>'; }).join('') + '</select></div>' : '') +
+    '<div class="rs-row"><div class="field"><label>How many arrived?</label><input class="input" type="number" min="0" step="any" inputmode="decimal" data-rs="qty" value="' +
+      (suggestUnits ? (usePacks ? slQty(suggestUnits / pack) : slQty(suggestUnits)) : '') + '"></div>' +
+      (pack > 0 ? '<div class="seg rs-seg" role="group" aria-label="Counted in"><button type="button" data-rs-in="packs" class="' + (usePacks ? 'on' : '') + '">Packs of ' + slQty(pack) + '</button><button type="button" data-rs-in="items" class="' + (usePacks ? '' : 'on') + '">Items</button></div>' : '') + '</div>' +
+    '<div class="muted small" data-rs="sum"></div>' +
+    '<label class="check rs-exp"><input type="checkbox" data-rs="exp"> Also add to Expenses <span class="muted">(Materials, blanks &amp; packaging' + (m.supplier ? ' · ' + esc(m.supplier) : '') + ')</span></label>' +
+    '<div class="rs-row rs-expf" hidden><div class="field"><label>Amount paid</label><div class="money-in"><input class="input" type="number" min="0" step="0.01" inputmode="decimal" data-rs="amt"></div></div>' +
+      '<div class="field"><label>Date</label><input class="input" type="date" data-rs="date" value="' + todayStr() + '"></div></div>' +
+    '<div class="rs-btns"><button class="btn btn-secondary btn-sm" type="button" data-rs-cancel>Cancel</button><button class="btn btn-primary btn-sm" type="button" data-rs-save>' + ico('check') + 'Add to stock</button></div>' +
+    '<p class="hint" style="margin:6px 0 0">Saves straight away.</p></div>';
+  var q = function (k) { return $('[data-rs="' + k + '"]', box); };
+  var curVid = function () { return vid || (q('vid') ? q('vid').value : ''); };
+  var units = function () { var n = num(q('qty').value); return usePacks ? slQty(n * pack) : slQty(n); };
+  var calc = function () {
+    var u = units(), v = curVid(), on = vs.length ? (slVar(m, v) || {}).onHand : m.onHand;
+    q('sum').textContent = u > 0 ? (usePacks ? slQty(num(q('qty').value)) + ' × ' + slQty(pack) + ' = ' + u + slUnit(m) + '. ' : '') +
+      (vs.length && !v ? '' : 'New stock: ' + slQty((slTracked(on) ? num(on) : 0) + u) + slUnit(m) + '.') : '';
+    if (!amtTouched) q('amt').value = u > 0 ? round2(usePacks && packPrice ? num(q('qty').value) * packPrice : u * slCost(m, v)).toFixed(2) : '';
+  };
+  calc();
+  box.addEventListener('input', function (e) { if (e.target === q('amt')) { amtTouched = true; return; } calc(); });
+  box.addEventListener('change', function (e) { if (e.target === q('exp')) { $('.rs-expf', box).hidden = !e.target.checked; } if (e.target === q('vid')) calc(); });
+  box.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-rs-in]');
+    if (b) {
+      var was = usePacks, u = units(); usePacks = b.getAttribute('data-rs-in') === 'packs';
+      if (was !== usePacks && u) q('qty').value = usePacks ? slQty(u / pack) : u;
+      $$('[data-rs-in]', box).forEach(function (x) { x.classList.toggle('on', x === b); }); amtTouched = false; calc(); return;
+    }
+    if (e.target.closest('[data-rs-cancel]')) { box.hidden = true; box.innerHTML = ''; return; }
+    var sv = e.target.closest('[data-rs-save]'); if (!sv) return;
+    var v = curVid(), u = units();
+    if (vs.length && !v) { toast('Please choose which ' + String(m.variantLabel || 'colour').toLowerCase() + '.', true); return; }
+    if (!(u > 0)) { toast('Please enter how many arrived.', true); q('qty').focus(); return; }
+    var ex = q('exp').checked ? { amount: num(q('amt').value), date: q('date').value } : null;
+    if (ex && !(ex.amount > 0)) { toast('Please enter the amount paid (or untick Also add to Expenses).', true); q('amt').focus(); return; }
+    busy(sv, 'Saving…');
+    call('restockMaterial', m.id, v, u, { packs: usePacks ? slQty(num(q('qty').value)) : '', expense: ex }).then(function (r) {
+      slPutMaterial(r.material);
+      if (r.expense && Array.isArray(S.data.Expenses)) S.data.Expenses.push(r.expense);
+      toast('Added ' + u + slUnit(m) + ' to ' + slName(m, v) + (r.expense ? ' and ' + money(r.expense.amount) + ' to Expenses' : ''));
+      if (onDone) onDone(r);
+    }).catch(function (err) { unbusy(sv); fail(err); });
+  });
+}
+/* ---------- Count stock ---------- */
+function openStockCount() {
+  var rows = [], showAll = false, changed = {};
+  var build = function () {
+    rows = [];
+    S.data.Materials.filter(function (m) { return !m.deleted; }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); }).forEach(function (m) {
+      var vs = variantsOf(m);
+      if (vs.length) vs.forEach(function (v) { if (showAll || slTracked(v.onHand)) rows.push({ m: m, vid: v.id, on: v.onHand }); });
+      else if (showAll || slTracked(m.onHand)) rows.push({ m: m, vid: '', on: m.onHand });
+    });
+  };
+  var key = function (r) { return r.m.id + ':' + (r.vid || ''); };
+  var draw = function () {
+    build();
+    var q = ($('#scQ') && $('#scQ').value || '').toLowerCase();
+    var list = rows.filter(function (r) { return !q || slName(r.m, r.vid).toLowerCase().indexOf(q) >= 0 || String(r.m.supplier || '').toLowerCase().indexOf(q) >= 0; });
+    $('#scList').innerHTML = list.length ? list.map(function (r) {
+      var k = key(r), val = changed[k] !== undefined ? changed[k] : (slTracked(r.on) ? slQty(r.on) : '');
+      return '<div class="sc-row' + (changed[k] !== undefined ? ' sc-changed' : '') + '" data-sc="' + esc(k) + '"><div class="grow"><div class="title">' + esc(slName(r.m, r.vid)) + '</div><div class="sub">' +
+        esc(r.m.supplier || 'No supplier') + (slTracked(r.on) ? ' · was ' + slQty(r.on) + slUnit(r.m) : ' · not tracked yet') + '</div></div>' +
+        '<div class="sc-step"><button class="icon-btn" type="button" data-sc-d="-1" aria-label="One less">−</button><input class="input" type="number" min="0" step="any" inputmode="decimal" data-sc-in value="' + esc(val) + '" aria-label="Count for ' + esc(slName(r.m, r.vid)) + '">' +
+        '<button class="icon-btn" type="button" data-sc-d="1" aria-label="One more">+</button></div></div>';
+    }).join('') : '<p class="muted">' + (rows.length ? 'No materials match.' : 'No materials are tracked yet. Tick "Show materials not tracked yet" to start counting them.') + '</p>';
+    var n = Object.keys(changed).length, sb = $('#scSave'); if (sb) { sb.textContent = n ? 'Save ' + n + (n === 1 ? ' count' : ' counts') : 'Save counts'; sb.disabled = !n; }
+  };
+  openDrawer('Count stock', '<p class="hint" style="margin-top:0">Count what\'s on the shelf and change the numbers that are different. Only the lines you change are saved.</p>' +
+    '<div class="toolbar sc-tools"><input class="input" id="scQ" type="search" placeholder="Search materials…" autocomplete="off"><label class="check"><input type="checkbox" id="scAll"> Show materials not tracked yet</label></div>' +
+    '<div id="scList" class="sc-list"></div>',
+    '<span class="spacer"></span><button class="btn btn-secondary" type="button" data-close>Cancel</button><button class="btn btn-primary" type="button" id="scSave" disabled>Save counts</button>');
+  draw();
+  var body = $('#drawerBody');
+  var setVal = function (row, v) {
+    var k = row.getAttribute('data-sc'), r = rows.find(function (x) { return key(x) === k; }); if (!r) return;
+    var orig = slTracked(r.on) ? slQty(r.on) : '';
+    if (v === '' || String(slQty(v)) === String(orig)) delete changed[k]; else changed[k] = Math.max(0, slQty(v));
+    row.classList.toggle('sc-changed', changed[k] !== undefined);
+    var n = Object.keys(changed).length, sb = $('#scSave'); sb.textContent = n ? 'Save ' + n + (n === 1 ? ' count' : ' counts') : 'Save counts'; sb.disabled = !n;
+  };
+  body.addEventListener('input', function (e) {
+    if (e.target.id === 'scQ') { draw(); return; }
+    if (e.target.hasAttribute('data-sc-in')) setVal(e.target.closest('[data-sc]'), e.target.value === '' ? '' : num(e.target.value));
+  });
+  body.addEventListener('change', function (e) { if (e.target.id === 'scAll') { showAll = e.target.checked; draw(); } });
+  body.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-sc-d]'); if (!b) return;
+    var row = b.closest('[data-sc]'), inp = $('[data-sc-in]', row), v = Math.max(0, slQty(num(inp.value) + num(b.getAttribute('data-sc-d'))));
+    inp.value = v; setVal(row, v);
+  });
+  $('#scSave').addEventListener('click', function () {
+    var btn = this, list = Object.keys(changed).map(function (k) { var i = k.indexOf(':'); return { id: k.slice(0, i), vid: k.slice(i + 1), count: changed[k] }; });
+    if (!list.length) return;
+    busy(btn, 'Saving…');
+    call('setStockCounts', list).then(function (recs) { (recs || []).forEach(slPutMaterial); closeDrawer(); render(); toast('Saved ' + list.length + (list.length === 1 ? ' count' : ' counts')); })
+      .catch(function (err) { unbusy(btn); fail(err); });
+  });
+}
+/* ---------- Material screen: pack cost, Restocked, ordered, stock history ---------- */
+var SL_KINDS = { order: 'Order', trash: 'Order moved to Trash', restore: 'Order restored from Trash', restock: 'Restocked', count: 'Stock count', edit: 'Changed by hand', start: 'Starting stock', other: 'Stock change' };
+function slHistText(m, e) {
+  var what = SL_KINDS[e.k] || 'Stock change';
+  if (e.k === 'order') what = (e.ref || 'An order') + (num(e.d) < 0 ? ' used it' : ' gave it back');
+  else if ((e.k === 'trash' || e.k === 'restore') && e.ref) what = e.ref + (e.k === 'trash' ? ' moved to Trash' : ' restored from Trash');
+  else if (e.k === 'restock' && e.ref) what += ' · ' + e.ref;
+  var v = e.v ? slVar(m, e.v) : null, d = e.d === '' || e.d === undefined ? '' : (num(e.d) > 0 ? '+' : num(e.d) < 0 ? '−' : '') + slQty(Math.abs(num(e.d)));
+  return { when: niceDate(String(e.at || '').slice(0, 10)), what: (v ? (v.name || '') + ': ' : '') + what, d: d, n: e.n === '' || e.n === undefined ? '' : slQty(e.n) };
+}
+function slHistoryHtml(m, all) {
+  var log = slLog(m).slice().reverse(), shown = all ? log : log.slice(0, 10);
+  if (!log.length) return '<p class="muted small" style="margin:0">No stock changes yet. Orders, restocks, counts and changes made by hand will show here.</p>';
+  return '<div class="sl-hist">' + shown.map(function (e) {
+    var t = slHistText(m, e);
+    return '<div class="sl-hrow"><span class="muted small sl-hwhen">' + esc(t.when) + '</span><span class="grow">' + esc(t.what) + '</span><span class="sl-hd' + (t.d.charAt(0) === '+' ? ' up' : t.d ? ' down' : '') + '">' + esc(t.d) + '</span>' +
+      (t.n !== '' ? '<span class="muted small">→ ' + t.n + '</span>' : '') + '</div>';
+  }).join('') + '</div>' + (log.length > shown.length ? '<button class="link-btn" type="button" data-sl-hall>Show all ' + log.length + '</button>' : '');
+}
+function matEditorStock(m) {
+  var body = $('#drawerBody');
+  // pack size / price work out the cost per unit
+  var cost = $('#mCost'), ps = $('#mPackSize'), pp = $('#mPackPrice'), hint = $('#mPackHint');
+  var packCalc = function () {
+    var a = ps.value === '' ? '' : num(ps.value), b = pp.value === '' ? '' : num(pp.value);
+    if (a !== '' && b !== '' && a > 0) { cost.value = Math.round(b / a * 10000) / 10000; cost.disabled = true; hint.textContent = 'Cost per unit: ' + money(b / a) + ' (' + money(b) + ' ÷ ' + slQty(a) + '), worked out from the pack.'; }
+    else { cost.disabled = false; hint.textContent = 'Bought in packs? Fill in both and the cost per unit is worked out for you.'; }
+  };
+  ps.addEventListener('input', packCalc); pp.addEventListener('input', packCalc); packCalc();
+  if (!m) return;
+  var row = $('#mRestockRow');
+  var snap = function () { return $$('input,select,textarea', body).filter(function (x) { return !x.closest('.rs-panel') && !x.closest('#mRestockRow'); }).map(function (x) { return x.type === 'checkbox' ? x.checked : x.value; }).join('\u0001'); };
+  var start = snap();
+  setTimeout(function () { start = snap(); }, 0);   // after the colours section (added right after this screen opens) is in place
+  var drawRow = function () {
+    var cur = byId('Materials', m.id) || m, ord = slOrdered(cur), keys = Object.keys(ord);
+    row.innerHTML = '<div class="rs-head"><button class="btn btn-secondary btn-sm" type="button" data-m-restock>' + ico('plus') + 'Restocked…</button>' +
+      '<span class="muted small">Stock arrived? Adds it straight away' + (variantsOf(cur).length ? ' for the colour/type you choose' : '') + '.</span></div>' +
+      (keys.length ? '<div class="rs-ord">' + keys.map(function (k) { var o = ord[k]; return '<span class="chip amber">Ordered ' + esc(niceDate(String(o.at).slice(0, 10))) + (o.qty ? ' · ' + o.qty + slUnit(cur) : '') + (k ? ' · ' + esc((slVar(cur, k) || {}).name || '') : '') + '</span> <button class="link-btn" type="button" data-m-unorder="' + esc(k) + '">Not ordered</button>'; }).join(' ') + '</div>' : '') +
+      '<div class="sl-panel" hidden></div>';
+  };
+  drawRow();
+  row.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-m-unorder]');
+    if (b) { busy(b, '…'); call('clearOrdered', m.id, b.getAttribute('data-m-unorder')).then(function (rec) { slPutMaterial(rec); drawRow(); render(); }).catch(function (err) { unbusy(b); fail(err); }); return; }
+    if (!e.target.closest('[data-m-restock]')) return;
+    if (snap() !== start) { toast('Please save your other changes first, then tap Restocked.', true); return; }
+    var panel = $('.sl-panel', row);
+    if (!panel.hidden) { panel.hidden = true; panel.innerHTML = ''; return; }
+    restockPanel(panel, byId('Materials', m.id) || m, '', 0, function () { closeDrawer(); render(); openMaterial(m.id); });
+  });
+  var sec = document.createElement('div');
+  sec.id = 'slHistSec';
+  sec.innerHTML = '<div class="section-title">' + ico('clock') + 'Stock history</div><div id="slHist">' + slHistoryHtml(byId('Materials', m.id) || m) + '</div>';
+  body.appendChild(sec);
+  sec.addEventListener('click', function (e) { if (e.target.closest('[data-sl-hall]')) $('#slHist').innerHTML = slHistoryHtml(byId('Materials', m.id) || m, true); });
+}
+/* Dashboard "Running low" card: a way into the shopping list. Tools and Forms (loaded after this file) redefine the card,
+   so it is wrapped once everything has loaded. */
+function slWrapLowCard() {
+  if (typeof lowStockCard !== 'function' || lowStockCard._sl) return;
+  var inner = lowStockCard;
+  lowStockCard = function () {
+    var h = inner();
+    if (!S.data || !S.data.Materials.some(function (m) { return !m.deleted && tracked(m); })) return h;
+    var n = shopCount();
+    return h.replace(/<\/div>$/, '<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" type="button" data-act="shop-list">' + ico('cart') + 'Open shopping list' + (n ? ' (' + n + ')' : '') + '</button></div></div>');
+  };
+  lowStockCard._sl = true;
+}
+if (document.readyState === 'complete') slWrapLowCard(); else window.addEventListener('load', function () { slWrapLowCard(); try { if (S.data && S.view === 'dashboard') render(); } catch (e) {} });
 </script>
 
   <script>
