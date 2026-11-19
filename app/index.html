@@ -736,6 +736,14 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .cust-opt { display: flex; flex-direction: column; gap: 1px; padding: 9px 10px; border-radius: 8px; cursor: pointer; }
 .cust-opt.on, .cust-opt:hover { background: var(--sage-100); }
 .cust-opt.new { font-weight: 600; color: var(--forest); border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; }
+.add-pick { flex: 1; min-width: 200px; margin: 0; }   /* Order item search (Nov 2026) */
+#addSearch { scroll-margin-top: 104px; }   /* stays below the drawer header when it scrolls up */
+.add-list { max-height: 340px; }
+.add-head { padding: 6px 10px 4px; }
+.add-row { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.add-row b { font-weight: 600; white-space: nowrap; }
+.cust-opt.add-custom { border-bottom: 0; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; }
+@media (max-width: 640px) { .add-bar { flex-wrap: wrap; } .add-pick { min-width: 100%; } .add-list .cust-opt { padding: 12px 10px; min-height: 48px; justify-content: center; } }
 .cust-more { padding: 8px 10px; }
 
 /* Phase 2 Step 2A-4: Trash */
@@ -2453,11 +2461,10 @@ function orderForm() {
 
     '<div class="section-title">Items</div>' +
     '<div class="items" id="oItems"></div>' +
-    '<div class="toolbar" style="margin:12px 0 0">' +
-      '<select class="input" id="addProduct" style="flex:1;min-width:180px"><option value="">+ Add from catalog…</option>' +
-      S.data.Products.filter(function (p) { return p.active !== false; }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); })
-        .map(function (p) { return '<option value="' + p.id + '">' + esc(p.name) + ' — ' + (prodOpts(p).length ? 'from ' + money(fromPrice(p)) : money(p.price)) + '</option>'; }).join('') +
-      '</select><button class="btn btn-secondary" type="button" id="addCustom">' + ico('plus') + 'Custom item</button></div>' +
+    '<div class="toolbar add-bar" style="margin:12px 0 0">' +   // Order item search step (Nov 2026): type to find a product or option
+      '<div class="cust-pick add-pick"><input class="input" id="addSearch" type="search" autocomplete="off" enterkeyhint="done" placeholder="+ Add an item: type to search…" aria-label="Add an item from your catalog" role="combobox" aria-expanded="false" aria-controls="addList">' +
+      '<div class="cust-list add-list" id="addList" role="listbox" hidden></div></div>' +
+      '<button class="btn btn-secondary" type="button" id="addCustom">' + ico('plus') + 'Custom item</button></div>' +
 
     '<div class="section-title">Pricing</div><div class="summary" id="oSummary"></div>' +
     '<div class="section-title">Order notes</div>' +
@@ -2542,14 +2549,7 @@ function bindOrderForm() {
     if (isNew) $('#ncName').focus();
   });
   bindCustomerPicker();
-  $('#addProduct').addEventListener('change', function (e) {
-    var p = byId('Products', e.target.value);
-    var o1 = p ? prodOpts(p)[0] : null;   // Product options step: starts on the first option (change it on the line)
-    if (p) { D.items.push(o1 ? { productId: p.id, name: optLineName(p, o1), option: o1.id, qty: 1, unitPrice: num(o1.price), basePrice: num(o1.price), unitCost: productCost(p, o1.id), addons: [] }
-      : { productId: p.id, name: p.name, qty: 1, unitPrice: num(p.price), basePrice: num(p.price), unitCost: productCost(p), addons: [] }); bulkReprice(D); }
-    e.target.value = '';
-    renderItems();
-  });
+  bindItemSearch();   // Order item search step (Nov 2026)
   $('#addCustom').addEventListener('click', function () {
     D.items.push({ productId: '', name: '', qty: 1, unitPrice: 0, unitCost: 0, addons: [] });
     renderItems();
@@ -3432,6 +3432,90 @@ document.addEventListener('click', function (e) {
   if (r) { var a = r.getAttribute('data-trash-restore').split('|'); restoreFromTrash(a[0], a[1]); }
   if (f) { var b = f.getAttribute('data-trash-forever').split('|'); deleteForeverFromTrash(b[0], b[1]); }
 });
+
+/* ---------------- Order item search (Nov 2026) ----------------
+   Replaces the long "+ Add from catalog" dropdown. Type any part of a name, category, description or option
+   ("slate 4" → Slate Coasters – Set of 4). Empty box = most-ordered first. A product (and option) already on
+   the order gets +1 instead of a second line, with "Separate line" and Undo in the message. */
+function orderLine(p, o) {
+  return o ? { productId: p.id, name: optLineName(p, o), option: o.id, qty: 1, unitPrice: num(o.price), basePrice: num(o.price), unitCost: productCost(p, o.id), addons: [] }
+    : { productId: p.id, name: p.name, qty: 1, unitPrice: num(p.price), basePrice: num(p.price), unitCost: productCost(p), addons: [] };
+}
+function itemSearchRows(q) {
+  var used = {};
+  (S.data.Orders || []).forEach(function (o) { if (o.deleted) return; (o.items || []).forEach(function (it) { if (it.productId) used[it.productId] = (used[it.productId] || 0) + 1; }); });
+  var rows = [];
+  S.data.Products.filter(function (p) { return p.active !== false && !p.deleted; }).forEach(function (p) {
+    var base = [p.name, p.category, p.description].join(' '), os = prodOpts(p);
+    if (os.length) os.forEach(function (o) { rows.push({ p: p, o: o, label: optLineName(p, o), price: num(o.price), hay: (base + ' ' + o.name).toLowerCase(), n: used[p.id] || 0 }); });
+    else rows.push({ p: p, o: null, label: p.name, price: num(p.price), hay: base.toLowerCase(), n: used[p.id] || 0 });
+  });
+  var words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean), ql = String(q || '').trim().toLowerCase();
+  if (words.length) rows = rows.filter(function (r) { return words.every(function (w) { return r.hay.indexOf(w) >= 0; }); });
+  return rows.sort(function (a, b) {
+    var as = ql && a.label.toLowerCase().indexOf(ql) === 0 ? 0 : 1, bs = ql && b.label.toLowerCase().indexOf(ql) === 0 ? 0 : 1;
+    return as - bs || b.n - a.n || a.label.localeCompare(b.label);
+  });
+}
+function addOrderItem(p, o, separate) {
+  var key = o ? o.id : '', i = separate ? -1 : D.items.findIndex(function (it) { return it.productId === p.id && (it.option || '') === key; });
+  if (i < 0) { D.items.push(orderLine(p, o)); bulkReprice(D); renderItems(); itemAdded(); return; }
+  var before = num(D.items[i].qty);
+  D.items[i].qty = before + 1; bulkReprice(D); renderItems(); itemAdded();
+  var label = o ? optLineName(p, o) : p.name;
+  toastUndo('Added 1 more: now ' + (before + 1) + ' × ' + label,
+    function () { if (D.items[i]) { D.items[i].qty = before; bulkReprice(D); renderItems(); itemAdded(); } },
+    { extra: { label: 'Separate line', fn: function () { if (D.items[i]) D.items[i].qty = before; addOrderItem(p, o, true); } } });
+}
+function itemAdded() { var s = $('#addSearch'); if (s) s.dispatchEvent(new Event('change', { bubbles: true })); }   // shipping box etc. refresh
+function bindItemSearch() {
+  var inp = $('#addSearch'), list = $('#addList'), active = 0, items = [];
+  if (!inp || !list) return;
+  var draw = function () {
+    var q = inp.value.trim(), rows = itemSearchRows(q);
+    items = rows.slice(0, 40).map(function (r) {
+      var on = D.items.filter(function (it) { return it.productId === r.p.id && (it.option || '') === (r.o ? r.o.id : ''); }).reduce(function (s, it) { return s + num(it.qty); }, 0);
+      return { r: r, on: on };
+    });
+    if (q) items.push({ custom: q });
+    if (active >= items.length) active = Math.max(items.length - 1, 0);
+    list.innerHTML = (!q && rows.length ? '<div class="muted small add-head">' + (rows.some(function (r) { return r.n; }) ? 'Most ordered first. Type to search.' : 'Type to search your catalog.') + '</div>' : '') +
+      items.map(function (it, i) {
+        if (it.custom) return '<div class="cust-opt new add-custom' + (i === active ? ' on' : '') + '" role="option" data-ai="' + i + '"><span>+ Add "' + esc(it.custom) + '" as a custom item</span></div>';
+        var r = it.r;
+        return '<div class="cust-opt add-opt' + (i === active ? ' on' : '') + '" role="option" data-ai="' + i + '">' +
+          '<span class="add-row"><span>' + esc(r.label) + '</span><b>' + money(r.price) + '</b></span>' +
+          '<span class="muted small">' + esc([r.p.category, it.on ? 'on this order ×' + it.on + ' · tap adds 1 more' : ''].filter(Boolean).join(' · ')) + '</span></div>';
+      }).join('') +
+      (rows.length > 40 ? '<div class="muted small cust-more">Keep typing to narrow down ' + rows.length + ' items…</div>' : '') +
+      (q && !rows.length ? '<div class="muted small cust-more">Nothing in your catalog matches "' + esc(q) + '"</div>' : '');
+    list.hidden = false; inp.setAttribute('aria-expanded', 'true');
+  };
+  var close = function () { list.hidden = true; inp.setAttribute('aria-expanded', 'false'); };
+  var pick = function (i) {
+    var it = items[i]; if (!it) return;
+    inp.value = ''; close();
+    if (it.custom) {
+      D.items.push({ productId: '', name: it.custom, qty: 1, unitPrice: 0, unitCost: 0, addons: [] }); renderItems(); itemAdded();
+      var pr = $$('#oItems [data-f="unitPrice"]'); if (pr.length) pr[pr.length - 1].focus();
+      return;
+    }
+    addOrderItem(it.r.p, it.r.o);
+  };
+  inp.addEventListener('focus', function () { active = 0; draw(); setTimeout(function () { try { inp.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) {} }, 250); });
+  inp.addEventListener('input', function () { active = 0; draw(); });
+  inp.addEventListener('keydown', function (e) {
+    if (list.hidden && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { draw(); return; }
+    if (e.key === 'ArrowDown') { e.preventDefault(); active = Math.min(active + 1, items.length - 1); draw(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); active = Math.max(active - 1, 0); draw(); }
+    else if (e.key === 'Enter') { e.preventDefault(); if (!list.hidden && items[active] && inp.value.trim()) pick(active); }
+    else if (e.key === 'Escape') { if (!list.hidden) { e.stopPropagation(); close(); } else if (inp.value) { e.stopPropagation(); inp.value = ''; } }   // never closes the order by accident
+  });
+  inp.addEventListener('click', function () { if (list.hidden) { active = 0; draw(); } });   // already focused (e.g. after adding with the keyboard): reopen
+  list.addEventListener('mousedown', function (e) { e.preventDefault(); });          // keep focus while choosing
+  list.addEventListener('click', function (e) { var o = e.target.closest('[data-ai]'); if (o) pick(+o.getAttribute('data-ai')); });
+  inp.addEventListener('blur', function () { setTimeout(close, 150); });
+}
 
 /* ---------------- Customer picker on the order form ----------------
    Type to find a customer (name, phone or email); "+ Add a new customer" is always first.
@@ -4715,7 +4799,7 @@ function r2OrderPhone() {
   // new order: Customer, Items, Due date and Order notes first
   var tStatus = r2TitleOf(body, 'Status'), tItems = r2TitleOf(body, 'Items'), tPricing = r2TitleOf(body, 'Pricing'), tNotes = r2TitleOf(body, 'Order notes');
   if (isNew && tStatus && tItems) {
-    var bar = $('#addProduct') && $('#addProduct').closest('.toolbar'), due = $('#oDue') && $('#oDue').closest('.field'), nf = $('#oNotes').closest('.field');
+    var bar = $('#addSearch') && $('#addSearch').closest('.toolbar'), due = $('#oDue') && $('#oDue').closest('.field'), nf = $('#oNotes').closest('.field');
     var statusNodes = []; for (var n = tStatus; n && n !== tItems; n = n.nextElementSibling) statusNodes.push(n);
     if (bar && due && tNotes && nf) { bar.insertAdjacentElement('afterend', due); due.insertAdjacentElement('afterend', tNotes); tNotes.insertAdjacentElement('afterend', nf); due.classList.add('r2-due-field'); }
     var stDone = mem.status;
@@ -7496,7 +7580,7 @@ openOrder = function (id, stage) {
   };
   renderShip();
   $('#oDelivery').addEventListener('change', renderShip);
-  $('#drawerBody').addEventListener('change', function (e) { if (e.target.id === 'addProduct') setTimeout(renderShip, 0); });
+  $('#drawerBody').addEventListener('change', function (e) { if (e.target.id === 'addProduct' || e.target.id === 'addSearch') setTimeout(renderShip, 0); });
   $('#drawerBody').addEventListener('input', function (e) { if (e.target.getAttribute && e.target.getAttribute('data-f') === 'qty') renderShip(); });
 };
 function copyText(text, msg) {
