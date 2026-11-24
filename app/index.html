@@ -7221,6 +7221,20 @@ function repSourceOf(o) { var s = String(o.source || ''); return s === 'Website'
 function repExpenses(r) { return (S.data.Expenses || []).filter(function (e) { var d = String(e.date || '').slice(0, 10); return !e.deleted && d >= r.from && d <= r.to; }); }
 function repCatLabel(k) { var c = (S.expenseCategories || []).filter(function (x) { return x.key === k; })[0]; return c ? c.label : (k || 'Other'); }
 function repSum(list) { return round2(list.reduce(function (t, o) { return t + num(o.total); }, 0)); }
+/* v56 (Nov 2026): a deposit counts as money received on the day it was paid (counted by date paid).
+   The rest of the order counts on its date paid, as before. Orders without a deposit are counted exactly as before. */
+function repDep(o) {
+  var d = o && o.deposit; if (!d || Array.isArray(d) || typeof d !== 'object' || !d.received) return null;
+  var amt = d.kind === 'pct' ? Math.round(num(o.total) * num(d.value)) / 100 : round2(d.value);
+  return amt > 0 ? { amount: amt, day: String(d.received).slice(0, 10), method: String(d.method || '') } : null;
+}
+function repRecv(o, r) {
+  var d = repDep(o), t = 0;
+  if (d && d.day >= r.from && d.day <= r.to) t += d.amount;
+  if (repInRange(o, 'paid', r)) t += num(o.total) - (d ? d.amount : 0);
+  return round2(t);
+}
+function repRecvSum(list, r) { return round2(list.reduce(function (t, o) { return t + repRecv(o, r); }, 0)); }
 
 /* ---------- the model: every figure on the page and in the download ---------- */
 function repModel(p) {
@@ -7228,7 +7242,8 @@ function repModel(p) {
   var basis = p.basis, r = repRange(p), all = repOrders();
   var inP = all.filter(function (o) { return repInRange(o, basis, r); })
     .sort(function (a, b) { return String(repDay(b, basis)).localeCompare(String(repDay(a, basis))) || String(b.number).localeCompare(String(a.number), undefined, { numeric: true }); });
-  var sales = repSum(inP), exp = repExpenses(r), expTotal = round2(exp.reduce(function (t, e) { return t + num(e.amount); }, 0));
+  var depIn = basis === 'paid' ? all.filter(function (o) { var d = repDep(o); return d && d.day >= r.from && d.day <= r.to; }) : [];   // v56
+  var sales = basis === 'paid' ? repRecvSum(all, r) : repSum(inP), exp = repExpenses(r), expTotal = round2(exp.reduce(function (t, e) { return t + num(e.amount); }, 0));
   var known = inP.filter(repCostKnown), mat = { orders: known.length, of: inP.length, sales: repSum(known), cost: 0, profit: 0 };
   known.forEach(function (o) { var c = calcOrder(o); mat.cost += c.cost; mat.profit += c.profit; });
   mat.cost = round2(mat.cost); mat.profit = round2(mat.profit);
@@ -7239,7 +7254,8 @@ function repModel(p) {
   var months = [];
   for (var i = 1; i <= 12; i++) {
     var mr = repRange({ per: 'month', y: p.y, m: i }), lr = repRange({ per: 'month', y: p.y - 1, m: i });
-    months.push({ m: i, sales: repSum(all.filter(function (o) { return repInRange(o, basis, mr); })), last: repSum(all.filter(function (o) { return repInRange(o, basis, lr); })) });
+    months.push(basis === 'paid' ? { m: i, sales: repRecvSum(all, mr), last: repRecvSum(all, lr) } :   // v56: deposits on the day they were paid
+      { m: i, sales: repSum(all.filter(function (o) { return repInRange(o, basis, mr); })), last: repSum(all.filter(function (o) { return repInRange(o, basis, lr); })) });
   }
   // expenses by category
   var cats = {};
@@ -7289,7 +7305,8 @@ function repModel(p) {
     costUnknown: inP.length - known.length, itemsUnlinked: unlinked, items: itemCount
   };
   return { p: { per: p.per, y: p.y, q: p.q, m: p.m, basis: basis }, range: r, label: repPeriodLabel(p), basis: repBasis(basis),
-    orders: inP, sales: sales, count: inP.length, avg: inP.length ? round2(sales / inP.length) : 0,
+    orders: inP, sales: sales, count: inP.length, avg: inP.length ? round2(repSum(inP) / inP.length) : 0,
+    deposits: { list: depIn, total: round2(depIn.reduce(function (t, o) { return t + repDep(o).amount; }, 0)), net: round2(sales - repSum(inP)) },   // v56
     unpaidIn: { count: unpaidIn.length, total: repSum(unpaidIn), list: unpaidIn },
     expenses: exp, expTotal: expTotal, net: round2(sales - expTotal), mat: mat,
     unknown: { list: unknown, total: repSum(unknown), here: unknownHere, hereTotal: repSum(unknownHere) },
@@ -7332,12 +7349,12 @@ function renderReports() {
     return '<div class="card kpi rep-kpi"' + repTap(key, aria) + '><div class="k-label">' + ico(icn) + esc(label) + '</div><div class="k-val">' + val + '</div><div class="k-sub">' + sub + '</div></div>';
   };
   var kpis = '<div class="kpis">' +
-    kb('sales', 'dollar', 'Sales', money(M.sales), M.count + (M.count === 1 ? ' order' : ' orders') + (M.count ? ' · average ' + money(M.avg) : '') + (M.unpaidIn.count ? ' · ' + money(M.unpaidIn.total) + ' still unpaid' : ''), 'Sales: show these orders') +
+    kb('sales', 'dollar', 'Sales', money(M.sales), M.count + (M.count === 1 ? ' order' : ' orders') + (M.count ? ' · average ' + money(M.avg) : '') + (M.unpaidIn.count ? ' · ' + money(M.unpaidIn.total) + ' still unpaid' : '') + (M.deposits.list.length ? ' · includes ' + money(M.deposits.total) + ' in deposits' : ''), 'Sales: show these orders') +
     '<div class="card kpi"><div class="k-label">' + ico('receipt') + 'Expenses</div><div class="k-val">' + money(M.expTotal) + '</div><div class="k-sub">' + M.expenses.length + (M.expenses.length === 1 ? ' expense' : ' expenses') + ' dated in this period</div></div>' +
     '<div class="card kpi"><div class="k-label">' + ico('dollar') + 'Sales minus expenses</div><div class="k-val">' + money(M.net) + '</div><div class="k-sub">' + money(M.sales) + ' sales − ' + money(M.expTotal) + ' expenses</div></div>' +
     kb('mat', 'box', 'Profit after materials', M.mat.orders ? money(M.mat.profit) : '—', M.mat.orders ? 'Based on ' + M.mat.orders + ' of ' + M.count + ' orders (' + money(M.mat.sales) + ' of sales)' : 'No orders with recorded material costs', 'Profit after materials: show the orders it is based on') + '</div>';
   var how = '<details class="card card-pad rep-card" id="repHow"' + ((REP.howClosed === undefined ? r2Phone() : REP.howClosed) ? '' : ' open') + '><summary><b>How these numbers are worked out</b></summary><dl class="rep-how">' +
-    '<dt>Sales</dt><dd>The order totals (items and personalization, plus shipping, minus discounts) of the orders whose ' + esc(b.field) + ' falls in ' + esc(M.label) + '.' + (b.k === 'paid' ? ' Unpaid orders are never sales here; they are under Waiting on payment.' : '') + '</dd>' +
+    '<dt>Sales</dt><dd>The order totals (items and personalization, plus shipping, minus discounts) of the orders whose ' + esc(b.field) + ' falls in ' + esc(M.label) + '.' + (b.k === 'paid' ? ' Unpaid orders are never sales here; they are under Waiting on payment. A deposit counts on the day it was received, and the rest of that order on its date paid.' : '') + '</dd>' +
     '<dt>Sales minus expenses</dt><dd>Sales minus every expense dated in ' + esc(M.label) + ' (from the Expenses page). Materials you buy are already in your expenses, so they are not taken off twice. This is what the business kept.</dd>' +
     '<dt>Profit after materials</dt><dd>For each order where every item has a material cost recorded: the items and personalization, minus discounts, minus those material costs (shipping left out). Orders without recorded material costs are left out completely, not counted as zero. It is an estimate per order and does not include your other expenses, so it is not the same as Sales minus expenses.</dd>' +
     '<dt>Unknown dates</dt><dd>Orders paid or finished before dates were recorded have no date, and the app never makes one up. You can type in a real date under Dates to check below, or in the order itself.</dd></dl></details>';
@@ -7459,7 +7476,7 @@ function repSheets(M) {
   var orderRow = function (o) { return [o.number, o.customerName || '', repLocalDay(o.created), String(o.datePaid || '') || (repIsPaid(o) ? 'unknown' : 'not paid'), o.stage === DONE ? (String(o.dateCompleted || '') || 'unknown') : 'not finished', o.stage, repSourceOf(o), round2(num(o.subtotal) || calcOrder(o).subtotal), round2(num(o.shipping)), round2(num(o.discount)), round2(num(o.total)), repCostKnown(o) ? round2(calcOrder(o).cost) : 'not recorded', repIsPaid(o) ? 'Yes' : 'No']; };
   var orderHead = ['Order', 'Customer', 'Order date', 'Date paid', 'Date completed', 'Stage', 'Source', 'Items', 'Shipping', 'Discount', 'Total', 'Material cost', 'Paid'];
   var sum = head('Summary').concat([['Figure', 'Amount', 'Details'],
-    ['Sales', M.sales, M.count + ' orders, average ' + money(M.avg) + (M.unpaidIn.count ? ', ' + money(M.unpaidIn.total) + ' still unpaid' : '')],
+    ['Sales', M.sales, M.count + ' orders, average ' + money(M.avg) + (M.unpaidIn.count ? ', ' + money(M.unpaidIn.total) + ' still unpaid' : '') + (M.deposits.list.length ? ', includes ' + money(M.deposits.total) + ' in deposits received in this period' : '')],
     ['Expenses', M.expTotal, M.expenses.length + ' expenses dated in this period'],
     ['Sales minus expenses', M.net, 'Sales minus every expense dated in this period'],
     ['Profit after materials', M.mat.orders ? M.mat.profit : 'not available', 'Based on ' + M.mat.orders + ' of ' + M.count + ' orders with recorded material costs (' + money(M.mat.sales) + ' of sales); material costs ' + money(M.mat.cost)],
@@ -8240,8 +8257,13 @@ openOrder = function (id, stage) {
     var connected = S.stripe && S.stripe.connected;
     var h = '';
     if (connected && o) {
-      var stale = o.paymentLinkId && Math.round(num(o.total) * 100) !== num(o.paymentLinkAmount);
-      h += '<div class="stripe-row"><button class="btn btn-secondary btn-sm" type="button" id="stMake">' + ico('link') + (o.paymentLinkId ? (stale ? 'Update Stripe link (total changed)' : 'Stripe link ready') : 'Create Stripe payment link') + '</button>' +
+      // v56: deposits. A link is either for the deposit or for what's left to pay (the total, less a deposit received).
+      var dp = typeof depInfo === 'function' ? depInfo(o) : null, depLink = !!(dp && dp.linkId && dp.linkId === String(o.paymentLinkId || ''));
+      var left = dp && dp.received ? round2(num(o.total) - dp.amount) : num(o.total);
+      var stale = o.paymentLinkId && Math.round((depLink ? dp.amount : left) * 100) !== num(o.paymentLinkAmount);
+      var depBtn = dp && !dp.received && !o.paid ? '<button class="btn btn-secondary btn-sm" type="button" id="stDep">' + ico('link') + (depLink && !stale ? 'Deposit link ready (' + money(dp.amount) + ')' : 'Deposit link (' + money(dp.amount) + ')') + '</button>' : '';
+      var mainLabel = o.paymentLinkId && !depLink ? (stale ? 'Update Stripe link (total changed)' : 'Stripe link ready') : dp && dp.received ? 'Stripe link for the balance (' + money(left) + ')' : dp ? 'Stripe link for the full total' : 'Create Stripe payment link';
+      h += '<div class="stripe-row">' + depBtn + '<button class="btn btn-secondary btn-sm" type="button" id="stMake">' + ico('link') + mainLabel + '</button>' +
         (o.paymentLinkId && !o.paid ? '<button class="link-btn" type="button" id="stCheck">' + ico('refresh') + 'Check if paid</button>' : '') +
         (o.paymentLink ? '<button class="link-btn" type="button" id="stCopy">' + ico('link') + 'Copy link</button>' : '') + '</div>';
     } else if (connected) {
@@ -8250,16 +8272,18 @@ openOrder = function (id, stage) {
       h += '<p class="hint" style="margin:6px 0 0">Connect Stripe in <b>Invoice settings</b> to make payment links automatically.</p>';
     }
     wrap.innerHTML = h;
-    var mk = $('#stMake');
-    if (mk) mk.addEventListener('click', function () {
-      busy(mk, 'Saving order…');
+    var mkLink = function (btn, which) {
+      busy(btn, 'Saving order…');
       saveOrder(function (saved) {
-        call('createPaymentLink', saved.id).then(function (r) {
+        call('createPaymentLink', saved.id, which).then(function (r) {
           var i = S.data.Orders.findIndex(function (x) { return x.id === saved.id; }); if (i >= 0) S.data.Orders[i] = r.order;
-          openOrder(saved.id); copyText(r.url, 'Stripe link created and copied');
+          openOrder(saved.id); copyText(r.url, which === 'deposit' ? 'Deposit link created and copied' : 'Stripe link created and copied');
         }).catch(function (e) { openOrder(saved.id); fail(e); });
       });
-    });
+    };
+    var mk = $('#stMake'), dk = $('#stDep');
+    if (mk) mk.addEventListener('click', function () { mkLink(mk, ''); });
+    if (dk) dk.addEventListener('click', function () { mkLink(dk, 'deposit'); });
     var ck = $('#stCheck');
     if (ck) ck.addEventListener('click', function () {
       busy(ck, 'Checking…');
@@ -8999,7 +9023,710 @@ openInvoiceSettings = function (backToOrder) {
     call('saveSettings', next).then(function (saved) { S.settings = saved; unbusy(btn); toast('Order form settings saved'); }).catch(function (e) { unbusy(btn); fail(e); });
   });
 };
+/* ======================================================================================================
+   v56 (Nov 2026): time tracker, finished-item photos, deposits and customer requests (wishlist / waitlist)
+   ====================================================================================================== */
+ICONS.play = '<path d="M7 4.5v15l12-7.5z"/>';
+ICONS.pause = '<path d="M8.5 5v14M15.5 5v14"/>';
+ICONS.stop = '<rect x="6" y="6" width="12" height="12" rx="1.5"/>';
+ICONS.undo = '<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>';
+
+/* ---------- time tracker: helpers (the same rules as the server) ---------- */
+var TM_REMIND_MS = 4 * 3600000;   // "Still working?" after 4 hours of one session
+function fmtMin(m) { m = Math.round(num(m)); if (m < 60) return m + ' min'; var h = Math.floor(m / 60), r = m % 60; return h + ' h' + (r ? ' ' + (r < 10 ? '0' : '') + r + ' min' : ''); }
+function tmList(o) { return arr(o && o.timers).filter(function (t) { return t && t.key; }); }
+function tmKey(it) { return String(it.productId || '') + '|' + String(it.option || ''); }
+function tmMs(t, now) {
+  now = now || Date.now();
+  return arr(t.sessions).reduce(function (s, x) { var a = new Date(x.s).getTime(), b = x.e ? new Date(x.e).getTime() : now; return s + ((isNaN(a) || isNaN(b) || b < a) ? 0 : b - a); }, 0);
+}
+function tmOpen(t) { return t && !t.doneAt ? arr(t.sessions).filter(function (x) { return !x.e; })[0] || null : null; }
+function tmStatusText(t) {
+  if (!t) return 'Not timed yet';
+  if (t.doneAt) return 'Timed: ' + fmtMin(t.min) + ' each' + (num(t.qty) > 1 ? ' (' + num(t.qty) + ' made)' : '');
+  var n = arr(t.sessions).length, so = fmtMin(tmMs(t) / 60000);
+  return tmOpen(t) ? 'Running · ' + so + (n > 1 ? ' (' + n + ' sessions)' : '') : 'Paused · ' + so + ' so far' + (n ? ' (' + tdPlural(n, 'session') + ')' : '');
+}
+/** What the product's notes log says about its timing (opt '' = the product itself). */
+function tmState(p, opt) {
+  opt = String(opt || '');
+  var stack = [], retime = false;
+  arr(p && p.log).forEach(function (l) {
+    if (!l || typeof l !== 'object') return;
+    if (l.timed && String(l.timed.opt || '') === opt) { stack.push({ min: num(l.timed.min), at: l.at, logId: l.id, prev: l.timed.prev }); retime = false; }
+    else if (l.untimed && String(l.untimed.opt || '') === opt) stack = stack.filter(function (x) { return x.logId !== l.untimed.logId; });
+    else if (l.retime && String(l.retime.opt || '') === opt) retime = !l.retime.off;
+  });
+  var last = stack.length ? stack[stack.length - 1] : null;
+  return { timed: !!last && !retime, last: last, retime: retime };
+}
+/** The hands-on minutes used for a product (or option): the timed minutes, or the estimate typed on the product. */
+function prodMinutes(p, opt) { if (!opt) return num(p.laborMin); var st = tmState(p, opt); return st.last ? st.last.min : num(p.laborMin); }
+/** After timing: is the price below the suggested price? null when it isn't (or the item hasn't been timed). */
+function belowSuggested(p, opt) {
+  if (!p || typeof suggestPrice !== 'function') return null;
+  opt = String(opt || '');
+  var st = tmState(p, opt); if (!st.last) return null;
+  var o = opt ? prodOpt(p, opt) : null; if (opt && !o) return null;
+  var min = prodMinutes(p, opt), r = suggestPrice(productCost(p, opt), min), price = num(o ? o.price : p.price);
+  if (!price || price >= r.price - 0.005) return null;
+  return { name: o ? optLineName(p, o) : p.name, min: min, suggested: r.price, price: price, short: round2(r.price - price) };
+}
+function prodBelowAll(p) {
+  var os = prodOpts(p), out = [];
+  if (!os.length) { var b = belowSuggested(p, ''); if (b) out.push(b); }
+  os.forEach(function (o) { var b = belowSuggested(p, o.id); if (b) out.push(b); });
+  return out;
+}
+function belowText(b) { return b.name + ' takes ' + fmtMin(b.min) + '. Suggested ' + money(b.suggested) + ', you charge ' + money(b.price) + ', about ' + money(b.short) + ' too low.'; }
+function v56Upsert(table, rec) {
+  if (!rec || !rec.id) return;
+  var list = S.data[table] = S.data[table] || [];
+  var i = list.findIndex(function (r) { return r.id === rec.id; });
+  if (i >= 0) list[i] = rec; else list.push(rec);
+}
+/** A timer shows on an order line for a catalog product (or option) that hasn't been timed yet, or that already has a timer here. */
+function tmShowFor(it, o) {
+  var p = it && it.productId ? byId('Products', it.productId) : null; if (!p) return null;
+  var opt = String(it.option || '');
+  if (!opt && prodOpts(p).length) return null;                 // choose an option first
+  var t = tmList(o).filter(function (x) { return x.key === tmKey(it); })[0] || null;
+  if (!t && tmState(p, opt).timed) return null;
+  return { p: p, t: t, key: tmKey(it) };
+}
+function tmRowHtml(it, o, saved) {
+  var s = tmShowFor(it, o); if (!s) return '';
+  var t = s.t, key = esc(s.key), live = t && tmOpen(t) ? ' data-tm-live="' + esc(o.id) + '|' + key + '"' : '';
+  var b = function (act, icn, label, cls) { return '<button class="btn ' + (cls || 'btn-secondary') + ' btn-sm tm-btn" type="button" data-tm-act="' + act + '" data-tm-key="' + key + '">' + ico(icn) + label + '</button>'; };
+  var btns = '';
+  if (!saved) btns = '<span class="muted small">Save the order to start the timer.</span>';
+  else if (!t) btns = b('play', 'play', 'Start timer', 'btn-primary');
+  else if (t.doneAt) btns = b('undo', 'undo', 'Undo', 'btn-ghost');
+  else btns = (tmOpen(t) ? b('pause', 'pause', 'Pause') : b('play', 'play', 'Continue', 'btn-primary')) + b('done', 'stop', 'Done') +
+    (tmOpen(t) ? '' : '<button class="link-btn tm-discard" type="button" data-tm-act="discard" data-tm-key="' + key + '">Discard</button>');
+  return '<div class="tm-row' + (t && tmOpen(t) ? ' running' : '') + '" data-tm-row="' + key + '"><span class="tm-ico">' + ico('clock') + '</span>' +
+    '<span class="tm-status"' + live + '>' + esc(tmStatusText(t)) + '</span><span class="tm-acts">' + btns + '</span></div>';
+}
+var _renderItemsV56 = renderItems;
+renderItems = function () {
+  _renderItemsV56();
+  if (!D || !D.items) return;
+  var saved = D.id ? byId('Orders', D.id) : null, o = { id: D.id || '', timers: D.timers };
+  $$('#oItems .item').forEach(function (el) {
+    var it = D.items[+el.getAttribute('data-i')]; if (!it) return;
+    // a line counts as saved when the same product/option is on the order as last saved
+    var onSaved = !!(saved && (saved.items || []).some(function (x) { return tmKey(x) === tmKey(it); }));
+    var h = tmRowHtml(it, o, onSaved);
+    if (h) { var tot = $('.item-total', el); if (tot) tot.insertAdjacentHTML('beforebegin', h); }
+  });
+  // timers whose item was taken off the order
+  var keys = D.items.map(tmKey), orphans = tmList(D).filter(function (t) { return !t.doneAt && keys.indexOf(t.key) < 0; });
+  var wrap = $('#oItems');
+  if (wrap && orphans.length) wrap.insertAdjacentHTML('beforeend', orphans.map(function (t) {
+    return '<div class="tm-row tm-orphan"><span class="tm-ico">' + ico('clock') + '</span><span class="tm-status">' + esc((t.name || 'Item') + ': ' + tmStatusText(t)) + ' · not on this order any more</span>' +
+      '<span class="tm-acts"><button class="link-btn tm-discard" type="button" data-tm-act="discard" data-tm-key="' + esc(t.key) + '">Discard timer</button></span></div>';
+  }).join(''));
+};
+function tmPaintLive() {
+  $$('[data-tm-live]').forEach(function (el) {
+    var a = el.getAttribute('data-tm-live').split('|'), oid = a[0], key = a[1] + '|' + (a[2] || '');
+    var o = (D && D.id === oid && D.timers) ? D : byId('Orders', oid), t = tmList(o).filter(function (x) { return x.key === key; })[0];
+    if (t) el.textContent = el.hasAttribute('data-tm-short') ? tmStatusText(t).replace(/^Running · /, '') : tmStatusText(t);
+  });
+}
+setInterval(tmPaintLive, 20000);
+function tmAction(orderId, key, act, btn, after) {
+  var o = (D && D.id === orderId) ? D : byId('Orders', orderId), t = tmList(o).filter(function (x) { return x.key === key; })[0];
+  var go = function () {
+    if (btn) busy(btn, act === 'play' ? 'Starting…' : act === 'pause' ? 'Pausing…' : 'Saving…');
+    return call('orderTimer', orderId, key, act).then(function (r) {
+      v56Upsert('Orders', r.order); if (r.product) v56Upsert('Products', r.product);
+      if (D && D.id === orderId && $('#oItems')) { D.timers = r.order.timers; renderItems(); }
+      if (S.view === 'dashboard' || S.view === 'catalog') render();
+      if (act === 'done') tmAfterDone(orderId, key, r);
+      else if (act === 'undo') toast('Undone. The timer is paused again, and the product\'s time is back to what it was.');
+      else if (act === 'discard') toast('Timer discarded');
+      if (after) after(r);
+      return r;
+    }).catch(function (e) { if (btn) unbusy(btn); fail(e); });
+  };
+  if (act === 'discard') {
+    qaDialog('<h3 class="qa-title">Discard this timer?</h3><p>' + esc((t && t.name) || 'Item') + ': ' + esc(tmStatusText(t)) + '.</p><p>The time on it is thrown away. Nothing on the product changes.</p>', function () { go(); }, 'Discard timer');
+    return;
+  }
+  if (act === 'done') {
+    var lines = ((o && o.items) || []).filter(function (it) { return tmKey(it) === key; }), qty = lines.reduce(function (s, it) { return s + num(it.qty); }, 0);
+    var mins = tmMs(t) / 60000, each = qty > 0 ? Math.max(1, Math.round(mins / qty)) : 0;
+    var p = byId('Products', key.split('|')[0]), oo = p && key.split('|')[1] ? prodOpt(p, key.split('|')[1]) : null, name = p ? (oo ? optLineName(p, oo) : p.name) : ((t && t.name) || 'this item');
+    qaDialog('<h3 class="qa-title">Is it completely ready?</h3><p>Only tap Done when ' + esc(name) + ' is finished. If you\'re only stopping for now, use Pause.</p>' +
+      (qty > 0 ? '<p><b>' + esc(fmtMin(mins)) + ' for ' + qty + '</b> = <b>' + esc(fmtMin(each)) + ' each</b>. This becomes the product\'s hands-on time' + (p && (oo ? tmState(p, oo.id).last : num(p.laborMin)) ? ' (it was ' + esc(fmtMin(prodMinutes(p, oo ? oo.id : ''))) + ')' : '') + '. Your price isn\'t changed.</p>' : ''),
+      function () { go(); }, 'Yes, it\'s done');
+    return;
+  }
+  return go();
+}
+function tmAfterDone(orderId, key, r) {
+  var p = r.product || byId('Products', key.split('|')[0]), opt = key.split('|')[1] || '';
+  var t = tmList(r.order).filter(function (x) { return x.key === key; })[0], b = belowSuggested(p, opt);
+  var undo = function () { tmAction(orderId, key, 'undo'); };
+  if (b) {
+    qaDialog('<h3 class="qa-title">' + ico('alert') + 'Below the suggested price</h3><p>' + esc(belowText(b)) + '</p><p class="muted">Your price was not changed. You can change it on the product.</p>',
+      function () {}, 'OK', '<button class="btn btn-ghost" type="button" data-tm-undo-dlg>' + ico('undo') + 'Undo Done</button><button class="btn btn-secondary" type="button" data-tm-prod="' + esc(p.id) + '">Open product</button>');
+    var m = $('#qaModal');
+    if (m) {
+      var c = m.querySelector('[data-qa-cancel]'); if (c) c.remove();
+      m.querySelector('[data-tm-undo-dlg]').addEventListener('click', function () { m.remove(); undo(); });
+      m.querySelector('[data-tm-prod]').addEventListener('click', function () { m.remove(); openProduct(p.id); });
+    }
+  } else toastUndo((p ? (opt && prodOpt(p, opt) ? optLineName(p, prodOpt(p, opt)) : p.name) : 'Item') + ' takes ' + fmtMin(t ? t.min : 0) + ' each. Saved on the product.', undo, { ms: 10000 });
+}
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-tm-act]'); if (!b) return;
+  var oid = b.getAttribute('data-tm-order') || (D && D.id); if (!oid) return;
+  tmAction(oid, b.getAttribute('data-tm-key'), b.getAttribute('data-tm-act'), b);
+});
+
+/* ---------- time tracker: the product screen ---------- */
+function tmProdBoxHtml(p) {
+  if (!p || !p.id) return '<p class="hint" style="margin:0">After you save the product, a timer shows on orders with it until it\'s timed.</p>';
+  var os = prodOpts(p), rows = (os.length ? os.map(function (o) { return { opt: o.id, label: o.name }; }) : [{ opt: '', label: '' }]);
+  var html = rows.map(function (r) {
+    var st = tmState(p, r.opt), lab = r.label ? '<b>' + esc(r.label) + ':</b> ' : '';
+    var line = st.last ? (st.retime ? lab + 'Timed ' + esc(fmtMin(st.last.min)) + ' each (' + esc(niceDate(String(st.last.at || '').slice(0, 10))) + '). <span class="tm-chip">Will be timed again on the next order</span>'
+      : lab + '<span class="tm-done">' + ico('clock') + 'Timed: ' + esc(fmtMin(r.opt ? st.last.min : num(p.laborMin) || st.last.min)) + ' each (' + esc(niceDate(String(st.last.at || '').slice(0, 10))) + ')</span>')
+      : lab + '<span class="muted">Not timed yet. A timer shows on orders with ' + (r.label ? 'this option' : 'this product') + '.</span>';
+    var btn = st.last ? '<button class="link-btn" type="button" data-tm-retime="' + esc(r.opt) + '" data-on="' + (st.retime ? '0' : '1') + '">' + (st.retime ? 'Cancel retime' : ico('refresh') + 'Retime') + '</button>' : '';
+    return '<div class="tm-prow">' + line + btn + '</div>';
+  }).join('');
+  var below = prodBelowAll(p).map(function (b) { return '<div class="tm-below">' + ico('alert') + '<span><b>Below suggested price.</b> ' + esc(belowText(b)) + '</span></div>'; }).join('');
+  return html + below;
+}
+var _openProductV56 = openProduct;
+openProduct = function (id, preset) {
+  _openProductV56(id, preset);
+  if (!D) return;
+  var pp = $('#pPrice'), row = pp && pp.closest('.row'); if (!row) return;   // just under the price, outside the folded price helper
+  var box = document.createElement('div'); box.id = 'tmProd'; box.className = 'tm-prod';
+  row.insertAdjacentElement('afterend', box);
+  var p = id ? byId('Products', id) : null;
+  box.innerHTML = tmProdBoxHtml(p);
+  box.addEventListener('click', function (e) {
+    var r = e.target.closest('[data-tm-retime]'); if (!r || !p) return;
+    var opt = r.getAttribute('data-tm-retime'), on = r.getAttribute('data-on') === '1';
+    busy(r, 'Saving…');
+    call('retimeProduct', p.id, opt, on).then(function (saved) {
+      v56Upsert('Products', saved); p = saved; if ($('#tmProd') === box) box.innerHTML = tmProdBoxHtml(saved);
+      toast(on ? 'The timer will show on the next order with it' : 'Retime cancelled');
+    }).catch(function (e) { unbusy(r); fail(e); });
+  });
+};
+var _renderCatalogV56 = renderCatalog;
+renderCatalog = function () {
+  if (S.catTab === 'gallery') return galleryHtml();
+  var html = _renderCatalogV56(), tabs = catTabsHtml();
+  (S.data.Products || []).forEach(function (p) {
+    if (!prodBelowAll(p).length) return;
+    var at = html.indexOf('data-product="' + p.id + '">'); if (at < 0) return;
+    var meta = html.indexOf('<div class="p-meta">', at); if (meta < 0) return;
+    html = html.slice(0, meta) + '<div class="tm-below-chip">' + ico('alert') + 'Below suggested price</div>' + html.slice(meta);
+  });
+  return tabs + html;
+};
+
+/* ---------- time tracker: Today list ---------- */
+TD_GROUPS.splice(2, 0, { key: 'timers', label: 'Timers' });
+var _tdAutoTasksV56 = tdAutoTasks;
+tdAutoTasks = function () {
+  var out = _tdAutoTasksV56();
+  (S.data.Orders || []).forEach(function (o) {
+    if (o.deleted) return;
+    tmList(o).forEach(function (t) {
+      if (t.doneAt) return;
+      var open = tmOpen(t), long = open && Date.now() - new Date(open.s).getTime() >= TM_REMIND_MS;
+      out.push({ key: 'timer:' + o.id + ':' + t.key, sig: 's:' + (open ? 'run' : 'pause') + '|' + arr(t.sessions).length + (long ? '|long' : ''), group: 'timers', order: o, tm: t,
+        title: long ? 'Still working on ' + (t.name || 'this item') + '?' : (open ? 'Timer running: ' : 'Timer paused: ') + (t.name || 'Item'),
+        why: long ? 'The timer has been running for ' + fmtMin((Date.now() - new Date(open.s).getTime()) / 60000) + '. Pause it if you stopped.' : tmStatusText(t),
+        acts: open ? ['tm:pause', 'tm:done', 'open'] : ['tm:play', 'tm:done', 'open'] });
+    });
+    // deposits asked for and not received yet
+    var d = depInfo(o);
+    if (d && !d.received && !o.paid && o.stage !== DONE && o.stage !== 'Inquiry')
+      out.push({ key: 'deposit:' + o.id, sig: 's:' + d.amount, group: 'wait', order: o, title: 'Deposit not received yet', why: money(d.amount) + ' deposit asked for', acts: ['open'] });
+  });
+  return out;
+};
+var _tdActBtnV56 = tdActBtn;
+tdActBtn = function (a, t) {
+  if (a.indexOf('tm:') === 0 && t.tm) {
+    var act = a.slice(3), lab = { play: 'Continue', pause: 'Pause', done: 'Done' }[act], icn = { play: 'play', pause: 'pause', done: 'stop' }[act];
+    return '<button class="btn ' + (act === 'done' ? 'btn-secondary' : 'btn-primary') + ' btn-sm" type="button" data-tm-act="' + act + '" data-tm-key="' + esc(t.tm.key) + '" data-tm-order="' + esc(t.order.id) + '">' + ico(icn) + lab + '</button>';
+  }
+  return _tdActBtnV56(a, t);
+};
+
+/* ---------- deposits ---------- */
+/** The order's deposit: { amount, kind, value, received, method } or null when there is none. */
+function depInfo(o) {
+  var d = o && o.deposit; if (!d || Array.isArray(d) || typeof d !== 'object') return null;
+  var total = o === D && $('#oItems') ? calcOrder(D).total : num(o.total);
+  var amt = d.kind === 'pct' ? Math.round(total * num(d.value)) / 100 : round2(d.value);
+  return amt > 0 ? { amount: amt, kind: d.kind === 'pct' ? 'pct' : 'amt', value: num(d.value), received: String(d.received || ''), method: String(d.method || ''), linkId: String(d.linkId || ''), total: total } : null;
+}
+function depSummary(o) {
+  var d = depInfo(o); if (!d) return '';
+  if (o.paid) return 'Deposit ' + money(d.amount) + (d.received ? ' received ' + niceDate(d.received) : '') + ' · paid in full';
+  return d.received ? 'Deposit ' + money(d.amount) + ' received ' + niceDate(d.received) + ' · ' + money(round2(d.total - d.amount)) + ' left to pay'
+    : 'Deposit ' + money(d.amount) + ' asked for · not received yet';
+}
+function depFieldHtml() {
+  var d = (D.deposit && !Array.isArray(D.deposit) && typeof D.deposit === 'object') ? D.deposit : {};
+  var has = num(d.value) > 0, rec = !!d.received;
+  return '<div class="field dep-field" id="depWrap"><label for="oDepVal">Deposit <span class="muted">(optional)</span></label>' +
+    '<div class="dep-row"><div class="seg dep-kind" role="group" aria-label="Deposit as"><button type="button" data-dep-kind="amt" class="' + (d.kind !== 'pct' ? 'on' : '') + '">$</button><button type="button" data-dep-kind="pct" class="' + (d.kind === 'pct' ? 'on' : '') + '">%</button></div>' +
+    '<input class="input" type="number" min="0" step="0.01" inputmode="decimal" id="oDepVal" value="' + (has ? esc(d.value) : '') + '" placeholder="No deposit"><span class="muted small" id="oDepCalc"></span></div>' +
+    '<div class="dep-recv" id="oDepRecvRow"' + (has ? '' : ' hidden') + '><label class="check"><input type="checkbox" id="oDepRecv"' + (rec ? ' checked' : '') + '> Deposit received</label>' +
+    '<span class="dep-when"' + (rec ? '' : ' hidden') + '><input class="input" type="date" id="oDepDate" max="' + todayStr() + '" value="' + esc(d.received || '') + '" aria-label="Date the deposit was received">' +
+    '<select class="input" id="oDepMethod" aria-label="How the deposit was paid"><option value="">How did they pay?</option>' + ORDER_PAY_METHODS.map(function (m) { return '<option value="' + m[0] + '"' + (d.method === m[0] ? ' selected' : '') + '>' + esc(m[1]) + '</option>'; }).join('') + '</select></span></div>' +
+    '<div class="dep-sum" id="oDepSum"></div></div>';
+}
+function depRead() {
+  var v = $('#oDepVal'); if (!v) return;
+  var cur = (D.deposit && !Array.isArray(D.deposit) && typeof D.deposit === 'object') ? D.deposit : {};
+  var kind = ($('#depWrap .dep-kind .on') || {}).getAttribute ? $('#depWrap .dep-kind .on').getAttribute('data-dep-kind') : 'amt';
+  var val = num(v.value);
+  if (!(val > 0)) { D.deposit = Array.isArray(D.deposit) || !D.deposit ? D.deposit : []; if (!Array.isArray(D.deposit)) D.deposit = []; }
+  else {
+    var rec = $('#oDepRecv').checked;
+    D.deposit = Object.assign({}, cur, { kind: kind, value: val, received: rec ? ($('#oDepDate').value || '') : '', method: rec ? $('#oDepMethod').value : '' });
+    if (!D.deposit.linkId) delete D.deposit.linkId;
+  }
+  depPaint();
+}
+function depPaint() {
+  var d = depInfo(D), has = !!d, calc = $('#oDepCalc'), sum = $('#oDepSum');
+  $('#oDepRecvRow').hidden = !has;
+  $('#depWrap .dep-when').hidden = !$('#oDepRecv').checked;
+  if (calc) calc.textContent = d && d.kind === 'pct' ? '= ' + money(d.amount) : '';
+  if (sum) { var t = has ? depSummary(D) : ''; sum.textContent = t; sum.hidden = !t; }
+}
+function depValid() {
+  var d = depInfo(D); if (!d) return true;
+  if (d.amount > calcOrder(D).total + 0.005 && calcOrder(D).total > 0) { toast('The deposit is more than the order total.', true); $('#oDepVal').focus(); return false; }
+  if (d.received) {
+    if (d.received > todayStr()) { toast('The deposit date can\'t be in the future.', true); $('#oDepDate').focus(); return false; }
+    if (!d.method) { toast('Please choose how the deposit was paid.', true); $('#oDepMethod').focus(); return false; }
+  } else if ($('#oDepRecv') && $('#oDepRecv').checked) { toast('Please enter the date the deposit was received.', true); $('#oDepDate').focus(); return false; }
+  return true;
+}
+function depBind() {
+  var w = $('#depWrap'); if (!w) return;
+  w.addEventListener('click', function (e) {
+    var k = e.target.closest('[data-dep-kind]'); if (!k) return;
+    $$('#depWrap [data-dep-kind]').forEach(function (x) { x.classList.toggle('on', x === k); });
+    depRead();
+  });
+  w.addEventListener('input', depRead);
+  w.addEventListener('change', function (e) {
+    if (e.target.id === 'oDepRecv' && e.target.checked && !$('#oDepDate').value) $('#oDepDate').value = todayStr();
+    depRead();
+  });
+  depPaint();
+}
+var _saveOrderV56 = saveOrder;
+saveOrder = function (after) {
+  if ($('#oDepVal')) { depRead(); if (!depValid()) { $$('#dSave,#stripeRow button').forEach(function (b) { if (b.disabled) unbusy(b); }); return; } }
+  return _saveOrderV56(after);
+};
+var _orderFormChangedV56 = orderFormChanged;
+orderFormChanged = function () {
+  if (_orderFormChangedV56()) return true;
+  var o = D && D.id ? byId('Orders', D.id) : null; if (!o || !$('#oDepVal')) return false;
+  var n = function (x) { var d = x && x.deposit; return (d && !Array.isArray(d) && typeof d === 'object' && num(d.value) > 0) ? [d.kind === 'pct' ? 'pct' : 'amt', num(d.value), d.received || '', d.method || ''].join('|') : ''; };
+  return n(D) !== n(o);
+};
+/* messages: what's left to pay takes a received deposit off; the finished photos link */
+MSG_FIELDS.push(['depositAmount', 'Deposit amount (left out when there is no deposit to pay)'], ['finishedLink', 'Finished photos link (left out when there are no finished photos)']);
+MSG_FIELD_LABEL.depositAmount = 'Deposit amount (left out when there is no deposit to pay)'; MSG_FIELD_LABEL.finishedLink = 'Finished photos link (left out when there are no finished photos)';
+var _msgValuesV56 = msgValues;
+msgValues = function (o) {
+  var v = _msgValuesV56(o), d = depInfo(o);
+  if (d && d.received && !o.paid && v.amountDue) v.amountDue = money(Math.max(0, round2(num(o.total) - d.amount)));
+  v.depositAmount = d && !d.received && !o.paid ? money(d.amount) : '';
+  var tok = tdProof(o).token;
+  v.finishedLink = arr(o.finishedPhotos).length && tok ? 'https://studio.craftyrosegifts.ca/proof.html?t=' + tok : '';
+  return v;
+};
+['ready', 'shipped'].forEach(function (k) {   // the standard wording gets the link (it's left out when there are no finished photos)
+  var t = msgDefault(k); if (t && t.body.indexOf('{finishedLink}') < 0) t.body = t.body.replace(/\n\n(\{signature\}|I hope you love it!|Thank you!)/, '\n\nHere\'s a photo of your finished piece: {finishedLink}\n\n$1');
+});
+
+/* ---------- finished-item photos (on the order) ---------- */
+function finSecHtml(o) {
+  var list = arr(o && o.finishedPhotos), tok = tdProof(o || {}).token;
+  return '<div class="section-title">' + ico('camera') + 'Finished photos</div>' +
+    (!o || !o.id ? '<p class="hint" style="margin:0">Save the order first, then you can add photos of the finished piece.</p>' :
+      (list.length ? '<div class="fin-grid">' + list.map(function (f) {
+        return '<div class="fin-tile"><img data-photo="' + esc(f.id) + '" alt="Finished photo"><button class="icon-btn sm fin-x" type="button" data-fin-del="' + esc(f.id) + '" title="Remove this photo" aria-label="Remove this photo">' + ico('x') + '</button></div>';
+      }).join('') + '</div>' : '') +
+      '<div class="fin-acts"><button class="btn btn-secondary btn-sm" type="button" id="finAdd">' + ico('camera') + 'Add finished photo</button>' +
+      (list.length && tok ? '<button class="link-btn" type="button" id="finCopy">' + ico('link') + 'Copy the customer\'s link</button>' : '') +
+      '<input type="file" id="finFile" accept="image/*" multiple hidden></div>' +
+      '<p class="hint" style="margin:6px 0 0">' + (list.length ? 'The customer sees these on their order link under "Your finished piece". The Ready message can include the link.' : 'Photos are saved in your Drive photos folder and shown to the customer on their order link under "Your finished piece".') + '</p>');
+}
+function finPaint() { var s = $('#finSec'); if (!s || !D) return; s.innerHTML = finSecHtml(D.id ? Object.assign({}, byId('Orders', D.id), { finishedPhotos: D.finishedPhotos, proof: D.proof }) : null); loadPhotos(); }
+function finBind() {
+  var s = $('#finSec'); if (!s) return;
+  s.addEventListener('click', function (e) {
+    if (e.target.closest('#finAdd')) { $('#finFile').click(); return; }
+    if (e.target.closest('#finCopy')) { copyText('https://studio.craftyrosegifts.ca/proof.html?t=' + tdProof(D).token, 'Link copied'); return; }
+    var x = e.target.closest('[data-fin-del]'); if (!x) return;
+    var fid = x.getAttribute('data-fin-del'), oid = D.id;
+    qaDialog('<h3 class="qa-title">Remove this photo?</h3><p>It\'s taken off the order and the customer\'s page, and moved to your Google Drive trash (you can get it back from there for 30 days).</p>', function () {
+      call('removeFinishedPhoto', oid, fid).then(function (r) {
+        v56Upsert('Orders', r.order); if (D && D.id === oid) { D.finishedPhotos = r.order.finishedPhotos; finPaint(); }
+        call('trashPhoto', fid).catch(function () {});
+        toast('Photo removed');
+      }).catch(fail);
+    }, 'Remove photo');
+  });
+  s.addEventListener('change', function (e) {
+    if (e.target.id !== 'finFile') return;
+    var files = [].slice.call(e.target.files || []); if (!files.length) return;
+    var oid = D.id, btn = $('#finAdd'), n = 0;
+    busy(btn, 'Uploading…');
+    files.reduce(function (pr, f) {
+      return pr.then(function () {
+        return shrinkImage(f).then(function (img) { return call('uploadPhoto', 'Finished ' + ((byId('Orders', oid) || {}).number || '') + ' ' + f.name, img.mime, img.base64); })
+          .then(function (ph) { S.photoCache[ph.id] = undefined; return call('addFinishedPhoto', oid, { id: ph.id, name: ph.name }); })
+          .then(function (r) { n++; v56Upsert('Orders', r.order); if (D && D.id === oid) { D.finishedPhotos = r.order.finishedPhotos; D.proof = r.order.proof; } });
+      });
+    }, Promise.resolve()).then(function () { finPaint(); toast(n === 1 ? 'Photo added' : n + ' photos added'); })
+      .catch(function (err) { finPaint(); fail(err); });
+  });
+}
+
+/* ---------- the order screen: deposit, finished photos, add a request ---------- */
+var _openOrderV56 = openOrder;
+openOrder = function (id, stage) {
+  _openOrderV56(id, stage);
+  if (!D || !$('#oItems')) return;
+  if (D.timers === undefined) D.timers = [];
+  var paid = $('#oPaid'), pf = paid && paid.closest('.field');
+  if (pf) { pf.insertAdjacentHTML('afterend', depFieldHtml()); depBind(); }
+  var anchor = $('#proofSec') || ($('#oNotes') && $('#oNotes').closest('.field').previousElementSibling);
+  if (anchor) {
+    var sec = document.createElement('div'); sec.id = 'finSec'; sec.className = 'fin-sec';
+    anchor.insertAdjacentElement(anchor.id === 'proofSec' ? 'afterend' : 'beforebegin', sec);
+    finPaint(); finBind();
+  }
+  var nf = $('#oNotes') && $('#oNotes').closest('.field');
+  if (nf) {
+    nf.insertAdjacentHTML('afterend', '<div class="req-add-row"><button class="link-btn" type="button" id="oReqAdd">' + ico('plus') + 'Customer asked for something you don\'t make yet</button></div>');
+    $('#oReqAdd').addEventListener('click', function () {
+      var cid = $('#oCustomer') && $('#oCustomer').value;
+      reqEdit(null, { customerId: cid && cid !== '__new' ? cid : '', orderId: D.id || '' });
+    });
+  }
+  renderItems();   // with the timers
+  if (typeof r2Phone === 'function' && r2Phone()) setTimeout(function () {
+    var fs = $('#finSec'); if (!fs || fs.closest('[data-fold]') || typeof r2Fold !== 'function') return;
+    var fk = r2FoldKey(), mem = R2.folds[fk] || {};
+    r2Fold('finished', 'Finished photos', [fs], mem.finished !== undefined ? mem.finished : arr(D.finishedPhotos).length > 0);
+  }, 0);
+};
+
+/* ---------- Gallery (Catalog → Gallery) ---------- */
+function catTabsHtml() {
+  var n = galleryPhotos().length;
+  return '<div class="seg v56-tabs" role="tablist" aria-label="Catalog"><button type="button" data-cat-tab="" class="' + (S.catTab !== 'gallery' ? 'on' : '') + '">' + ico('tag') + 'Products</button>' +
+    '<button type="button" data-cat-tab="gallery" class="' + (S.catTab === 'gallery' ? 'on' : '') + '">' + ico('image') + 'Gallery' + (n ? ' <span class="muted small">' + n + '</span>' : '') + '</button></div>';
+}
+function galleryPhotos() {
+  var out = [];
+  (S.data.Orders || []).forEach(function (o) {
+    if (o.deleted) return;
+    arr(o.finishedPhotos).forEach(function (f) { if (f && f.id) out.push({ f: f, o: o, pids: (o.items || []).map(function (it) { return String(it.productId || ''); }).filter(Boolean) }); });
+  });
+  return out.sort(function (a, b) { return String(b.f.at || b.o.updated).localeCompare(String(a.f.at || a.o.updated)); });
+}
+function galleryHtml() {
+  var all = galleryPhotos(), pids = {};
+  all.forEach(function (x) { x.pids.forEach(function (id) { pids[id] = 1; }); });
+  var prods = Object.keys(pids).map(function (id) { return byId('Products', id); }).filter(Boolean).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+  var f = S.galleryProduct || '', list = f ? all.filter(function (x) { return x.pids.indexOf(f) >= 0; }) : all;
+  return catTabsHtml() + '<div class="toolbar"><select class="input gal-filter" id="galFilter" aria-label="Show photos of"><option value="">All products</option>' +
+    prods.map(function (p) { return '<option value="' + esc(p.id) + '"' + (p.id === f ? ' selected' : '') + '>' + esc(p.name) + '</option>'; }).join('') + '</select></div>' +
+    (list.length ? '<div class="gal-grid">' + list.map(function (x) {
+      return '<button type="button" class="gal-tile" data-gal-order="' + esc(x.o.id) + '" aria-label="Open order ' + esc(x.o.number) + '"><img data-photo="' + esc(x.f.id) + '" alt="">' +
+        '<span class="gal-cap"><b>' + esc(x.o.number || '') + '</b> · ' + esc(x.o.customerName || '') + '<br><span class="muted small">' + esc(itemsSummary(x.o)) + '</span></span></button>';
+    }).join('') + '</div>' : '<div class="card">' + emptyState(f ? 'No photos for this product yet' : 'No finished photos yet', 'Add photos of finished pieces on an order (Finished photos). They show up here.', '', '') + '</div>');
+}
+document.addEventListener('click', function (e) {
+  var t = e.target.closest('[data-cat-tab]'); if (t) { S.catTab = t.getAttribute('data-cat-tab'); render(); return; }
+  var g = e.target.closest('[data-gal-order]'); if (g) { openOrder(g.getAttribute('data-gal-order')); return; }
+  var c = e.target.closest('[data-cust-tab]'); if (c) { S.custTab = c.getAttribute('data-cust-tab'); render(); return; }
+  var rs = e.target.closest('[data-req-filter]'); if (rs) { S.reqFilter = rs.getAttribute('data-req-filter'); render(); return; }
+  var ro = e.target.closest('[data-req]'); if (ro && !e.target.closest('[data-req-msg]')) { reqEdit(ro.getAttribute('data-req')); return; }
+  var rm = e.target.closest('[data-req-msg]'); if (rm) { reqMessage([rm.getAttribute('data-req-msg')], null); return; }
+  if (e.target.closest('[data-act="new-request"]')) { reqEdit(null, {}); return; }
+  var cr = e.target.closest('[data-cust-req]'); if (cr) { reqEdit(null, { customerId: cr.getAttribute('data-cust-req') }); return; }
+});
+document.addEventListener('change', function (e) { if (e.target.id === 'galFilter') { S.galleryProduct = e.target.value; render(); } });
+
+/* ---------- Requests: wishlist / waitlist (Customers → Requests) ---------- */
+if (S.data && !S.data.Requests) S.data.Requests = [];   // loaded with everything else (the new Requests tab)
+var REQ_STATUSES = [['waiting', 'Waiting', 'amber'], ['told', 'Told', 'blue'], ['ordered', 'Ordered', 'green'], ['closed', 'Closed', 'gray']];
+function reqList() { return (S.data.Requests = S.data.Requests || []); }
+function reqStatus(k) { return REQ_STATUSES.filter(function (s) { return s[0] === k; })[0] || REQ_STATUSES[0]; }
+function reqChip(r) { var s = reqStatus(r.status); return '<span class="chip ' + s[2] + '">' + esc(s[1]) + '</span>'; }
+function reqWho(r) { var c = r.customerId ? byId('Customers', r.customerId) : null; return (c && c.name) || r.customerName || 'No name'; }
+function custTabsHtml() {
+  var n = reqList().filter(function (r) { return (r.status || 'waiting') === 'waiting'; }).length;
+  return '<div class="seg v56-tabs" role="tablist" aria-label="Customers"><button type="button" data-cust-tab="" class="' + (S.custTab !== 'requests' ? 'on' : '') + '">' + ico('users') + 'Customers</button>' +
+    '<button type="button" data-cust-tab="requests" class="' + (S.custTab === 'requests' ? 'on' : '') + '">' + ico('star') + 'Requests' + (n ? ' <span class="badge">' + n + '</span>' : '') + '</button></div>';
+}
+var _renderCustomersV56 = renderCustomers;
+renderCustomers = function () {
+  if (S.custTab !== 'requests') return custTabsHtml() + _renderCustomersV56();
+  $('#topActions').innerHTML = '<button class="btn btn-primary" data-act="new-request">' + ico('plus') + '<span class="label">New request</span></button>';
+  var f = S.reqFilter || 'open', all = reqList().slice().sort(function (a, b) { return String(b.asked || b.created).localeCompare(String(a.asked || a.created)); });
+  var list = all.filter(function (r) { var st = r.status || 'waiting'; return f === 'all' ? true : f === 'open' ? (st === 'waiting' || st === 'told') : st === f; });
+  var chips = [['open', 'Waiting or told'], ['waiting', 'Waiting'], ['told', 'Told'], ['ordered', 'Ordered'], ['closed', 'Closed'], ['all', 'All']].map(function (c) {
+    return '<button type="button" class="chip-btn' + (f === c[0] ? ' on' : '') + '" data-req-filter="' + c[0] + '">' + esc(c[1]) + '</button>';
+  }).join('');
+  return custTabsHtml() + '<div class="toolbar req-chips">' + chips + '</div>' +
+    (list.length ? '<div class="card" style="padding:0 12px"><div class="list">' + list.map(function (r) {
+      var c = r.customerId ? byId('Customers', r.customerId) : null;
+      return '<div class="row-item req-row" data-req="' + esc(r.id) + '" role="button" tabindex="0"><div class="grow"><div class="title">' + esc(r.what || '') + '</div>' +
+        '<div class="sub">' + esc(reqWho(r)) + (r.asked ? ' · asked ' + esc(niceDate(r.asked)) : '') + (r.notes ? ' · ' + esc(String(r.notes).split('\n')[0].slice(0, 80)) : '') + '</div></div>' + reqChip(r) +
+        ((r.status || 'waiting') === 'waiting' && c && (c.email || c.phone) ? '<button class="btn btn-ghost btn-sm" type="button" data-req-msg="' + esc(r.id) + '">' + ico('chat') + 'Message</button>' : '') + '</div>';
+    }).join('') + '</div></div>' : '<div class="card">' + emptyState(all.length ? 'Nothing here' : 'No requests yet', 'When a customer asks for something you don\'t make yet, add it here. When you add a matching product, the app reminds you who asked.', 'new-request', 'New request') + '</div>');
+};
+function reqEdit(id, preset) {
+  var r = id ? reqList().filter(function (x) { return x.id === id; })[0] : null;
+  var R = r ? JSON.parse(JSON.stringify(r)) : Object.assign({ customerId: '', customerName: '', what: '', notes: '', status: 'waiting', asked: todayStr(), orderId: '' }, preset || {});
+  var custOpts = S.data.Customers.slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); })
+    .map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === R.customerId ? ' selected' : '') + '>' + esc(c.name) + '</option>'; }).join('');
+  var html = '<h3 class="qa-title">' + (r ? 'Request' : 'New request') + '</h3>' +
+    '<div class="field"><label for="rqCust">Who asked</label><select class="input" id="rqCust"><option value="">Choose a customer…</option>' + custOpts + '</select></div>' +
+    '<div class="field"><label for="rqWhat">What they asked for</label><input class="input" id="rqWhat" value="' + esc(R.what) + '" placeholder="e.g. A wooden name sign for a nursery"></div>' +
+    '<div class="row"><div class="field"><label for="rqAsked">When</label><input class="input" type="date" id="rqAsked" max="' + todayStr() + '" value="' + esc(String(R.asked || '').slice(0, 10)) + '"></div>' +
+    '<div class="field"><label for="rqStatus">Status</label><select class="input" id="rqStatus">' + REQ_STATUSES.map(function (s) { return '<option value="' + s[0] + '"' + ((R.status || 'waiting') === s[0] ? ' selected' : '') + '>' + s[1] + '</option>'; }).join('') + '</select></div></div>' +
+    '<div class="field"><label for="rqNotes">Notes <span class="muted">(optional)</span></label><textarea class="input" id="rqNotes" style="min-height:64px" placeholder="Colours, size, budget, when they need it…">' + esc(R.notes || '') + '</textarea></div>' +
+    '<p class="qa-err" id="rqErr" role="alert"></p>';
+  qaDialog(html, function (m, close) {
+    var cid = $('#rqCust').value, what = $('#rqWhat').value.trim(), asked = $('#rqAsked').value;
+    if (!cid) { $('#rqErr').textContent = 'Please choose who asked.'; return false; }
+    if (!what) { $('#rqErr').textContent = 'Please say what they asked for.'; $('#rqWhat').focus(); return false; }
+    if (asked && asked > todayStr()) { $('#rqErr').textContent = 'The date can\'t be in the future.'; return false; }
+    var c = byId('Customers', cid), st = $('#rqStatus').value;
+    var rec = Object.assign({}, R, { customerId: cid, customerName: c ? c.name : '', what: what, asked: asked, notes: $('#rqNotes').value, status: st });
+    if (st === 'told' && !rec.toldAt) rec.toldAt = new Date().toISOString();
+    var ok = m.querySelector('[data-qa-ok]'); busy(ok, 'Saving…');
+    save('Requests', rec).then(function () { close(); toast('Request saved'); if (S.view === 'customers') render(); if (D && D.id === cid && $('#cReqs')) custReqPaint(cid); })
+      .catch(function (e) { unbusy(ok); fail(e); });
+    return false;
+  }, 'Save', r ? '<button class="btn btn-danger" type="button" id="rqDel">' + ico('trash') + 'Delete</button>' + ((r.status || 'waiting') === 'waiting' ? '<button class="btn btn-secondary" type="button" id="rqMsg">' + ico('chat') + 'Message</button>' : '') : '');
+  var del = $('#rqDel');
+  if (del) del.addEventListener('click', function () {
+    if (!confirm('Delete this request for good? (' + reqWho(r) + ': ' + (r.what || '') + ')\n\nTip: you can set it to Closed instead, to keep it.')) return;
+    busy(del, 'Deleting…');
+    call('deleteRecord', 'Requests', r.id).then(function () {
+      S.data.Requests = reqList().filter(function (x) { return x.id !== r.id; });
+      var m = $('#qaModal'); if (m) m.remove(); toast('Request deleted'); if (S.view === 'customers') render();
+    }).catch(function (e) { unbusy(del); fail(e); });
+  });
+  var msg = $('#rqMsg'); if (msg) msg.addEventListener('click', function () { var m = $('#qaModal'); if (m) m.remove(); reqMessage([r.id], null); });
+}
+/* the customer screen: their requests */
+function custReqPaint(cid) {
+  var box = $('#cReqs'); if (!box) return;
+  var list = reqList().filter(function (r) { return r.customerId === cid; });
+  box.innerHTML = (list.length ? '<div class="card" style="padding:0 12px"><div class="list">' + list.map(function (r) {
+    return '<div class="row-item req-row" data-req="' + esc(r.id) + '" role="button" tabindex="0"><div class="grow"><div class="title">' + esc(r.what || '') + '</div><div class="sub">' + (r.asked ? 'Asked ' + esc(niceDate(r.asked)) : '') + '</div></div>' + reqChip(r) + '</div>';
+  }).join('') + '</div></div>' : '<p class="muted" style="margin:0 0 8px">Nothing they\'ve asked for that you don\'t make yet.</p>') +
+    '<button class="btn btn-secondary btn-sm" type="button" data-cust-req="' + esc(cid) + '">' + ico('plus') + 'Add a request</button>';
+}
+var _openCustomerV56 = openCustomer;
+openCustomer = function (id) {
+  _openCustomerV56(id);
+  var c = id ? byId('Customers', id) : null; if (!c) return;
+  var nb = $('#cNewOrder'), at = nb ? nb.parentNode : null; if (!at) return;
+  at.insertAdjacentHTML('afterend', '<div class="section-title">' + ico('star') + 'Requests</div><div id="cReqs"></div>');
+  custReqPaint(c.id);
+};
+/* matching: a new product (or a changed name or category) is compared with what people are waiting for */
+var REQ_STOP = 'the and for with our your my a an of to in on at by from that this these those some any one two three set pair custom customized personalized personalised handmade made make gift gifts something like would want wants wanted asked asking please small large big little new kind type piece pieces item items wood wooden name names'.split(' ');
+function reqWords(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9\s'-]/g, ' ').split(/[\s'-]+/).map(function (w) {
+    if (w.length > 4 && /ies$/.test(w)) return w.slice(0, -3) + 'y';
+    if (w.length > 3 && /(ses|xes|ches|shes)$/.test(w)) return w.slice(0, -2);
+    if (w.length > 3 && /s$/.test(w) && !/ss$/.test(w)) return w.slice(0, -1);
+    return w;
+  }).filter(function (w) { return w.length >= 3 && REQ_STOP.indexOf(w) < 0; });
+}
+function reqMatches(p) {
+  var pw = reqWords([p.name].concat(prodCats(p)).join(' '));
+  if (!pw.length) return [];
+  return reqList().filter(function (r) { return (r.status || 'waiting') === 'waiting' && reqWords(r.what).some(function (w) { return pw.indexOf(w) >= 0; }); });
+}
+var _saveV56 = save;
+save = function (table, rec) {
+  var before = table === 'Products' && rec && rec.id ? byId('Products', rec.id) : null, isNew = table === 'Products' && rec && !rec.id;
+  var sig = function (p) { return p ? [p.name].concat(prodCats(p)).join('|').toLowerCase() : ''; };
+  var oldSig = sig(before);
+  return _saveV56(table, rec).then(function (saved) {
+    if (table === 'Products' && saved && (isNew || sig(saved) !== oldSig)) setTimeout(function () { reqPrompt(saved); }, 450);
+    return saved;
+  });
+};
+function reqPrompt(p) {
+  var list = reqMatches(p); if (!list.length || $('#qaModal')) return;
+  qaDialog('<h3 class="qa-title">' + ico('star') + (list.length === 1 ? '1 person' : list.length + ' people') + ' asked for something like this</h3>' +
+    '<p class="muted">You saved <b>' + esc(p.name) + '</b>. These requests are waiting:</p><div class="req-pick">' + list.map(function (r) {
+      return '<label class="check req-pick-row"><input type="checkbox" data-req-pick="' + esc(r.id) + '" checked><span><b>' + esc(reqWho(r)) + '</b>: ' + esc(r.what) + (r.asked ? ' <span class="muted small">(' + esc(niceDate(r.asked)) + ')</span>' : '') + '</span></label>';
+    }).join('') + '</div><p class="muted small">Nothing is sent until you tap Send or Copy for each person.</p>',
+    function (m) {
+      var ids = [].slice.call(m.querySelectorAll('[data-req-pick]:checked')).map(function (x) { return x.getAttribute('data-req-pick'); });
+      if (!ids.length) return;
+      setTimeout(function () { reqMessage(ids, p.id); }, 0);
+    }, 'Message them');
+  var c = $('#qaModal [data-qa-cancel]'); if (c) c.textContent = 'Not now';
+}
+/* telling them: an editable message per person; nothing is sent without a tap */
+var REQ_TPL_DEFAULT = 'Hi {firstName}!\n\nGood news! I now make {productName}{price}.\n\nYou asked me about "{what}", so I wanted to let you know first. Let me know if you\'d like to order one!\n\n{signature}';
+function reqTemplate() { var t = ((S.data && S.data.Templates) || []).filter(function (x) { return x.id === 'wishlist' && String(x.body || '').trim(); })[0]; return t ? String(t.body) : REQ_TPL_DEFAULT; }
+function reqFill(r, p) {
+  var c = r.customerId ? byId('Customers', r.customerId) : null, name = String((c && c.name) || r.customerName || '').trim(), st = S.settings || {};
+  var what = String(r.what || '').trim();
+  var v = {
+    firstName: name ? name.split(/\s+/)[0] : 'there',
+    productName: p ? p.name : '[product]',
+    price: p ? (prodOpts(p).length ? ' (from ' + money(fromPrice(p)) + ')' : num(p.price) ? ' (' + money(p.price) + ')' : '') : '',
+    what: what || 'it',
+    signature: st.signature || '', businessName: st.businessName || 'Crafty Rose Gifts'
+  };
+  return reqTemplate().replace(/\{(\w+)\}/g, function (m, k) { return Object.prototype.hasOwnProperty.call(v, k) ? v[k] : m; }).replace(/\n{3,}/g, '\n\n').trim();
+}
+function reqMessage(ids, productId) {
+  var p = productId ? byId('Products', productId) : null;
+  var list = ids.map(function (id) { return reqList().filter(function (r) { return r.id === id; })[0]; }).filter(Boolean);
+  if (!list.length) return;
+  var prodOptsHtml = '<option value="">Choose the product…</option>' + (S.data.Products || []).filter(function (x) { return x.active !== false; }).slice().sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); })
+    .map(function (x) { return '<option value="' + esc(x.id) + '"' + (p && p.id === x.id ? ' selected' : '') + '>' + esc(x.name) + '</option>'; }).join('');
+  var body = '<div class="field"><label for="rmProd">Product</label><select class="input" id="rmProd">' + prodOptsHtml + '</select></div>' +
+    '<p class="muted small" style="margin-top:0">Each message can be changed before you send it. Nothing is sent until you tap a button. <button class="link-btn" type="button" id="rmTpl">' + ico('edit') + 'Change the standard wording</button></p>' +
+    list.map(function (r) {
+      var c = r.customerId ? byId('Customers', r.customerId) : null;
+      return '<div class="card card-pad req-msg" data-rm="' + esc(r.id) + '"><div class="title"><b>' + esc(reqWho(r)) + '</b> <span class="muted">· ' + esc(r.what || '') + '</span> ' + reqChip(r) + '</div>' +
+        '<textarea class="input rm-text" data-rm-text="' + esc(r.id) + '" style="min-height:140px"></textarea>' +
+        '<div class="rm-acts"><button class="btn btn-secondary btn-sm" type="button" data-rm-copy="' + esc(r.id) + '">' + ico('copy') + 'Copy</button>' +
+        (c && c.email ? '<a class="btn btn-secondary btn-sm" data-rm-mail="' + esc(r.id) + '" href="#">' + ico('mail') + 'Email</a>' : '') +
+        (c && c.phone ? '<a class="btn btn-secondary btn-sm" data-rm-sms="' + esc(r.id) + '" href="#">' + ico('phone') + 'Text</a>' : '') +
+        '<span class="spacer"></span><button class="btn btn-primary btn-sm" type="button" data-rm-told="' + esc(r.id) + '">' + ico('check') + 'Mark as told</button></div></div>';
+    }).join('');
+  openDrawer(list.length === 1 ? 'Tell ' + reqWho(list[0]) : 'Tell ' + list.length + ' people', body, '<span class="spacer"></span><button class="btn btn-secondary" type="button" data-close>Close</button>');
+  var fill = function () {
+    var prod = byId('Products', $('#rmProd').value);
+    list.forEach(function (r) { var ta = $('[data-rm-text="' + r.id + '"]'); if (ta && !ta._edited) ta.value = reqFill(r, prod); });
+  };
+  fill();
+  var bodyEl = $('#drawerBody');
+  bodyEl.addEventListener('input', function (e) { if (e.target.hasAttribute('data-rm-text')) e.target._edited = true; });
+  bodyEl.addEventListener('change', function (e) { if (e.target.id === 'rmProd') fill(); });
+  bodyEl.addEventListener('click', function (e) {
+    var el, text = function (id) { return ($('[data-rm-text="' + id + '"]') || {}).value || ''; };
+    if (e.target.closest('#rmTpl')) { reqTplEdit(fill); return; }
+    if ((el = e.target.closest('[data-rm-copy]'))) { copyText(text(el.getAttribute('data-rm-copy')), 'Message copied'); return; }
+    if ((el = e.target.closest('[data-rm-mail]'))) {
+      var r1 = list.filter(function (r) { return r.id === el.getAttribute('data-rm-mail'); })[0], c1 = byId('Customers', r1.customerId), prod = byId('Products', $('#rmProd').value);
+      el.href = 'mailto:' + encodeURIComponent(c1.email) + '?subject=' + encodeURIComponent('Good news' + (prod ? ': ' + prod.name : '')) + '&body=' + encodeURIComponent(text(r1.id));
+      return;
+    }
+    if ((el = e.target.closest('[data-rm-sms]'))) {
+      var r2 = list.filter(function (r) { return r.id === el.getAttribute('data-rm-sms'); })[0], c2 = byId('Customers', r2.customerId);
+      el.href = 'sms:' + String(c2.phone).replace(/[^\d+]/g, '') + '?&body=' + encodeURIComponent(text(r2.id));
+      return;
+    }
+    if ((el = e.target.closest('[data-rm-told]'))) {
+      var r3 = list.filter(function (r) { return r.id === el.getAttribute('data-rm-told'); })[0]; if (!r3) return;
+      var rec = Object.assign({}, r3, { status: 'told', toldAt: new Date().toISOString(), productId: $('#rmProd').value || r3.productId || '' });
+      busy(el, 'Saving…');
+      save('Requests', rec).then(function (sv) {
+        var i = list.indexOf(r3); list[i] = sv;
+        var card = $('[data-rm="' + sv.id + '"]'); if (card) { var ch = card.querySelector('.chip'); if (ch) ch.outerHTML = reqChip(sv); el.outerHTML = '<span class="chip green">' + ico('check') + 'Told</span>'; }
+        toast('Marked as told');
+      }).catch(function (e2) { unbusy(el); fail(e2); });
+    }
+  });
+}
+function reqTplEdit(after) {
+  var cur = reqTemplate();
+  qaDialog('<h3 class="qa-title">Good news message</h3><p class="muted small">Used when you tell someone you now make what they asked for. You can use {firstName}, {productName}, {price}, {what} and {signature}.</p>' +
+    '<textarea class="input" id="rtBody" style="min-height:200px">' + esc(cur) + '</textarea>', function (m, close) {
+      var text = $('#rtBody').value.replace(/\s+$/, ''); if (!text.trim()) return false;
+      var saved = ((S.data && S.data.Templates) || []).filter(function (x) { return x.id === 'wishlist'; })[0];
+      if (!S.data.Templates) S.data.Templates = [];
+      var rec = saved ? Object.assign({}, saved, { title: 'Good news (requests)', body: text }) : { id: 'wishlist', title: 'Good news (requests)', body: text, created: new Date().toISOString() };
+      var ok = m.querySelector('[data-qa-ok]'); busy(ok, 'Saving…');
+      save('Templates', rec).then(function () { close(); toast('Wording saved'); if (after) after(); }).catch(function (e) { unbusy(ok); fail(e); });
+      return false;
+    }, 'Save wording');
+}
 </script>
+<style>
+/* v56 (Nov 2026): time tracker, deposits, finished photos, gallery, requests */
+.tm-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 8px 0 2px; padding: 8px 10px; border-radius: 10px; background: var(--sage-100); color: var(--ink); font-size: 14px; }
+.tm-row.running { background: var(--st-green-bg); }
+.tm-row .tm-ico .ico { width: 16px; height: 16px; }
+.tm-row .tm-status { font-weight: 600; flex: 1 1 160px; }
+.tm-row .tm-acts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tm-row .tm-btn .ico { width: 14px; height: 14px; }
+.tm-orphan { background: var(--st-amber-bg); }
+.tm-prod { margin: 2px 0 12px; font-size: 14px; }
+.tm-prow { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; padding: 4px 0; }
+.tm-done { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; color: var(--forest-800); }
+.tm-done .ico, .tm-below .ico, .tm-below-chip .ico { width: 15px; height: 15px; }
+.tm-chip { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--st-blue-bg); color: var(--st-blue); font-size: 12px; font-weight: 600; }
+.tm-below { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--st-amber-bg); color: var(--st-amber); line-height: 1.45; }
+.tm-below-chip { display: inline-flex; align-items: center; gap: 5px; margin: 6px 0 2px; padding: 2px 9px; border-radius: 999px; background: var(--st-amber-bg); color: var(--st-amber); font-size: 12px; font-weight: 700; }
+.dep-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dep-row .input { max-width: 160px; }
+.dep-kind button { min-width: 38px; }
+.dep-recv { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.dep-when { display: flex; flex-wrap: wrap; gap: 8px; }
+.dep-when[hidden], .dep-recv[hidden], .dep-sum[hidden] { display: none; }
+.dep-when .input { width: auto; }
+.dep-sum { margin-top: 6px; font-size: 13px; font-weight: 600; color: var(--forest-800); }
+.fin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.fin-tile { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--sage-100); border: 1px solid var(--line); }
+.fin-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fin-x { position: absolute; top: 4px; right: 4px; background: rgba(255,255,255,.92); color: #2C3832; }
+.fin-acts { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.req-add-row { margin: -4px 0 10px; }
+[data-fold] #finSec > .section-title:first-child { display: none; }   /* phone: the folded section already has the title */
+.v56-tabs { margin-bottom: 14px; }
+.v56-tabs .badge { position: static; margin-left: 6px; }
+.gal-filter { max-width: 280px; }
+.gal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.gal-tile { display: flex; flex-direction: column; text-align: left; padding: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--white); color: var(--ink); cursor: pointer; font: inherit; }
+.gal-tile img { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--sage-100); display: block; }
+.gal-cap { padding: 8px 10px; font-size: 13px; line-height: 1.4; }
+.req-chips { flex-wrap: wrap; gap: 6px; }
+.chip-btn { border: 1px solid var(--line); background: var(--white); color: var(--ink); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.chip-btn.on { background: var(--forest); color: #fff; border-color: var(--forest); }
+.req-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+.req-row:last-child { border-bottom: 0; }
+.req-row .grow { min-width: 0; flex: 1; }
+.req-row .title { font-weight: 600; }
+.req-row .sub { font-size: 13px; color: var(--muted); }
+.req-pick { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.req-pick-row { align-items: flex-start; }
+.req-msg { margin-bottom: 12px; }
+.req-msg .title { margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rm-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
+.qa-err { color: var(--st-red); font-weight: 600; font-size: 14px; margin: 4px 0 0; min-height: 1em; }
+</style>
 
   <style>
 /* ---- Fun dashboard + celebrations ---- */
