@@ -45,6 +45,9 @@ textarea:focus{outline:2px solid var(--green);border-color:var(--green)}
 .state{text-align:center;padding:50px 10px;color:var(--muted)}
 .spin{width:34px;height:34px;border:3px solid var(--sage-200);border-top-color:var(--forest);border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 14px}
 @keyframes sp{to{transform:rotate(360deg)}}
+.fin{margin-bottom:18px}
+.fin h2{font-family:"Amatic SC",cursive;font-size:34px;line-height:1;margin:0 0 10px;color:var(--forest-800);text-align:center}
+.fin .imgs{margin-bottom:0}
 footer{text-align:center;color:var(--muted);font-size:13px;margin-top:22px}
 footer a{color:var(--forest)}
 </style>
@@ -52,7 +55,7 @@ footer a{color:var(--forest)}
 <body>
 <div class="wrap">
   <img class="logo" src="logo.png" alt="Crafty Rose Gifts">
-  <div id="app"><div class="card state"><div class="spin"></div>Loading your proof…</div></div>
+  <div id="app"><div class="card state"><div class="spin"></div>Loading…</div></div>
   <footer id="foot">Crafty Rose Gifts · Kentville, Nova Scotia</footer>
 </div>
 <script>
@@ -71,16 +74,21 @@ function render() {
   var b = P.business || {};
   if (b.email || b.instagram) $('#foot').innerHTML = esc(b.businessName || 'Crafty Rose Gifts') + (b.email ? ' · <a href="mailto:' + esc(b.email) + '">' + esc(b.email) + '</a>' : '') + (b.instagram ? ' · Instagram ' + esc(b.instagram) : '');
   var det = !P.images.length;   // a details proof: no picture, the customer checks the order details
-  var h = '<div class="card"><h1>' + (det ? 'Please check your order details' : 'Your proof is ready!') + '</h1><p class="sub">Order ' + esc(P.number) + (P.firstName ? ' · for ' + esc(P.firstName) : '') + '</p>' +
-    (P.message ? '<div class="msg">' + esc(P.message) + '</div>' : '') +
+  var fin = P.finished || [], only = !P.status;   // finished photos (Nov 2026); only = a link made just for them (no proof was sent)
+  var pay = P.pay, payAmt = pay ? (pay.linkFor === 'deposit' ? pay.deposit : pay.balance) : P.total;
+  var h = '<div class="card"><h1>' + (only ? 'Your order is ready!' : det ? 'Please check your order details' : 'Your proof is ready!') + '</h1><p class="sub">Order ' + esc(P.number) + (P.firstName ? ' · for ' + esc(P.firstName) : '') + '</p>' +
+    (fin.length ? '<div class="fin"><h2>Your finished piece</h2><div class="imgs">' + fin.map(function (src, i) { return '<img src="' + src + '" alt="Finished piece ' + (i + 1) + '">'; }).join('') + '</div></div>' : '') +
+    (P.message && !only ? '<div class="msg">' + esc(P.message) + '</div>' : '') +
     (det ? '<p class="sub" style="margin:10px 0 4px">Please check the names, spelling, dates and choices below. This is exactly what I\'ll make.</p>' : '') +
     '<div class="imgs">' + P.images.map(function (src, i) { return '<img src="' + src + '" alt="Proof ' + (i + 1) + '">'; }).join('') + '</div>' +
     '<div class="items">' + P.items.map(function (it) { return '<div class="it"><b>' + esc(it.qty) + ' × ' + esc(it.name) + '</b><span>' + it.details.map(esc).join('<br>') + '</span></div>'; }).join('') + '</div>' +
-    '<div class="tot"><span>Total</span><span>$' + P.total.toFixed(2) + '</span></div>';
-  if (P.paid) h += '<div class="status ok">This order is paid. Thank you! I\'m working on it now.</div>';
+    '<div class="tot"><span>Total</span><span>$' + P.total.toFixed(2) + '</span></div>' +
+    (pay && pay.depositReceived && !P.paid ? '<div class="it"><span>Deposit received: $' + pay.deposit.toFixed(2) + ' · Left to pay: $' + pay.balance.toFixed(2) + '</span></div>' : '');
+  if (only) h += P.paid ? '<div class="status ok">This order is paid. Thank you!</div>' : '';
+  else if (P.paid) h += '<div class="status ok">' + (fin.length ? 'This order is paid. Thank you!' : 'This order is paid. Thank you! I\'m working on it now.') + '</div>';
   else if (P.status === 'approved') {
     h += '<div class="status ok">' + (det ? 'You approved these details. Thank you!' : 'You approved this proof. Thank you!') + '</div>' +
-      (P.paymentLink ? '<a class="btn btn-p" href="' + esc(P.paymentLink) + '">Pay now · $' + P.total.toFixed(2) + '</a><p class="sub" style="margin-top:8px;font-size:13px">Secure card payment by Stripe. You can also pay by e-transfer or cash. Just let me know.</p>'
+      (P.paymentLink ? '<a class="btn btn-p" href="' + esc(P.paymentLink) + '">' + (pay && pay.linkFor === 'deposit' ? 'Pay the deposit · $' : 'Pay now · $') + payAmt.toFixed(2) + '</a><p class="sub" style="margin-top:8px;font-size:13px">Secure card payment by Stripe. You can also pay by e-transfer or cash. Just let me know.</p>'
         : '<p class="sub" style="margin-top:10px">I\'ll send you payment details shortly.</p>');
   } else if (MODE === 'changes') {
     h += '<div class="actions"><label for="cmt"><b>What would you like changed?</b></label><textarea id="cmt" placeholder="e.g. Can the name be a bit bigger?"></textarea>' +
@@ -101,7 +109,7 @@ document.addEventListener('click', function (e) {
   if (sc && !comment) { $('#err').textContent = 'Please tell me what you\'d like changed.'; return; }
   var btn = ok || sc; btn.disabled = true; btn.textContent = 'Sending…';
   api({ action: 'respond' }, { t: TOKEN, decision: ok ? 'approve' : 'changes', comment: comment }).then(function (r) {
-    P.status = r.status; P.paymentLink = r.paymentLink || ''; if (sc) P.comment = comment; MODE = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
+    P.status = r.status; P.paymentLink = r.paymentLink || ''; if (r.pay) P.pay = r.pay; if (sc) P.comment = comment; MODE = ''; render(); window.scrollTo({ top: 0, behavior: 'smooth' });
     if (sc) document.querySelector('.status').scrollIntoView({ block: 'center' });
   }).catch(function (err) { btn.disabled = false; btn.textContent = ok ? 'Approve this proof' : 'Send my changes'; $('#err').textContent = err.message; });
 });
