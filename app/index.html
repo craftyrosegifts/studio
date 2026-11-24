@@ -1103,7 +1103,7 @@ html[data-theme="autumn"][data-mode="dark"] {
 }
 html[data-theme="rgb"][data-mode="dark"] {
   --green: #00E5FF; --green-500: #7B61FF; --forest: #7B61FF; --forest-700: #8F79FF; --forest-800: #7FF3FF;
-  --white: #161624; --warm-white: #18182A; --sage-25: #1C1C2E; --sage-50: #0C0C16; --sage-100: #222238; --sage-150: #2A2A45; --sage-200: #3A3A5C;
+  --white: #12121C; --warm-white: #14141F; --sage-25: #181826; --sage-50: #050508; --sage-100: #1C1C2E; --sage-150: #2A2A45; --sage-200: #3A3A5C;
   --line: #2A2A42; --ink: #EDEBFF; --ink-2: #C9C5EE; --muted: #9894C2; --muted-2: #6F6B99;
   --st-gray-bg: #26263A; --st-gray: #C0BCE6; --st-blue-bg: #13283A; --st-blue: #6FD4FF; --st-green-bg: #0F3026; --st-green: #4DF0A6;
   --st-purple-bg: #2A1F4A; --st-purple: #C2A8FF; --st-red-bg: #3A1426; --st-red: #FF6FA5; --st-amber-bg: #382A10; --st-amber: #FFC857;
@@ -1218,16 +1218,6 @@ html[data-theme="pastel"] .grid-cards > .card:nth-child(6n+4) .tag { background:
 html[data-theme="pastel"] .grid-cards > .card:nth-child(6n+5) .tag { background: color-mix(in srgb, var(--p5) 45%, var(--white)); color: #2D6C9E; }
 html[data-theme="pastel"] .grid-cards > .card:nth-child(6n+6) .tag { background: color-mix(in srgb, var(--p6) 45%, var(--white)); color: #5E4BB6; }
 html[data-theme="pastel"][data-mode="dark"] .grid-cards > .card .tag { color: var(--ink); }
-html[data-theme="pastel"] .col { background: color-mix(in srgb, var(--p1) 22%, var(--sage-50)); }
-html[data-theme="pastel"] .col:nth-child(6n+2) { background: color-mix(in srgb, var(--p2) 24%, var(--sage-50)); }
-html[data-theme="pastel"] .col:nth-child(6n+3) { background: color-mix(in srgb, var(--p4) 26%, var(--sage-50)); }
-html[data-theme="pastel"] .col:nth-child(6n+4) { background: color-mix(in srgb, var(--p5) 26%, var(--sage-50)); }
-html[data-theme="pastel"] .col:nth-child(6n+5) { background: color-mix(in srgb, var(--p6) 26%, var(--sage-50)); }
-html[data-theme="pastel"][data-mode="dark"] .col { background: color-mix(in srgb, var(--p1) 9%, var(--sage-50)); }
-html[data-theme="pastel"][data-mode="dark"] .col:nth-child(6n+2) { background: color-mix(in srgb, var(--p2) 9%, var(--sage-50)); }
-html[data-theme="pastel"][data-mode="dark"] .col:nth-child(6n+3) { background: color-mix(in srgb, var(--p4) 9%, var(--sage-50)); }
-html[data-theme="pastel"][data-mode="dark"] .col:nth-child(6n+4) { background: color-mix(in srgb, var(--p5) 9%, var(--sage-50)); }
-html[data-theme="pastel"][data-mode="dark"] .col:nth-child(6n+5) { background: color-mix(in srgb, var(--p6) 10%, var(--sage-50)); }
 html[data-theme="pastel"] .kpi .k-label .ico { color: #E57BA5; }
 html[data-theme="pastel"] .card.kpi:nth-child(2) .k-label .ico { color: #E0A23A; }
 html[data-theme="pastel"] .card.kpi:nth-child(3) .k-label .ico { color: #4EA3E6; }
@@ -1296,6 +1286,7 @@ html[data-mode="dark"] input[type="date"].input { color-scheme: dark; }
 .tp-sub { color: var(--muted); font-size: 12px; margin-top: -4px; }
 .tp-extra { margin-top: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--sage-50); border-radius: 12px; padding: 10px 12px; font-weight: 600; }
 #snowCanvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 15; }
+#sleighCanvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }   /* behind the page content: never covers words */
 @media (prefers-reduced-motion: reduce) {
   html[data-theme="christmas"] .topbar::after, html[data-theme="pastel"] .btn-primary,
   html[data-theme="rgb"] .btn-primary, html[data-theme="rgb"] .card.kpi::before, html[data-theme="rgb"] #pageTitle, html[data-theme="rgb"] .hello h2 { animation: none; }
@@ -1342,20 +1333,19 @@ html[data-theme]:not([data-theme="sage"]) input[type=checkbox], html[data-theme]
 html[data-theme]:not([data-theme="sage"]) .section-title { color: var(--acc1); }
 html[data-theme]:not([data-theme="sage"]) .section-title .ico { color: var(--acc2); }
 html[data-theme]:not([data-theme="sage"]) .drawer-head h2, html[data-theme]:not([data-theme="sage"]) .topbar-title h1 { color: var(--acc1); }
-/* folding sections: a coloured edge, cycling through the three accents */
+/* folding sections: a coloured edge in the theme's main colour */
 html[data-theme]:not([data-theme="sage"]) .r2-fold { border-left: 4px solid var(--acc1); }
-html[data-theme]:not([data-theme="sage"]) .r2-fold:nth-of-type(3n+2) { border-left-color: var(--acc2); }
-html[data-theme]:not([data-theme="sage"]) .r2-fold:nth-of-type(3n+3) { border-left-color: var(--acc3); }
 html[data-theme]:not([data-theme="sage"]) .r2-fold-name { color: var(--acc1); }
 html[data-theme]:not([data-theme="sage"]) .r2-fold.open > .r2-fold-head { background: var(--acc1-soft); border-radius: 12px 12px 0 0; }
 /* buttons, tags, menu */
-html[data-theme]:not([data-theme="sage"]) .btn-primary { background: linear-gradient(135deg, var(--acc1), color-mix(in srgb, var(--acc1) 70%, var(--acc2))); color: #fff; }
-html[data-theme]:not([data-theme="sage"]) .btn-primary:hover { filter: brightness(1.06); }
-html[data-theme]:not([data-theme="sage"])[data-mode="dark"] .btn-primary { background: linear-gradient(135deg, color-mix(in srgb, var(--acc1) 58%, #000), color-mix(in srgb, var(--acc2) 52%, #000)); }   /* dark: deeper so white text stays easy to read */
+/* main buttons: one solid colour (the theme's main colour, deep enough for white words) */
+html[data-theme]:not([data-theme="sage"]) { --btn: color-mix(in srgb, var(--acc1) 80%, #000); }
+html[data-theme]:not([data-theme="sage"])[data-mode="dark"] { --btn: color-mix(in srgb, var(--acc1) 60%, #000); }
+html[data-theme]:not([data-theme="sage"]) .btn-primary { background: var(--btn); background-image: none; border-color: var(--btn); color: #fff; animation: none; }
+html[data-theme]:not([data-theme="sage"]) .btn-primary .ico { color: #fff; }
+html[data-theme]:not([data-theme="sage"]) .btn-primary:hover { filter: brightness(1.08); }
 html[data-theme]:not([data-theme="sage"]) .btn-secondary:hover { border-color: var(--acc3); }
-html[data-theme]:not([data-theme="sage"]) .tag { background: var(--acc2-soft); color: color-mix(in srgb, var(--acc2) 80%, var(--ink)); }
-html[data-theme]:not([data-theme="sage"]) .tag:nth-child(3n+2) { background: var(--acc1-soft); color: color-mix(in srgb, var(--acc1) 80%, var(--ink)); }
-html[data-theme]:not([data-theme="sage"]) .tag:nth-child(3n+3) { background: var(--acc3-soft); color: color-mix(in srgb, var(--acc3) 55%, var(--ink)); }
+html[data-theme]:not([data-theme="sage"]) .tag { background: var(--acc1-soft); color: color-mix(in srgb, var(--acc1) 70%, var(--ink)); }
 html[data-theme]:not([data-theme="sage"]) .nav-item.active { background: var(--acc1-soft); color: var(--acc1); box-shadow: inset 3px 0 0 var(--acc1); }
 html[data-theme]:not([data-theme="sage"]) .nav-item.active .ico { color: var(--acc1); }
 html[data-theme]:not([data-theme="sage"]) .cat-chip.is-main, html[data-theme]:not([data-theme="sage"]) .lz-op { background: var(--acc3-soft); }
@@ -1376,19 +1366,7 @@ html[data-theme="rgb"] .drawer-head::before { background-size: 200% 100%; animat
    Each theme adds its own little sticker on every box, a colourful greeting banner,
    and a soft glow of its colours behind the page.
    ================================================================ */
-html[data-theme]:not([data-theme="sage"]) {
-  --box-mix: 80%; --box-line-mix: 50%; --col-mix: 88%;
-}
-html[data-theme]:not([data-theme="sage"])[data-mode="dark"] { --box-mix: 64%; --box3-mix: 72%; --box-line-mix: 35%; --col-mix: 80%; }
-html[data-theme]:not([data-theme="sage"]) {
-  --box1: color-mix(in srgb, var(--white) var(--box-mix), var(--acc1));
-  --box2: color-mix(in srgb, var(--white) var(--box-mix), var(--acc2));
-  --box3: color-mix(in srgb, var(--white) var(--box3-mix, var(--box-mix)), var(--acc3));
-  --box1-line: color-mix(in srgb, var(--white) var(--box-line-mix), var(--acc1));
-  --box2-line: color-mix(in srgb, var(--white) var(--box-line-mix), var(--acc2));
-  --box3-line: color-mix(in srgb, var(--white) var(--box-line-mix), var(--acc3));
-}
-/* each theme's little pictures: one per box colour, plus a big one for the page */
+/* each theme's little stickers: one picture per box, taking turns */
 html[data-theme="christmas"] { --deco1: "❄️"; --deco2: "🎄"; --deco3: "⭐"; }
 html[data-theme="winter"]    { --deco1: "❄️"; --deco2: "⛄"; --deco3: "🏔️"; }
 html[data-theme="beach"]     { --deco1: "🌊"; --deco2: "🐚"; --deco3: "☀️"; }
@@ -1398,26 +1376,48 @@ html[data-theme="autumn"]    { --deco1: "🍁"; --deco2: "🍂"; --deco3: "🌻"
 html[data-theme="rose"]      { --deco1: "🌹"; --deco2: "🌸"; --deco3: "💗"; }
 html[data-theme="pastel"]    { --deco1: "☁️"; --deco2: "🌈"; --deco3: "⭐"; }
 html[data-theme="rgb"]       { --deco1: "⚡"; --deco2: "👾"; --deco3: "💎"; }
-
+/* one box colour per theme (calm), and one matching shade for coloured words on the boxes */
+html[data-theme="christmas"] { --box-hue: var(--acc2); }
+html[data-theme="winter"]    { --box-hue: var(--acc1); }
+html[data-theme="beach"]     { --box-hue: var(--acc1); }
+html[data-theme="spring"]    { --box-hue: var(--acc1); }
+html[data-theme="halloween"] { --box-hue: var(--acc2); }
+html[data-theme="autumn"]    { --box-hue: var(--acc1); }
+html[data-theme="rose"]      { --box-hue: var(--acc1); }
+html[data-theme="pastel"]    { --box-hue: var(--acc1); }
+html[data-theme="rgb"]       { --box-hue: var(--acc1); }
+html[data-theme]:not([data-theme="sage"]) {
+  --box: color-mix(in srgb, var(--white) 88%, var(--box-hue));
+  --box-line: color-mix(in srgb, var(--white) 55%, var(--box-hue));
+  --box-accent: color-mix(in srgb, var(--box-hue) 52%, #000);           /* light boxes: a deep shade of the same colour */
+  --col-bg: color-mix(in srgb, var(--sage-50) 92%, var(--box-hue));
+}
+html[data-theme]:not([data-theme="sage"])[data-mode="dark"] {
+  --box: color-mix(in srgb, var(--white) 80%, var(--box-hue));
+  --box-line: color-mix(in srgb, var(--white) 50%, var(--box-hue));
+  --box-accent: color-mix(in srgb, var(--box-hue) 40%, #fff);           /* dark boxes: a pale shade of the same colour */
+  --col-bg: color-mix(in srgb, var(--sage-50) 86%, var(--box-hue));
+}
+/* a few themes use a classic partner colour for words on the box (checked for easy reading) */
+html[data-theme="christmas"][data-mode="dark"]:not([data-theme="sage"]) { --box-accent: #F3D27A; }   /* gold on pine green */
+html[data-theme="halloween"][data-mode="dark"]:not([data-theme="sage"]) { --box-accent: #FFB97A; }   /* pumpkin on purple */
 /* no more lines across the top of boxes (incl. the older per-theme top borders and stripes) */
 html[data-theme]:not([data-theme="sage"]) .card:not(.hello) { background-image: none; }
 html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .card, .pcard) { border-top-width: 1px; }
 html[data-theme="rgb"] .card.kpi::before { display: none; }
 
-/* boxes take turns in the theme colours */
-html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) { position: relative; }
-html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(3n+1) { background-color: var(--box1); border-color: var(--box1-line); --deco: var(--deco1); }
-html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(3n+2) { background-color: var(--box2); border-color: var(--box2-line); --deco: var(--deco2); }
-html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(3n+3) { background-color: var(--box3); border-color: var(--box3-line); --deco: var(--deco3); }
-/* board: each stage column is its own colour, and its orders match */
-html[data-theme]:not([data-theme="sage"]) .col:nth-child(3n+1) { background: color-mix(in srgb, var(--sage-50) var(--col-mix), var(--acc1)); }
-html[data-theme]:not([data-theme="sage"]) .col:nth-child(3n+2) { background: color-mix(in srgb, var(--sage-50) var(--col-mix), var(--acc2)); }
-html[data-theme]:not([data-theme="sage"]) .col:nth-child(3n+3) { background: color-mix(in srgb, var(--sage-50) var(--col-mix), var(--acc3)); }
-html[data-theme]:not([data-theme="sage"]) .col:nth-child(3n+1) .tile { background-color: var(--box1); border-color: var(--box1-line); --deco: var(--deco1); }
-html[data-theme]:not([data-theme="sage"]) .col:nth-child(3n+2) .tile { background-color: var(--box2); border-color: var(--box2-line); --deco: var(--deco2); }
-html[data-theme]:not([data-theme="sage"]) .col:nth-child(3n+3) .tile { background-color: var(--box3); border-color: var(--box3-line); --deco: var(--deco3); }
-/* other boxes (tables, lists): a soft wash of the second colour */
-html[data-theme]:not([data-theme="sage"]) .card:not(.kpi):not(.pcard):not(.hello):not(.lz-grp):not(.card-pad) { background-color: color-mix(in srgb, var(--white) 90%, var(--acc2)); border-color: var(--box2-line); }
+/* boxes: all the same calm theme colour; the stickers still take turns */
+html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) { position: relative; background-color: var(--box); border-color: var(--box-line); }
+html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(3n+1) { --deco: var(--deco1); }
+html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(3n+2) { --deco: var(--deco2); }
+html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(3n+3) { --deco: var(--deco3); }
+/* board: soft columns in the same colour */
+html[data-theme]:not([data-theme="sage"]) .col { background: var(--col-bg); }
+/* other boxes (tables, lists): a lighter wash of the same colour */
+html[data-theme]:not([data-theme="sage"]) .card:not(.kpi):not(.pcard):not(.hello):not(.lz-grp):not(.card-pad) { background-color: color-mix(in srgb, var(--white) 94%, var(--box-hue)); border-color: var(--box-line); }
+/* every coloured word on a box (section names, customer names, links, order numbers, prices) uses the box's own matching shade */
+html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) { --rose: var(--box-accent); --forest: var(--box-accent); --forest-700: var(--box-accent); --forest-800: var(--box-accent); --green-500: var(--box-accent); --acc1: var(--box-accent); --acc2: var(--box-accent); --acc3: var(--box-accent); }
+html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) :is(.link-btn:not(.td-hide), .btn-ghost, a, .pcard .p-price, .p-price, .t-amt, .t-num, .r2-num, .c6-val) { color: var(--box-accent); }
 
 /* the little picture: a sticker peeking over the top edge of each box (never in the way of a tap) */
 html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad)::after {
@@ -1452,36 +1452,75 @@ html[data-theme="beach"]:not([data-theme="sage"]) body {
 }
 @media (max-width: 760px) { html[data-theme]:is([data-theme="winter"], [data-theme="beach"], [data-theme="spring"]) body { background-size: 100% 150px, auto, auto; } }
 /* Fun RGB: boxes glow like neon */
-html[data-theme="rgb"] :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(3n+1) { box-shadow: 0 0 18px color-mix(in srgb, transparent 72%, var(--acc1)); }
-html[data-theme="rgb"] :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(3n+2) { box-shadow: 0 0 18px color-mix(in srgb, transparent 72%, var(--acc2)); }
-html[data-theme="rgb"] :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(3n+3) { box-shadow: 0 0 18px color-mix(in srgb, transparent 72%, var(--acc3)); }
 /* Pastel: extra-round, puffy boxes */
 html[data-theme="pastel"]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .r2-card, .card.card-pad) { border-radius: 22px; border-width: 2px; border-top-width: 2px; }
-/* Halloween: price and totals in pumpkin orange */
-html[data-theme="halloween"] :is(.pcard .p-price, .tile .t-amt) { color: color-mix(in srgb, var(--acc1) 75%, var(--ink)); }
-/* Christmas: prices in gold on dark */
-html[data-theme="christmas"][data-mode="dark"] :is(.pcard .p-price, .tile .t-amt, .r2-num) { color: #F3D27A; }
 
-/* the greeting banner on the dashboard: a sweep of all three theme colours */
+/* the greeting banner on the dashboard: a soft fade of the box colour */
 html[data-theme]:not([data-theme="sage"]) .card.hello {
-  background: linear-gradient(120deg, color-mix(in srgb, var(--white) 72%, var(--acc1)), color-mix(in srgb, var(--white) 78%, var(--acc2)) 55%, color-mix(in srgb, var(--white) 76%, var(--acc3)));
-  border-color: var(--box1-line);
+  background: linear-gradient(120deg, color-mix(in srgb, var(--white) 76%, var(--box-hue)), var(--box) 70%);
+  border-color: var(--box-line);
 }
 /* menu: takes on the theme colour */
 html[data-theme]:not([data-theme="sage"])[data-mode="dark"] .sidebar { background-color: color-mix(in srgb, var(--sage-50) 72%, var(--acc2)); }
 html[data-theme]:not([data-theme="sage"]):not([data-mode="dark"]) .sidebar { background-color: color-mix(in srgb, var(--white) 86%, var(--acc2)); }
 /* small grey helper words on the coloured boxes use the stronger text colour, so they stay easy to read */
 html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad, .card.hello) { --muted: var(--ink-2); --muted-2: var(--ink-2); }
-/* coloured words on the boxes: deeper on light boxes, lighter on dark boxes */
-html[data-theme]:not([data-theme="sage"]):not([data-mode="dark"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) :is(.link-btn:not(.td-hide), .btn-ghost, a) { color: color-mix(in srgb, var(--acc1) 55%, #000); }
 html[data-theme]:not([data-theme="sage"]):not([data-mode="dark"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) .margin-good { color: #17583A; }
 html[data-theme]:not([data-theme="sage"])[data-mode="dark"] :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) .margin-good { color: #C4F5D9; }
 /* tags on the boxes: a frosted chip so they read on every box colour */
 html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) .tag { background: rgba(255, 255, 255, .62); color: var(--ink); }
 html[data-theme]:not([data-theme="sage"])[data-mode="dark"] :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) .tag { background: rgba(0, 0, 0, .3); color: var(--ink); }
-/* keep words easy to read on the coloured boxes */
-html[data-theme]:not([data-theme="sage"])[data-mode="dark"] :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) :is(.link-btn, .btn-ghost, a) { color: color-mix(in srgb, var(--ink) 75%, var(--acc3)); }
 html[data-theme]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) :is(.muted, .sub, .t-sub) { color: var(--ink-2); }
+/* ================================================================
+   Fun RGB (v55): black boxes with a neon glow that slowly cycles pink -> violet -> cyan
+   (light and dark), on an almost-black page in dark mode. Words on the boxes are light.
+   ================================================================ */
+html[data-theme="rgb"]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) {
+  background-color: #0A0A12; border-color: transparent;
+  --ink: #F2F0FF; --ink-2: #CFCBF2; --muted: #CFCBF2; --muted-2: #A9A4D6; --line: #2A2A42; --white: #12121C;
+  --warm-white: #12121C; --sage-25: #14141F; --sage-50: #08080E; --sage-100: #1C1C2E; --sage-150: #24243A; --sage-200: #34344F;
+  --box-accent: #6FF3FF; --rose: #6FF3FF; --forest: #6FF3FF; --forest-700: #6FF3FF; --forest-800: #6FF3FF; --green-500: #6FF3FF; --acc1: #6FF3FF; --acc2: #6FF3FF; --acc3: #6FF3FF;
+  color: var(--ink);
+  box-shadow: 0 0 0 1.5px #FF2D95, 0 0 18px rgba(255, 45, 149, .55), 0 0 42px rgba(255, 45, 149, .22);
+  animation: rgbGlow 6s linear infinite;
+}
+html[data-theme="rgb"]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(3n+2) { animation-delay: -2s; }
+html[data-theme="rgb"]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(3n+3) { animation-delay: -4s; }
+@keyframes rgbGlow {
+  0%, 100% { box-shadow: 0 0 0 1.5px #FF2D95, 0 0 18px rgba(255, 45, 149, .55), 0 0 42px rgba(255, 45, 149, .22); }
+  33%      { box-shadow: 0 0 0 1.5px #7B61FF, 0 0 18px rgba(123, 97, 255, .6), 0 0 42px rgba(123, 97, 255, .25); }
+  66%      { box-shadow: 0 0 0 1.5px #00E5FF, 0 0 18px rgba(0, 229, 255, .55), 0 0 42px rgba(0, 229, 255, .22); }
+}
+html[data-theme="rgb"]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) .tag { background: rgba(255, 255, 255, .1); color: #F2F0FF; }
+html[data-theme="rgb"]:not([data-theme="sage"]):not([data-mode="none"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) .margin-good { color: #7CF7C4; }
+html[data-theme="rgb"]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) :is(.input, select.input, textarea.input) { background-color: #181826; color: #F2F0FF; border-color: #3A3A5C; }
+html[data-theme="rgb"]:not([data-theme="sage"]) .col { background: color-mix(in srgb, var(--sage-50) 90%, #7B61FF); }
+html[data-theme="rgb"]:not([data-theme="sage"])[data-mode="dark"] .sidebar { background-color: #08080E; }
+html[data-theme="rgb"]:not([data-theme="sage"]) .card.hello { background: linear-gradient(120deg, #120A1E, #0A0A12 70%); border-color: transparent; box-shadow: 0 0 0 1.5px #7B61FF, 0 0 26px rgba(123, 97, 255, .45); --ink: #F2F0FF; --ink-2: #CFCBF2; --muted: #CFCBF2; color: #F2F0FF; }
+@media (prefers-reduced-motion: reduce) { html[data-theme="rgb"]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad) { animation: none; } }
+
+/* ================================================================
+   Christmas (v55): boxes alternate red and green. Words on them: gold on dark boxes,
+   deep red / deep green on light boxes (all checked for easy reading).
+   Fun: twinkling stickers, and Santa's sleigh flies across the sky now and then.
+   ================================================================ */
+html[data-theme="christmas"]:not([data-theme="sage"]) {
+  --xmas-red: color-mix(in srgb, var(--white) 88%, #C8102E); --xmas-red-line: color-mix(in srgb, var(--white) 55%, #C8102E);
+  --xmas-green: color-mix(in srgb, var(--white) 88%, #1E7A46); --xmas-green-line: color-mix(in srgb, var(--white) 55%, #1E7A46);
+  --xmas-red-text: #8E0F22; --xmas-green-text: #0D4F2C;
+}
+html[data-theme="christmas"][data-mode="dark"]:not([data-theme="sage"]) {
+  --xmas-red: color-mix(in srgb, var(--white) 76%, #C8102E); --xmas-red-line: color-mix(in srgb, var(--white) 45%, #E2405A);
+  --xmas-green: color-mix(in srgb, var(--white) 78%, #1E7A46); --xmas-green-line: color-mix(in srgb, var(--white) 45%, #3DBA74);
+  --xmas-red-text: #F6D57E; --xmas-green-text: #F6D57E;
+}
+html[data-theme="christmas"]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(odd) { background-color: var(--xmas-red); border-color: var(--xmas-red-line); --box-accent: var(--xmas-red-text); }
+html[data-theme="christmas"]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(even) { background-color: var(--xmas-green); border-color: var(--xmas-green-line); --box-accent: var(--xmas-green-text); }
+html[data-theme="christmas"]:not([data-theme="sage"]) .card.hello { background: linear-gradient(120deg, var(--xmas-red), var(--xmas-green)); border-color: var(--xmas-green-line); }
+html[data-theme="christmas"]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad)::after { animation: stickerTwinkle 2.6s ease-in-out infinite; }
+html[data-theme="christmas"]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad):nth-child(even)::after { animation-delay: -1.3s; }
+@keyframes stickerTwinkle { 0%, 100% { transform: rotate(-12deg) scale(1); filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .25)); } 50% { transform: rotate(4deg) scale(1.18); filter: drop-shadow(0 0 6px rgba(255, 215, 100, .9)); } }
+@media (prefers-reduced-motion: reduce) { html[data-theme="christmas"]:not([data-theme="sage"]) :is(.card.kpi, .grid-cards > .pcard, .tile, .lz-grp, .r2-card, .card.card-pad)::after { animation: none; } }
 </style>
 <script>
 /* ---------- Theme + light/dark mode (saved on this device) ---------- */
@@ -1531,6 +1570,7 @@ function snowUpdate() {
   if (SNOW.raf && SNOW.mode === key) return;
   if (SNOW.raf) cancelAnimationFrame(SNOW.raf); SNOW.raf = 0;
   var old = document.getElementById('snowCanvas'); if (old) old.remove();
+  var oldS = document.getElementById('sleighCanvas'); if (oldS) oldS.remove();
   SNOW.mode = key;
   if (!mode || !document.body) return;
   var dark = document.documentElement.getAttribute('data-mode') === 'dark';
@@ -1589,6 +1629,31 @@ function snowUpdate() {
     ctx.beginPath(); ctx.arc(0, -r * .05, r * .22, 0, 7); ctx.fill();
     ctx.restore();
   };
+  /* Christmas: Santa's sleigh crosses the sky about once a minute (first pass after 6 seconds).
+     It flies on its own layer BEHIND the page content, so it only shows between boxes and never covers words. */
+  var sc = null, sctx = null;
+  if (mode === 'snow' && theme === 'christmas') {
+    sc = document.createElement('canvas'); sc.id = 'sleighCanvas'; document.body.insertBefore(sc, document.body.firstChild);
+    sctx = sc.getContext('2d');
+    var ssize = function () { sc.width = innerWidth * dpr; sc.height = innerHeight * dpr; };
+    ssize(); window.addEventListener('resize', ssize);
+  }
+  var sl = { x: 0, y: 0, start: performance.now() + 6000, dur: 9000, on: false };
+  var sleigh = function (t) {
+    if (!sctx) return;
+    if (sl.on) { sctx.setTransform(dpr, 0, 0, dpr, 0, 0); sctx.clearRect(0, 0, innerWidth, innerHeight); sl.on = false; }
+    if (t < sl.start) return;
+    var k = (t - sl.start) / sl.dur;
+    if (k > 1) { sl.start = t + 50000 + Math.random() * 20000; sl.y = 120 + Math.random() * Math.max(40, innerHeight - 240); return; }   // a different height each pass, through the open spaces
+    if (!sl.y) sl.y = 150;
+    var w = 250, x = innerWidth + 20 - k * (innerWidth + w + 40), y = sl.y + Math.sin(k * Math.PI * 4) * 8;
+    sl.on = true; sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    sctx.save(); sctx.globalAlpha = Math.min(1, k * 8, (1 - k) * 8) * (dark ? .95 : .85);
+    sctx.font = '32px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; sctx.textBaseline = 'middle';
+    sctx.fillText('🦌🦌🛷🎅', x, y);
+    for (var q = 0; q < 6; q++) { sctx.beginPath(); sctx.arc(x + w - 10 + q * 9 + Math.random() * 4, y + 6 + Math.random() * 6, 1.4, 0, 7); sctx.fillStyle = 'rgba(255, 220, 120, ' + (.7 - q * .1) + ')'; sctx.fill(); }
+    sctx.restore();
+  };
   var last = performance.now();
   var tick = function (t) {
     var dt = Math.min(50, t - last) / 16.7; last = t;
@@ -1626,6 +1691,7 @@ function snowUpdate() {
         bat(f, t);
       }
     });
+    if (mode === 'snow' && theme === 'christmas') sleigh(t);
     SNOW.raf = requestAnimationFrame(tick);
   };
   SNOW.raf = requestAnimationFrame(tick);
