@@ -572,6 +572,15 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .cat-field { position: relative; }
 .pick-list { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; margin-top: 4px; max-height: 260px; overflow-y: auto; background: var(--white); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 4px; }
 .pick-list.static { position: static; box-shadow: none; margin-top: 8px; max-height: 320px; }
+.cat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; align-items: center; }   /* Batch (Nov 2026): product categories */
+.cat-chip { display: inline-flex; align-items: center; gap: 2px; background: var(--sage-50, #EEF4F0); border: 1px solid var(--line); border-radius: 999px; padding: 2px 4px 2px 10px; font-size: 14px; }
+.cat-chip.is-main { background: var(--sage-100); border-color: var(--sage-200); font-weight: 600; }
+.cat-main { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--forest); margin-right: 6px; font-weight: 700; }
+.cat-mk { background: none; border: 0; font: inherit; color: inherit; padding: 4px 2px; cursor: pointer; }
+.cat-x { background: none; border: 0; font-size: 18px; line-height: 1; color: var(--muted, #6b7a72); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; }
+.cat-x:hover, .cat-mk:hover { color: var(--forest); }
+.cat-tip { flex-basis: 100%; }
+@media (max-width: 640px) { .cat-chip { font-size: 15px; padding: 4px 4px 4px 12px; } .cat-x { width: 36px; height: 36px; } }
 .pick-row { display: flex; flex-wrap: wrap; width: 100%; align-items: baseline; justify-content: space-between; gap: 10px; text-align: left; background: none; border: 0; border-radius: 8px; padding: 9px 10px; font: inherit; color: inherit; cursor: pointer; }
 .pick-row:hover, .pick-row:focus-visible { background: var(--sage-25); outline: none; }
 .pick-name { font-weight: 600; flex: 1 1 140px; min-width: 120px; overflow-wrap: break-word; }   /* never squeezed to one letter per line */
@@ -909,6 +918,32 @@ table.tbl { width: 100%; border-collapse: collapse; }
 @media (max-width: 820px) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px !important; }
 }
+/* Batch (Nov 2026) C: folding sections on the product and material screens (every screen size) */
+.fx-fold.r2-fold { margin: 14px 0 0; border: 1px solid var(--line); border-radius: 14px; background: var(--white); }
+.fx-fold .r2-fold-head { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 8px 14px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.fx-fold .r2-fold-name { flex: none; font-size: 13px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--forest-700, var(--forest)); }
+.fx-fold .r2-fold-sum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-size: 14px; color: var(--muted); }
+.fx-fold .r2-fold-chev { flex: none; width: 18px; height: 18px; color: var(--forest); transition: transform .15s; }
+.fx-fold.open .r2-fold-chev { transform: rotate(180deg); }
+.fx-fold .r2-fold-body { padding: 0 14px 14px; }
+.fx-fold .r2-fold-body > .section-title.r2-t, .fx-fold .r2-fold-body #formSec > .section-title:first-child, .fx-fold .r2-fold-body #varSec > .section-title:first-child, .fx-fold .r2-fold-body #slHistSec > .section-title:first-child { display: none; }
+.fx-fold .r2-fold-head:hover .r2-fold-name { color: var(--forest); }
+.fx-copymats { margin-top: 14px; display: grid; gap: 6px; }
+@media (prefers-reduced-motion: reduce) { .fx-fold .r2-fold-chev { transition: none; } }
+/* Batch (Nov 2026) D: laser cards with several operations */
+.sc-ops { display: grid; gap: 6px; margin: 10px 0 4px; }
+.sc-op { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+.sc-op .chip { flex: none; }
+.sc-op-v { color: var(--ink, inherit); }
+.lz-ops { margin-top: 8px; }
+.lz-op { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px 2px; margin: 10px 0; background: var(--sage-25, transparent); }
+.lz-op-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.lz-op-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 12px; }
+.lz-grp { margin: 0 0 12px; }
+.lz-grp-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.lz-pc { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 0 0 10px; }
+.lz-pc-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+@media (max-width: 640px) { .lz-op-grid { grid-template-columns: 1fr 1fr; } }
 </style>
 
   <style>
@@ -1236,6 +1271,7 @@ html[data-mode="dark"] input[type="date"].input { color-scheme: dark; }
 .tp-mode { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; background: var(--sage-100); border-radius: 14px; padding: 4px; margin-bottom: 14px; }
 .tp-mode button { border: 0; background: none; border-radius: 10px; padding: 9px 6px; font: inherit; font-weight: 600; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .tp-mode button.on { background: var(--white); color: var(--ink); box-shadow: var(--shadow-sm); }
+.tp-mode button { min-height: 44px; }   /* Batch (Nov 2026): easy to tap on a phone */
 .tp-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 0 0 8px 2px; }
 .tp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .tp-opt { border: 2px solid var(--line); background: var(--sage-25); border-radius: 16px; padding: 10px; cursor: pointer; text-align: left; font: inherit; color: inherit; display: flex; flex-direction: column; gap: 6px; transition: border-color .15s, transform .12s; }
@@ -1252,6 +1288,73 @@ html[data-mode="dark"] input[type="date"].input { color-scheme: dark; }
   html[data-theme="christmas"] .topbar::after, html[data-theme="pastel"] .btn-primary,
   html[data-theme="rgb"] .btn-primary, html[data-theme="rgb"] .card.kpi::before, html[data-theme="rgb"] #pageTitle, html[data-theme="rgb"] .hello h2 { animation: none; }
 }
+
+/* ================================================================
+   Batch (Nov 2026) F: more colourful themes.
+   Every theme except Sage (the classic look) gets three accent colours that show up on input boxes, headings,
+   section boxes, buttons, tags, the menu and the top of each screen — plus a decorative strip per theme.
+   The colours come from --acc1/2/3; boxes and fields are mixed from them, so light and dark both work.
+   ================================================================ */
+html[data-theme="christmas"] { --acc1: #C8102E; --acc2: #1E7A46; --acc3: #D4A017; --strip: var(--cane); }
+html[data-theme="holiday"]   { --acc1: #B3343F; --acc2: #1F5E3F; --acc3: #C9A227; --strip: var(--plaid); }
+html[data-theme="halloween"] { --acc1: #C2570A; --acc2: #6B34A3; --acc3: #4E9F2B; --strip: repeating-linear-gradient(-45deg, #E06A10 0 12px, #2A2135 12px 24px); }
+html[data-theme="autumn"]    { --acc1: #B8582A; --acc2: #7A8B2F; --acc3: #D9A441; --strip: linear-gradient(90deg, #B8582A, #D9A441, #7A8B2F, #A23E2A, #D9A441); }
+html[data-theme="rgb"]       { --acc1: #6A4DFF; --acc2: #FF2D95; --acc3: #00B8D9; --strip: var(--rgb); }
+html[data-theme="pastel"]    { --acc1: #6F5BD6; --acc2: #E86FA6; --acc3: #3FB58F; --strip: var(--rainbow); }
+html[data-theme="rose"]      { --acc1: #B5576E; --acc2: #C98A3E; --acc3: #8E6FA8; --strip: linear-gradient(90deg, #F3B6C3, #D9798E, #E8C39E, #D9798E, #F3B6C3); }
+html[data-theme="christmas"][data-mode="dark"] { --acc1: #FF5A6E; --acc2: #3DBA74; --acc3: #F2C94C; }
+html[data-theme="holiday"][data-mode="dark"]   { --acc1: #E25563; --acc2: #3FA36D; --acc3: #E8C66F; }
+html[data-theme="halloween"][data-mode="dark"] { --acc1: #FF8A3D; --acc2: #A879E0; --acc3: #7FD05A; }
+html[data-theme="autumn"][data-mode="dark"]    { --acc1: #E9874F; --acc2: #B5C45A; --acc3: #F0BE5E; }
+html[data-theme="rgb"][data-mode="dark"]       { --acc1: #9B87FF; --acc2: #FF5CB0; --acc3: #33D6F0; }
+html[data-theme="pastel"][data-mode="dark"]    { --acc1: #A898F5; --acc2: #F59CC5; --acc3: #7FD9B9; }
+html[data-theme="rose"][data-mode="dark"]      { --acc1: #E58AA0; --acc2: #E0AE6A; --acc3: #B79AD0; }
+html[data-theme]:not([data-theme="sage"]) {
+  --field-bg: color-mix(in srgb, var(--white) 93%, var(--acc3));
+  --field-line: color-mix(in srgb, var(--line) 65%, var(--acc1));
+  --acc1-soft: color-mix(in srgb, var(--white) 86%, var(--acc1));
+  --acc2-soft: color-mix(in srgb, var(--white) 86%, var(--acc2));
+  --acc3-soft: color-mix(in srgb, var(--white) 82%, var(--acc3));
+}
+html[data-theme="halloween"] { --field-bg: color-mix(in srgb, var(--white) 94%, var(--acc2)); }
+html[data-theme="rgb"] { --field-bg: color-mix(in srgb, var(--white) 95%, var(--acc1)); }
+/* input boxes: warm tint from the theme instead of plain green/grey */
+html[data-theme]:not([data-theme="sage"]) .input, html[data-theme]:not([data-theme="sage"]) select.input, html[data-theme]:not([data-theme="sage"]) textarea.input { background-color: var(--field-bg); border-color: var(--field-line); }
+html[data-theme]:not([data-theme="sage"]) .input:focus { border-color: var(--acc1); box-shadow: 0 0 0 3px color-mix(in srgb, transparent 70%, var(--acc1)); background-color: var(--white); }
+html[data-theme]:not([data-theme="sage"]) input[type=checkbox], html[data-theme]:not([data-theme="sage"]) input[type=radio] { accent-color: var(--acc1); }
+/* headings and section titles take turns in the accent colours */
+html[data-theme]:not([data-theme="sage"]) .section-title { color: var(--acc1); }
+html[data-theme]:not([data-theme="sage"]) .section-title .ico { color: var(--acc2); }
+html[data-theme]:not([data-theme="sage"]) .drawer-head h2, html[data-theme]:not([data-theme="sage"]) .topbar-title h1 { color: var(--acc1); }
+/* folding sections: a coloured edge, cycling through the three accents */
+html[data-theme]:not([data-theme="sage"]) .r2-fold { border-left: 4px solid var(--acc1); }
+html[data-theme]:not([data-theme="sage"]) .r2-fold:nth-of-type(3n+2) { border-left-color: var(--acc2); }
+html[data-theme]:not([data-theme="sage"]) .r2-fold:nth-of-type(3n+3) { border-left-color: var(--acc3); }
+html[data-theme]:not([data-theme="sage"]) .r2-fold-name { color: var(--acc1); }
+html[data-theme]:not([data-theme="sage"]) .r2-fold.open > .r2-fold-head { background: var(--acc1-soft); border-radius: 12px 12px 0 0; }
+/* cards: a thin three-colour line along the top */
+html[data-theme]:not([data-theme="sage"]) .card:not(.hello) { background-image: linear-gradient(90deg, var(--acc1) 0 33.3%, var(--acc2) 33.3% 66.6%, var(--acc3) 66.6%); background-size: 100% 3px; background-repeat: no-repeat; background-position: top; }
+/* buttons, tags, menu */
+html[data-theme]:not([data-theme="sage"]) .btn-primary { background: linear-gradient(135deg, var(--acc1), color-mix(in srgb, var(--acc1) 70%, var(--acc2))); color: #fff; }
+html[data-theme]:not([data-theme="sage"]) .btn-primary:hover { filter: brightness(1.06); }
+html[data-theme]:not([data-theme="sage"])[data-mode="dark"] .btn-primary { background: linear-gradient(135deg, color-mix(in srgb, var(--acc1) 58%, #000), color-mix(in srgb, var(--acc2) 52%, #000)); }   /* dark: deeper so white text stays easy to read */
+html[data-theme]:not([data-theme="sage"]) .btn-secondary:hover { border-color: var(--acc3); }
+html[data-theme]:not([data-theme="sage"]) .tag { background: var(--acc2-soft); color: color-mix(in srgb, var(--acc2) 80%, var(--ink)); }
+html[data-theme]:not([data-theme="sage"]) .tag:nth-child(3n+2) { background: var(--acc1-soft); color: color-mix(in srgb, var(--acc1) 80%, var(--ink)); }
+html[data-theme]:not([data-theme="sage"]) .tag:nth-child(3n+3) { background: var(--acc3-soft); color: color-mix(in srgb, var(--acc3) 55%, var(--ink)); }
+html[data-theme]:not([data-theme="sage"]) .nav-item.active { background: var(--acc1-soft); color: var(--acc1); box-shadow: inset 3px 0 0 var(--acc1); }
+html[data-theme]:not([data-theme="sage"]) .nav-item.active .ico { color: var(--acc1); }
+html[data-theme]:not([data-theme="sage"]) .cat-chip.is-main, html[data-theme]:not([data-theme="sage"]) .lz-op { background: var(--acc3-soft); }
+/* a decorative strip along the top of every screen (drawer) in the theme's pattern */
+html[data-theme]:not([data-theme="sage"]) .drawer-head { position: relative; }
+html[data-theme]:not([data-theme="sage"]) .drawer-head::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 6px; background: var(--strip); pointer-events: none; }
+/* Christmas: string lights under the screen header too */
+html[data-theme="christmas"] .drawer-head::after { content: ""; position: absolute; left: 0; right: 0; bottom: -7px; height: 10px; pointer-events: none;
+  background: radial-gradient(circle at 10px 5px, #C8102E 3px, transparent 4px) 0 0 / 60px 10px, radial-gradient(circle at 25px 5px, #E9C46A 3px, transparent 4px) 0 0 / 60px 10px,
+              radial-gradient(circle at 40px 5px, #1E7A46 3px, transparent 4px) 0 0 / 60px 10px, radial-gradient(circle at 55px 5px, #4F8FE0 3px, transparent 4px) 0 0 / 60px 10px; }
+html[data-theme="rgb"] .drawer-head::before { background-size: 200% 100%; animation: rgbStrip 6s linear infinite; }
+@keyframes rgbStrip { to { background-position: 200% 0; } }
+@media (prefers-reduced-motion: reduce) { html[data-theme="rgb"] .drawer-head::before { animation: none; } }
 </style>
 <script>
 /* ---------- Theme + light/dark mode (saved on this device) ---------- */
@@ -1426,6 +1529,10 @@ function drawThemePicker() {
         '<span class="tp-name">' + t.name + '</span><span class="tp-sub">' + t.sub + '</span></button>';
     }).join('') + '</div>' +
     (FX_MODES[cur] ? '<label class="tp-extra"><span>' + fxLabel(cur) + '</span><span class="switch"><input type="checkbox" id="snowToggle"' + (snowOn() ? ' checked' : '') + '><span></span></span></label>' : '') +
+    '<div class="tp-label">Celebrations</div><div class="tp-mode" role="radiogroup" aria-label="Celebrations">' +   // Batch (Nov 2026)
+      [['full', '🎉 Full'], ['calm', '✨ Calm'], ['off', 'Off']].map(function (m) { var on = (lsg('os.fx') || 'full') === m[0];
+        return '<button type="button" role="radio" aria-checked="' + on + '" class="' + (on ? 'on' : '') + '" data-fx-key="' + m[0] + '">' + m[1] + '</button>'; }).join('') + '</div>' +
+    '<p class="hint" style="margin:-8px 0 12px 2px">New orders, paid and finished orders, proofs approved and goal milestones. Calm keeps it small; Off shows just the message.</p>' +
     '<p class="hint" style="margin:12px 0 0">Saved on this device, so your phone and computer can each have their own look.</p>' +
     '<div class="tp-done"><button class="btn btn-primary" type="button" data-tpclose>Done</button></div>';
 }
@@ -1439,6 +1546,8 @@ function openThemePicker() {
       if (e.target.closest('[data-tpclose]')) { closeThemePicker(); return; }
       var m = e.target.closest('[data-mode-key]');
       if (m) { lss('os.mode', m.getAttribute('data-mode-key')); applyTheme(); drawThemePicker(); return; }
+      var fx = e.target.closest('[data-fx-key]');
+      if (fx) { lss('os.fx', fx.getAttribute('data-fx-key')); drawThemePicker(); if (typeof celebrate === 'function' && fx.getAttribute('data-fx-key') !== 'off') celebrate('theme'); return; }   // shows a sample
       var o = e.target.closest('[data-theme-key]');
       if (o) { lss('os.theme', o.getAttribute('data-theme-key')); applyTheme(); drawThemePicker(); }
     });
@@ -1948,10 +2057,16 @@ function matSearch(q) {
     return words.every(function (w) { return hay.indexOf(w) >= 0; });
   }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
 }
+/** Batch (Nov 2026): every category of a product, main one first (category = main, categories = the extra ones). */
+function prodCats(p) {
+  var seen = {};
+  return [p && p.category].concat(p && Array.isArray(p.categories) ? p.categories : []).map(function (c) { return String(c || '').trim(); })
+    .filter(function (c) { var k = c.toLowerCase(); if (!c || seen[k]) return false; seen[k] = 1; return true; });
+}
 /** Existing product categories with how many products use each (first spelling wins). */
 function productCategories() {
   var by = {};
-  S.data.Products.forEach(function (p) { var c = String(p.category || '').trim(); if (!c || p.deleted) return; var k = c.toLowerCase(); by[k] = by[k] || { name: c, n: 0 }; by[k].n++; });
+  S.data.Products.forEach(function (p) { if (p.deleted) return; prodCats(p).forEach(function (c) { var k = c.toLowerCase(); by[k] = by[k] || { name: c, n: 0 }; by[k].n++; }); });
   return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
 }
 /** The product Category box: tap to see your categories, type to filter or to add a new one. */
@@ -1959,8 +2074,9 @@ function wireCatPicker() {
   var inp = $('#pCat'), box = $('#catPick'); if (!inp || !box) return;
   var draw = function () {
     var q = inp.value.trim().toLowerCase(), all = productCategories();
-    var list = all.filter(function (c) { return !q || c.name.toLowerCase().indexOf(q) >= 0; });
-    var exact = all.some(function (c) { return c.name.toLowerCase() === q; });
+    var chosen = (D && D._cats ? D._cats : []).map(function (c) { return c.toLowerCase(); });
+    var list = all.filter(function (c) { return (!q || c.name.toLowerCase().indexOf(q) >= 0) && chosen.indexOf(c.name.toLowerCase()) < 0; });
+    var exact = all.some(function (c) { return c.name.toLowerCase() === q; }) || chosen.indexOf(q) >= 0;
     box.innerHTML = list.map(function (c) {
       return '<button type="button" class="pick-row" role="option" data-cat="' + esc(c.name) + '"><span class="pick-name">' + esc(c.name) + '</span><span class="pick-sub">' + c.n + (c.n === 1 ? ' product' : ' products') + '</span></button>';
     }).join('') + (q && !exact ? '<button type="button" class="pick-row pick-new" data-cat="' + esc(inp.value.trim()) + '">' + ico('plus') + 'Use "' + esc(inp.value.trim()) + '" as a new category</button>' : '') +
@@ -1976,9 +2092,36 @@ function wireCatPicker() {
   box.addEventListener('mousedown', function (e) { e.preventDefault(); });          // keep the box open while choosing
   box.addEventListener('click', function (e) {
     var b = e.target.closest('[data-cat]'); if (!b) return;
-    inp.value = b.getAttribute('data-cat'); close();
+    addProdCat(b.getAttribute('data-cat')); inp.value = ''; close();   // Batch (Nov 2026): adds a chip (a product can have several)
     inp.dispatchEvent(new Event('change', { bubbles: true }));
   });
+}
+/* ---------- Batch (Nov 2026): more than one category per product (chips; the first is the main one, used by reports) ---------- */
+function addProdCat(name) {
+  name = String(name || '').trim(); if (!name || !D) return;
+  var same = productCategories().filter(function (c) { return c.name.toLowerCase() === name.toLowerCase(); })[0];
+  if (same) name = same.name;                                                        // same category, existing spelling
+  D._cats = D._cats || [];
+  if (D._cats.some(function (c) { return c.toLowerCase() === name.toLowerCase(); })) return;
+  if (D._cats.length >= 10) { toast('A product can have up to 10 categories.', true); return; }
+  D._cats.push(name); renderProdCats();
+}
+function renderProdCats() {
+  var box = $('#pCatChips'), inp = $('#pCat'); if (!box || !D) return;
+  var cats = D._cats || [];
+  box.innerHTML = cats.map(function (c, i) {
+    return '<span class="cat-chip' + (i === 0 ? ' is-main' : '') + '">' +
+      (i === 0 ? '<span class="cat-main" title="Main category (used in reports)">Main</span>' : '<button type="button" class="cat-mk" data-cat-main="' + i + '" title="Make this the main category">' + esc(c) + '</button>') +
+      (i === 0 ? '<span>' + esc(c) + '</span>' : '') +
+      '<button type="button" class="cat-x" data-cat-x="' + i + '" aria-label="Remove ' + esc(c) + '">×</button></span>';
+  }).join('') + (cats.length > 1 ? '<span class="muted small cat-tip">Tap a category to make it the main one (used in reports).</span>' : '');
+  box.hidden = !cats.length;
+  if (inp) inp.placeholder = cats.length ? 'Add another category…' : 'Choose or type a category';
+  box.onclick = function (e) {
+    var x = e.target.closest('[data-cat-x]'), m = e.target.closest('[data-cat-main]');
+    if (x) { D._cats.splice(+x.getAttribute('data-cat-x'), 1); renderProdCats(); }
+    else if (m) { var i = +m.getAttribute('data-cat-main'), c = D._cats.splice(i, 1)[0]; D._cats.unshift(c); renderProdCats(); }
+  };
 }
 /* ---------- Product options step (Nov 2026): one product, versions with their own price (e.g. Set of 2 / Set of 4) ---------- */
 function prodOpts(p) {
@@ -2718,28 +2861,30 @@ function openCustomer(id) {
 function renderCatalog() {
   var toolbar = '<div class="toolbar">' + searchBox('Search products…') + '</div>';
   if (!S.data.Products.length) return toolbar + '<div class="card">' + emptyState('Your catalog is empty', 'Add the products you make regularly so you can drop them into orders in one click.', 'new-product', 'New product') + '</div>';
-  var list = S.data.Products.filter(function (p) { return matches(p, ['name', 'category', 'description']); })
+  var list = S.data.Products.filter(function (p) { return matches({ name: p.name, category: prodCats(p).join(' '), description: p.description }, ['name', 'category', 'description']); })
     .sort(function (a, b) { return String(a.category + a.name).localeCompare(String(b.category + b.name)); });
   return toolbar + '<div class="grid-cards">' + list.map(function (p) {
     var cost = productCost(p), pos = prodOpts(p), pprice = fromPrice(p);   // with options: the lowest-priced option
     var margin = pprice ? Math.round((pprice - cost) / pprice * 100) : 0;
     return '<div class="card pcard" data-product="' + p.id + '">' +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap">' + (p.category ? '<span class="tag">' + esc(p.category) + '</span>' : '') + (p.active === false ? '<span class="chip gray">Hidden</span>' : '') + '</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap">' + prodCats(p).map(function (c) { return '<span class="tag">' + esc(c) + '</span>'; }).join('') + (p.active === false ? '<span class="chip gray">Hidden</span>' : '') + '</div>' +
       '<div class="p-name">' + esc(p.name) + '</div>' +
       '<div class="p-price">' + (pos.length ? '<span class="muted small">From </span>' + money(pprice) + '<span class="muted small"> · ' + pos.length + ' options</span>' : money(p.price)) + '</div>' +
       (p.description ? '<div class="muted small" style="line-height:1.5">' + esc(String(p.description).slice(0, 110)) + '</div>' : '') +
       '<div class="p-meta"><span>Materials ' + money(cost) + '</span><span class="' + (margin >= 50 ? 'margin-good' : 'margin-low') + '">' + (cost ? margin + '% margin' : 'Add materials') + '</span></div></div>';
   }).join('') + '</div>';
 }
+var PROD_RENDER_MATS = null;
 function openProduct(id, preset) {
   var p = id ? byId('Products', id) : null;
   D = p ? JSON.parse(JSON.stringify(p)) : Object.assign({ name: '', category: '', price: 0, description: '', materials: [], active: true }, preset || {});
   D.materials = D.materials || [];
   D.options = prodOpts(D).map(function (o) { return { id: o.id, name: o.name, price: o.price }; });   // Product options step
+  D._cats = prodCats(D);   // Batch (Nov 2026): the chips (main first); saved back as category + categories
   var cats = Array.from(new Set(S.data.Products.map(function (x) { return x.category; }).filter(Boolean)));
   var body =
     '<div class="field"><label>Product name</label><input class="input" id="pName" value="' + esc(D.name) + '"></div>' +
-    '<div class="row"><div class="field cat-field"><label for="pCat">Category</label><input class="input" id="pCat" value="' + esc(D.category || '') + '" placeholder="Choose or type a new one" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="catPick">' +
+    '<div class="row"><div class="field cat-field"><label for="pCat">Categories</label><div class="cat-chips" id="pCatChips"></div><input class="input" id="pCat" value="" placeholder="' + (D._cats.length ? 'Add another category…' : 'Choose or type a category') + '" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="catPick">' +
     '<div class="pick-list" id="catPick" role="listbox" hidden></div></div>' +
     '<div class="field"><label>Selling price</label><div class="money-in"><input class="input" type="number" min="0" step="0.01" id="pPrice" value="' + esc(D.price) + '"></div><span class="hint" id="pPriceHint" hidden>Set by the options (the lowest price)</span></div></div>' +
     '<div class="field"><label>Description</label><textarea class="input" id="pDesc">' + esc(D.description || '') + '</textarea></div>' +
@@ -2919,8 +3064,9 @@ function openProduct(id, preset) {
     D.options.splice(i, 1); optDraw(); renderMats();
   });
   optDraw();
+  PROD_RENDER_MATS = renderMats;   // Batch (Nov 2026): lets "Copy materials from…" redraw the list
   renderMats();
-  wireCatPicker();
+  wireCatPicker(); renderProdCats();
   $('#pPrice').addEventListener('input', renderMats);
   var add = $('#pAddMat');
   if (add) add.addEventListener('click', function () { openFind(); });
@@ -2974,9 +3120,9 @@ function openProduct(id, preset) {
   }
   $('#dSave').addEventListener('click', function () {
     var btn = this;
-    D.name = $('#pName').value.trim(); D.category = $('#pCat').value.trim(); D.price = num($('#pPrice').value);
-    var sameCat = productCategories().filter(function (c) { return c.name.toLowerCase() === D.category.toLowerCase(); })[0];
-    if (sameCat) D.category = sameCat.name;                                           // same category, existing spelling
+    D.name = $('#pName').value.trim(); D.price = num($('#pPrice').value);
+    if ($('#pCat').value.trim()) { addProdCat($('#pCat').value.trim()); $('#pCat').value = ''; }   // typed but not picked: still counts
+    D.category = D._cats[0] || ''; D.categories = D._cats.slice(1);     // Batch (Nov 2026): main + extras (D._cats kept until the save itself)
     D.materials.forEach(function (m) {
       if (m.how === 'size') { if (!(num(m.w) > 0 && num(m.h) > 0)) { m.bad = 1; } m.pieces = Math.max(1, Math.round(num(m.pieces) || 1)); }
       if (m.how === 'yield' && !(num(m.yield) > 0)) m.bad = 1;
@@ -2998,7 +3144,8 @@ function openProduct(id, preset) {
     if (!D.name) { toast('Please enter a product name.', true); return; }
     var ideaId = D._fromIdea; delete D._fromIdea;
     busy(btn, 'Saving…');
-    save('Products', D).then(function (saved) {
+    var toSave = Object.assign({}, D); delete toSave._cats;
+    save('Products', toSave).then(function (saved) {
       if (ideaId) {
         var idea = byId('Ideas', ideaId);
         if (idea) { idea.productId = saved.id; idea.stage = 'Ready to Sell'; return save('Ideas', idea).then(function () { return saved; }); }
@@ -3446,7 +3593,7 @@ function itemSearchRows(q) {
   (S.data.Orders || []).forEach(function (o) { if (o.deleted) return; (o.items || []).forEach(function (it) { if (it.productId) used[it.productId] = (used[it.productId] || 0) + 1; }); });
   var rows = [];
   S.data.Products.filter(function (p) { return p.active !== false && !p.deleted; }).forEach(function (p) {
-    var base = [p.name, p.category, p.description].join(' '), os = prodOpts(p);
+    var base = [p.name, prodCats(p).join(' '), p.description].join(' '), os = prodOpts(p);
     if (os.length) os.forEach(function (o) { rows.push({ p: p, o: o, label: optLineName(p, o), price: num(o.price), hay: (base + ' ' + o.name).toLowerCase(), n: used[p.id] || 0 }); });
     else rows.push({ p: p, o: null, label: p.name, price: num(p.price), hay: base.toLowerCase(), n: used[p.id] || 0 });
   });
@@ -3485,7 +3632,7 @@ function bindItemSearch() {
         var r = it.r;
         return '<div class="cust-opt add-opt' + (i === active ? ' on' : '') + '" role="option" data-ai="' + i + '">' +
           '<span class="add-row"><span>' + esc(r.label) + '</span><b>' + money(r.price) + '</b></span>' +
-          '<span class="muted small">' + esc([r.p.category, it.on ? 'on this order ×' + it.on + ' · tap adds 1 more' : ''].filter(Boolean).join(' · ')) + '</span></div>';
+          '<span class="muted small">' + esc([prodCats(r.p).join(', '), it.on ? 'on this order ×' + it.on + ' · tap adds 1 more' : ''].filter(Boolean).join(' · ')) + '</span></div>';
       }).join('') +
       (rows.length > 40 ? '<div class="muted small cust-more">Keep typing to narrow down ' + rows.length + ' items…</div>' : '') +
       (q && !rows.length ? '<div class="muted small cust-more">Nothing in your catalog matches "' + esc(q) + '"</div>' : '');
@@ -3631,7 +3778,7 @@ var GS_GROUPS = [
   { t: 'Customers', label: 'Customers', icon: 'users', text: function (c) { return [c.name, c.email, c.phone, c.address, c.notes, (c.log || []).map(function (l) { return l.text; }).join(' ')]; },
     title: function (c) { return c.name || 'Unnamed customer'; }, sub: function (c) { return [c.email, c.phone].filter(Boolean).join(' · '); },
     open: function (c) { openCustomer(c.id); } },
-  { t: 'Products', label: 'Products', icon: 'tag', text: function (p) { return [p.name, p.category, p.description]; },
+  { t: 'Products', label: 'Products', icon: 'tag', text: function (p) { return [p.name, prodCats(p).join(' '), p.description]; },
     title: function (p) { return p.name || 'Unnamed product'; }, sub: function (p) { return [p.category, money(p.price), p.active === false ? 'inactive' : ''].filter(Boolean).join(' · '); },
     open: function (p) { openProduct(p.id); } },
   { t: 'Materials', label: 'Materials', icon: 'box', text: function (m) { return [m.name, m.supplier, m.notes, m.unit]; },
@@ -4949,6 +5096,166 @@ document.addEventListener('keydown', function (e) {
   var el = e.target && e.target.closest && e.target.closest('[data-kpi]');
   if (el && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); kfOpen(el.getAttribute('data-kpi')); }
 });
+/* =====================================================================
+   Batch (Nov 2026) C: fewer boxes when adding things
+   Product and material screens show what you need first; the rest sits in folding sections with a one-line summary
+   (same folds as the phone order screen, now on every screen size). Plus smart defaults, Make a copy, Copy materials.
+   ===================================================================== */
+function fxLs(k, v) { try { if (v === undefined) return localStorage.getItem(k) || ''; localStorage.setItem(k, v); } catch (e) { return ''; } }
+function fxFold(key, label, nodes, open) { r2Fold(key, label, nodes, open); var f = $('#drawerBody [data-fold="' + key + '"]'); if (f) f.classList.add('fx-fold'); return f; }
+function fxSet(k, txt) { var f = $('#drawerBody [data-fold="' + k + '"] .r2-fold-sum'); if (f && f.textContent !== txt) f.textContent = txt; }
+function fxOpen(k) {
+  var f = $('#drawerBody [data-fold="' + k + '"]'); if (!f || f.classList.contains('open')) return;
+  f.classList.add('open'); f.querySelector('.r2-fold-head').setAttribute('aria-expanded', 'true'); f.lastChild.hidden = false;
+  (R2.folds[r2FoldKey()] = R2.folds[r2FoldKey()] || {})[k] = true;
+}
+function fxWant(k) { var m = R2.folds[r2FoldKey()]; return !!(m && m[k]); }
+/* ---------- product screen ---------- */
+function fxProductFolds() {
+  var body = $('#drawerBody'); if (!body || !D || !$('#pName') || body.querySelector('[data-fold="pmats"]')) return;
+  var t = function (txt) { return $$('.section-title', body).filter(function (x) { return x.textContent.trim().toLowerCase().indexOf(txt) === 0; })[0] || null; };
+  var tMat = t('materials'), tOpt = t('options'), tBulk = t('bulk prices');
+  var labor = $('#pLabor') && $('#pLabor').closest('.row') && $('#pLabor').closest('.row').parentNode;
+  var matNodes = []; if (tMat) for (var n = tMat; n && n !== tBulk && !(n.classList && n.classList.contains('section-title') && n !== tMat); n = n.nextElementSibling) matNodes.push(n);
+  if (tOpt) fxFold('popts', 'Options', [tOpt, $('#pOpts')], fxWant('popts'));
+  if (tMat) fxFold('pmats', 'Materials & cost', matNodes, fxWant('pmats'));
+  if (tBulk) fxFold('pbulk', 'Bulk prices', [tBulk, $('#pBulk')], fxWant('pbulk'));
+  var fs = $('#formSec'); if (fs) fxFold('pform', 'Website order form', [fs], fxWant('pform'));
+  if (labor && labor !== body) { fxFold('ptime', 'Time, shipping & price helper', [labor], fxWant('ptime'));
+    var tf = body.querySelector('[data-fold="ptime"]'), after = body.querySelector('[data-fold="pform"]') || body.querySelector('[data-fold="pbulk"]');
+    if (tf && after) after.insertAdjacentElement('afterend', tf); }   // lower down: after the order form section
+  var ex = body.querySelector('.extras'); if (ex) fxFold('pextra', 'Attachments & notes', [ex], fxWant('pextra'));
+  // Copy materials from another product (in the Materials fold)
+  var mf = $('#drawerBody [data-fold="pmats"] .r2-fold-body');
+  if (mf && !$('#pCopyMats')) {
+    var w = document.createElement('div'); w.className = 'fx-copymats';
+    w.innerHTML = '<label class="muted small" for="pCopyMats">Copy materials from another product</label><select class="input" id="pCopyMats"><option value="">Choose a product…</option>' +
+      S.data.Products.filter(function (x) { return !x.deleted && x.id !== D.id && (x.materials || []).length; }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); })
+        .map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x.name) + ' (' + x.materials.length + ')</option>'; }).join('') + '</select>';
+    mf.appendChild(w);
+  }
+  // Make a copy (existing products)
+  if (D.id && !$('#dCopy')) {
+    var foot = $('#drawerFoot'), sv = $('#dSave');
+    if (foot && sv) { var b = document.createElement('button'); b.type = 'button'; b.className = 'btn btn-secondary'; b.id = 'dCopy'; b.innerHTML = ico('plus') + 'Make a copy'; sv.insertAdjacentElement('beforebegin', b); }
+  }
+  fxProductSums();
+}
+function fxProductSums() {
+  if (!D || !$('#pName') || !$('#drawerBody [data-fold="pmats"]')) return;
+  var os = (D.options || []).filter(function (o) { return String(o.name || '').trim(); });
+  fxSet('popts', os.length ? os.length + ' options: ' + os.map(function (o) { return o.name; }).join(', ') : 'None');
+  var ms = (D.materials || []).filter(function (m) { return m.materialId; }), cost = productCost(D);
+  fxSet('pmats', ms.length ? ms.length + (ms.length === 1 ? ' material' : ' materials') + ' · cost ' + money(cost) : 'None yet');
+  var bk = (typeof bulkRead === 'function' ? bulkRead() : { list: D.bulkPrices || [] }).list || [];
+  fxSet('pbulk', bk.length ? bk.length + (bk.length === 1 ? ' level' : ' levels') + ', from ' + bk.map(function (x) { return num(x.min); }).sort(function (a, b) { return a - b; })[0] + '+' : 'None');
+  var fsh = $('#fShow'); fxSet('pform', fsh ? (fsh.checked ? 'Shown on your order form' : 'Not on your order form') : '');
+  var lb = $('#pLabor'), wg = $('#pWeight');
+  fxSet('ptime', [lb && lb.value ? lb.value + ' min' : '', wg && wg.value ? wg.value + ' g' : ''].filter(Boolean).join(' · ') || 'Not set');
+  var na = $$('#drawerBody .extras .att-row').length, nn = $$('#drawerBody .extras .note').length;
+  fxSet('pextra', (na || nn) ? [na ? na + (na === 1 ? ' file' : ' files') : '', nn ? nn + (nn === 1 ? ' note' : ' notes') : ''].filter(Boolean).join(' · ') : 'None yet');
+}
+/* ---------- material screen ---------- */
+function fxMaterialFolds() {
+  var body = $('#drawerBody'); if (!body || !D || !$('#mName') || body.querySelector('[data-fold="msup"]')) return;
+  var pk = $('#mPackSize') && $('#mPackSize').closest('.row');
+  if (pk) { var pkf = fxFold('mpack', 'Pack size & price', [pk, $('#mPackHint')], fxWant('mpack')); var st = $('#mOnHand') && $('#mOnHand').closest('.row'); if (pkf && st) st.insertAdjacentElement('afterend', pkf); }
+  var vs = $('#varSec'); if (vs) fxFold('mvar', 'Colours / types', [vs], fxWant('mvar'));
+  var sup = $('#mSupplier') && $('#mSupplier').closest('.field');
+  var supNodes = [sup, $('#mNewSupWrap'), $('#mSupShop'), $('#mLink') && $('#mLink').closest('.field'), $('#mNotes') && $('#mNotes').closest('.field')];
+  if (sup) fxFold('msup', 'Supplier, reorder link & notes', supNodes, fxWant('msup'));
+  var tSh = $$('.section-title', body).filter(function (x) { return /^sheet size/i.test(x.textContent.trim()); })[0];
+  if (tSh) { var sh = []; for (var n = tSh; n && n.id !== 'slHistSec' && !(n.classList.contains('r2-fold')); n = n.nextElementSibling) sh.push(n); fxFold('msheet', 'Sheet or roll size', sh, fxWant('msheet')); }
+  var hs = $('#slHistSec'); if (hs) fxFold('mhist', 'Stock history', [hs], fxWant('mhist'));
+  var ex = body.querySelector('.extras'); if (ex) fxFold('mextra', 'Attachments & notes log', [ex], fxWant('mextra'));
+  fxMaterialSums();
+}
+function fxMaterialSums() {
+  if (!D || !$('#mName') || !$('#drawerBody [data-fold="msup"]')) return;
+  var ps = $('#mPackSize'), pp = $('#mPackPrice');
+  fxSet('mpack', ps && pp && num(ps.value) > 0 && pp.value !== '' ? 'Pack of ' + num(ps.value) + ' for ' + money(pp.value) : 'Not set');
+  var vn = (typeof variantsOf === 'function' ? variantsOf(D) : D.variants || []).length;
+  fxSet('mvar', vn ? vn + (vn === 1 ? ' colour/type' : ' colours/types') : 'None');
+  var ss = $('#mSupplier'), sn = ss && ss.value ? (ss.value === '__new' ? ($('#mNewSup') || {}).value || 'New supplier' : ss.options[ss.selectedIndex].text) : '';
+  fxSet('msup', [sn && sn !== 'No supplier' ? sn : 'No supplier', $('#mLink') && $('#mLink').value ? 'link saved' : '', $('#mNotes') && $('#mNotes').value.trim() ? 'notes' : ''].filter(Boolean).join(' · '));
+  var w = $('#mSheetW'), h = $('#mSheetH'); fxSet('msheet', w && h && num(w.value) > 0 && num(h.value) > 0 ? num(w.value) + ' × ' + num(h.value) + ' in' : 'Not a sheet or roll');
+  var hl = Array.isArray(D.stockLog) ? D.stockLog.length : 0; fxSet('mhist', hl ? hl + (hl === 1 ? ' change' : ' changes') : 'None yet');
+  var na = $$('#drawerBody .extras .att-row').length, nn = $$('#drawerBody .extras .note').length;
+  fxSet('mextra', (na || nn) ? [na ? na + (na === 1 ? ' file' : ' files') : '', nn ? nn + (nn === 1 ? ' note' : ' notes') : ''].filter(Boolean).join(' · ') : 'None yet');
+}
+/* a message about something inside a closed section opens that section */
+function fxOpenForMessage(msg) {
+  msg = String(msg || '');
+  if (/material|piece size|how many one does/i.test(msg)) fxOpen('pmats');
+  if (/option/i.test(msg)) fxOpen('popts');
+  if (/bulk/i.test(msg)) fxOpen('pbulk');
+  if (/supplier/i.test(msg)) fxOpen('msup');
+  if (/pack/i.test(msg)) fxOpen('mpack');
+  if (/sheet|width|height/i.test(msg)) fxOpen('msheet');
+  if (/colour|type/i.test(msg) && $('#varSec')) fxOpen('mvar');
+}
+var _toastFx = toast;
+toast = function (msg, isErr) { var r = _toastFx.apply(this, arguments); if (isErr && $('#drawerBody')) { try { fxOpenForMessage(msg); } catch (e) {} } return r; };
+/* ---------- Make a copy / Copy materials ---------- */
+function fxCopyProduct() {
+  if (!D || !D.id) return;
+  var src = byId('Products', D.id) || D, c = JSON.parse(JSON.stringify(src));
+  ['id', 'created', 'updated', 'number', 'log', 'attachments', 'formPhotos', 'deleted', '_cats', '_fromIdea'].forEach(function (k) { delete c[k]; });
+  c.formDesigns = (Array.isArray(c.formDesigns) ? c.formDesigns : []).map(function (d) { var x = Object.assign({}, d); delete x.photo; delete x.photoId; return x; });
+  c.name = String(src.name || 'Product') + ' (copy)';
+  c.formShow = false;   // a copy stays off the website until you turn it on
+  openProduct(null, c);
+  toast('Copy ready: change what\'s different, then Save. Photos aren\'t copied, and it\'s hidden from your order form until you turn it on.');
+}
+function fxCopyMats(fromId) {
+  var p = byId('Products', fromId); if (!p || !D) return;
+  var add = (p.materials || []).map(function (m) { var x = JSON.parse(JSON.stringify(m)); delete x.opt; return x; });
+  D.materials = (D.materials || []).concat(add);
+  if (typeof PROD_RENDER_MATS === 'function') PROD_RENDER_MATS();
+  $('#pMats') && $('#pMats').dispatchEvent(new Event('change', { bubbles: true }));
+  fxProductSums();
+  toast('Copied ' + add.length + (add.length === 1 ? ' material' : ' materials') + ' from ' + p.name + '. Check the amounts, then Save.');
+}
+document.addEventListener('click', function (e) { if (e.target.closest('#dCopy')) fxCopyProduct(); });
+document.addEventListener('change', function (e) { if (e.target.id === 'pCopyMats' && e.target.value) { var v = e.target.value; e.target.value = ''; fxCopyMats(v); } });
+/* ---------- smart defaults ---------- */
+function fxRemember(table, rec) {
+  if (!rec) return;
+  if (table === 'Products' && rec.category) fxLs('fx.lastCat', rec.category);
+  if (table === 'Materials') { if (rec.unit) fxLs('fx.lastUnit', rec.unit); if (rec.supplier) fxLs('fx.lastSup', rec.supplier); }
+}
+var _saveFx = save;
+save = function (table, rec) { return _saveFx.apply(this, arguments).then(function (saved) { try { fxRemember(table, saved); } catch (e) {} return saved; }); };
+function fxProductDefaults() {
+  if (!D || D.id || !$('#pName') || (D._cats || []).length) return;
+  var last = fxLs('fx.lastCat'); if (last && productCategories().some(function (c) { return c.name === last; })) addProdCat(last);
+}
+function fxMaterialDefaults(presetSupplier) {
+  if (!D || D.id || !$('#mName')) return;
+  var u = $('#mUnit'), lu = fxLs('fx.lastUnit'); if (u && (!u.value || u.value === 'each') && lu) u.value = lu;   // 'each' is the blank-form default
+  var ss = $('#mSupplier'), ls = fxLs('fx.lastSup');
+  if (ss && !presetSupplier && !ss.value && ls && [].some.call(ss.options, function (o) { return o.value === ls; })) { ss.value = ls; ss.dispatchEvent(new Event('change', { bubbles: true })); }
+}
+/* new order: delivery follows the customer's last order (until you change it yourself) */
+document.addEventListener('change', function (e) {
+  if (e.target.id === 'oDelivery') { e.target.setAttribute('data-touched', '1'); return; }
+  if (e.target.id !== 'oCustomer' || !D || D.id) return;
+  var dl = $('#oDelivery'); if (!dl || dl.getAttribute('data-touched')) return;
+  var last = S.data.Orders.filter(function (o) { return o.customerId === e.target.value && !o.deleted && o.delivery; })
+    .sort(function (a, b) { return String(b.created).localeCompare(String(a.created)); })[0];
+  if (last && last.delivery !== dl.value && [].some.call(dl.options, function (o) { return o.value === last.delivery || o.text === last.delivery; })) {
+    dl.value = last.delivery; dl.dispatchEvent(new Event('change', { bubbles: true })); dl.removeAttribute('data-touched');
+  }
+}, true);
+/* ---------- hook in after every module has built its part of the screen ---------- */
+window.addEventListener('load', function () {
+  var _op = openProduct;
+  openProduct = function (id, preset) { var r = _op.apply(this, arguments); try { fxProductDefaults(); fxProductFolds(); } catch (e) { console.error(e); } return r; };
+  var _om = openMaterial;
+  openMaterial = function (id, presetSupplier) { var r = _om.apply(this, arguments); try { fxMaterialDefaults(presetSupplier); fxMaterialFolds(); } catch (e) { console.error(e); } return r; };
+});
+['input', 'change', 'click'].forEach(function (ev) { document.addEventListener(ev, function (e) { if ($('#drawerBody') && $('#drawerBody').contains(e.target)) setTimeout(function () { fxProductSums(); fxMaterialSums(); }, 0); }); });
+
 </script>
 
   <script>
@@ -5112,7 +5419,7 @@ function renderListView() {
   var lf = listFilterState(l);
   var items = listItems(l.id).filter(function (it) {
     if (lf.p.fav && !isFav(it)) return false;
-    for (var fk in lf.f) { if (lf.f[fk] !== '' && String((it.values || {})[fk] || '') !== lf.f[fk]) return false; }
+    for (var fk in lf.f) { if (lf.f[fk] !== '' && !itemHasValue(l, it, fk, lf.f[fk])) return false; }   // Batch (Nov 2026): any operation of a combined laser card counts
     if (!S.q) return true;
     var q = S.q.toLowerCase();
     var hay = [it.title].concat((l.fields || []).map(function (f) {
@@ -5120,7 +5427,7 @@ function renderListView() {
       if (f.type === 'customer') { var c = byId('Customers', v); return c ? c.name : ''; }
       if (f.type === 'product') { var p = byId('Products', v); return p ? p.name : ''; }
       return v;
-    })).concat((it.log || []).map(function (n) { return n.text; })).join(' ').toLowerCase();
+    })).concat(laserOpsText(l, it)).concat((it.log || []).map(function (n) { return n.text; })).join(' ').toLowerCase();
     return hay.indexOf(q) >= 0;
   });
   var html;
@@ -5146,7 +5453,7 @@ function listFilterState(l) {
 function valuesFor(l, fid) {
   var f = (l.fields || []).find(function (x) { return x.id === fid; }); if (!f) return [];
   var seen = {}, out = [];
-  listItems(l.id).forEach(function (it) { var v = (it.values || {})[fid]; if (v !== undefined && v !== '' && v !== null && !seen[v]) { seen[v] = 1; out.push(String(v)); } });
+  listItems(l.id).forEach(function (it) { itemValuesFor(l, it, fid).forEach(function (v) { if (v !== undefined && v !== '' && v !== null && !seen[v]) { seen[v] = 1; out.push(String(v)); } }); });
   var opts = f.type === 'select' ? splitOpts(f.options) : [];
   return out.sort(function (a, b) { var ia = opts.indexOf(a), ib = opts.indexOf(b); if (ia < 0) ia = 999; if (ib < 0) ib = 999; return (ia - ib) || a.localeCompare(b); });
 }
@@ -5158,7 +5465,7 @@ function listFilterBar(l, lf, mode) {
   if (lf.groupBy) {
     var cur = lf.f[lf.groupBy] || '';
     var vals = valuesFor(l, lf.groupBy);
-    var cnt = function (v) { return all.filter(function (it) { return String((it.values || {})[lf.groupBy] || '') === v; }).length; };
+    var cnt = function (v) { return all.filter(function (it) { return itemHasValue(l, it, lf.groupBy, v); }).length; };
     h += '<div class="lf-chips">' + favChip + '<button type="button" class="lf-chip' + (!cur && !lf.p.fav ? ' on' : '') + '" data-lf="' + esc(lf.groupBy) + '" data-lv="">All <b>' + all.length + '</b></button>' +
       vals.map(function (v) { return '<button type="button" class="lf-chip' + (cur === v && !lf.p.fav ? ' on' : '') + '" data-lf="' + esc(lf.groupBy) + '" data-lv="' + esc(v) + '">' + esc(v) + ' <b>' + cnt(v) + '</b></button>'; }).join('') + '</div>';
   }
@@ -5628,6 +5935,208 @@ document.addEventListener('click', function (e) {
 });
 document.addEventListener('change', function (e) {
   if (e.target.hasAttribute('data-move-item')) moveItem(e.target.getAttribute('data-move-item'), e.target.value);
+});
+
+/* =====================================================================
+   Batch (Nov 2026) D: one laser settings card per material, with Cut / Engrave / Score together
+   A list counts as a laser list when it has a pick-list field called "Operation". The per-operation fields
+   (Operation, Power, Speed, Passes, Lines per cm, Bitmap mode, Height / focus, Air assist, Result) can repeat on a
+   card as values._ops = [{ id, vals: { fieldId: value } }]; everything else is shared. The first operation is also
+   kept in the card's normal fields, so the table view, sorting and older copies of the app still show it.
+   ===================================================================== */
+var LASER_PER_OP = /^(operation|power|speed|passes|lines per cm|bitmap mode|height \/ focus|focus|air assist|result)/i;
+function laserInfo(l) {
+  var fs = (l && l.fields) || [], op = fs.filter(function (f) { return f.type === 'select' && /^operation$/i.test(String(f.name).trim()); })[0];
+  if (!op) return null;
+  var per = fs.filter(function (f) { return LASER_PER_OP.test(String(f.name).trim()); });
+  return { op: op, per: per, shared: fs.filter(function (f) { return per.indexOf(f) < 0; }), opNames: splitOpts(op.options) };
+}
+function laserOps(l, it) {
+  var li = laserInfo(l); if (!li || !it) return [];
+  var v = it.values || {};
+  if (Array.isArray(v._ops) && v._ops.length) return v._ops;
+  var one = {}, any = false; li.per.forEach(function (f) { if (v[f.id] !== undefined && v[f.id] !== '') { one[f.id] = v[f.id]; any = true; } });
+  return any ? [{ id: 'op1', vals: one }] : [];
+}
+function itemValuesFor(l, it, fid) {
+  var li = laserInfo(l), v = (it && it.values) || {};
+  if (li && li.per.some(function (f) { return f.id === fid; }) && Array.isArray(v._ops) && v._ops.length) return v._ops.map(function (o) { return (o.vals || {})[fid]; });
+  return [v[fid]];
+}
+function itemHasValue(l, it, fid, want) { return itemValuesFor(l, it, fid).some(function (x) { return String(x == null ? '' : x) === String(want); }); }
+function laserOpsText(l, it) { var li = laserInfo(l); if (!li) return []; return laserOps(l, it).map(function (o) { return li.per.map(function (f) { return (o.vals || {})[f.id]; }).join(' '); }); }
+function laserOpLine(l, o) {
+  var li = laserInfo(l), v = o.vals || {}, bits = [];
+  li.per.forEach(function (f) {
+    if (f === li.op) return; var x = v[f.id]; if (x === undefined || x === '' || x === false) return;
+    var n = String(f.name);
+    if (/^power/i.test(n)) bits.push(num(x) + '%');
+    else if (/^speed/i.test(n)) bits.push(num(x) + ' mm/s');
+    else if (/^passes/i.test(n)) bits.push(num(x) + (num(x) === 1 ? ' pass' : ' passes'));
+    else if (/^lines per cm/i.test(n)) bits.push(num(x) + ' lines/cm');
+    else if (/focus/i.test(n)) bits.push('focus ' + num(x));
+    else if (/^air assist/i.test(n)) bits.push('air');
+    else bits.push(String(x));
+  });
+  return bits.join(' · ');
+}
+function laserOpsHtml(l, it) {
+  var li = laserInfo(l), ops = laserOps(l, it); if (!li || !ops.length) return '';
+  return '<div class="sc-ops">' + ops.map(function (o) {
+    var name = (o.vals || {})[li.op.id] || 'Operation';
+    return '<div class="sc-op">' + fieldDisplay(li.op, name, it, l) + '<span class="sc-op-v">' + esc(laserOpLine(l, o)) + '</span></div>';
+  }).join('') + '</div>';
+}
+/* cards: a combined card lists each operation on its own line */
+var _settingCardLz = settingCard;
+settingCard = function (l, it, skipId) {
+  var li = laserInfo(l), ops = li ? laserOps(l, it) : [];
+  if (!li || ops.length < 2) return _settingCardLz(l, it, skipId);
+  var c = JSON.parse(JSON.stringify(it)); li.per.forEach(function (f) { delete c.values[f.id]; });
+  var h = _settingCardLz(l, c, skipId), cut = ['<div class="sc-stats">', '<div class="t-field">', '<div class="sc-note">', '</article>'].map(function (m) { return h.indexOf(m); }).filter(function (i) { return i >= 0; })[0];
+  return h.slice(0, cut) + laserOpsHtml(l, it) + h.slice(cut);
+};
+/* card editor: shared details once, then one box per operation */
+function laserOpBlock(l, o, k) {
+  var li = laserInfo(l), v = (o && o.vals) || {};
+  var inner = li.per.map(function (f) { return fieldInput(f, v[f.id]); }).join('').replace(/(id|for)="fv_([^"]+)"/g, '$1="fv_$2__op' + k + '"');
+  return '<div class="lz-op" data-lz-op="' + k + '"><div class="lz-op-head"><b>Operation ' + (k + 1) + '</b><button type="button" class="link-btn" data-lz-rm="' + k + '">Remove</button></div><div class="lz-op-grid">' + inner + '</div></div>';
+}
+function laserEditorWire(l) {
+  var li = laserInfo(l), body = $('#drawerBody'); if (!li || !body || !D) return;
+  li.per.forEach(function (f) { var el = $('[data-field="' + f.id + '"]', body); if (el) el.closest('.field').remove(); });
+  var ops = laserOps(l, D); if (!ops.length) ops = [{ id: 'op1', vals: {} }];
+  var sec = document.createElement('div'); sec.id = 'lzOps'; sec.className = 'lz-ops';
+  var draw = function () {
+    sec.innerHTML = '<div class="section-title">' + ico('sparkle') + 'Operations <span class="muted" style="font-weight:500;margin-left:4px">(cut, engrave, score… on one card)</span></div>' +
+      ops.map(function (o, k) { return laserOpBlock(l, o, k); }).join('') +
+      '<button type="button" class="btn btn-secondary" id="lzAdd">' + ico('plus') + 'Add an operation</button>';
+    $$('[data-lz-rm]', sec).forEach(function (b) { b.hidden = ops.length < 2; });
+  };
+  var read = function () { ops = $$('.lz-op', sec).map(function (b, k) { var vals = {}; li.per.forEach(function (f) { var x = readField(f, b); if (x !== undefined && x !== '' && x !== false) vals[f.id] = x; }); return { id: (ops[k] && ops[k].id) || uid('op'), vals: vals }; }); };
+  draw();
+  var ex = body.querySelector('.extras'); if (ex) ex.insertAdjacentElement('beforebegin', sec); else body.appendChild(sec);
+  sec.addEventListener('click', function (e) {
+    if (e.target.closest('#lzAdd')) {
+      read(); var used = ops.map(function (o) { return o.vals[li.op.id]; }), next = li.opNames.filter(function (n) { return used.indexOf(n) < 0; })[0] || '';
+      var nv = {}; if (next) nv[li.op.id] = next; ops.push({ id: uid('op'), vals: nv }); draw(); return;
+    }
+    var rm = e.target.closest('[data-lz-rm]'); if (rm) { read(); ops.splice(+rm.getAttribute('data-lz-rm'), 1); draw(); }
+  });
+  LZ_READ = function () { read(); return ops; };
+}
+var LZ_READ = null;
+var _openItemLz = openItem;
+openItem = function (listId, id, stage) {
+  LZ_READ = null;
+  var r = _openItemLz.apply(this, arguments), l = getList(listId);
+  if (laserInfo(l)) laserEditorWire(l);
+  return r;
+};
+/* before the normal Save runs: store the operations (the first one also fills the card's normal fields) */
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('#dSave') || !LZ_READ || !$('#lzOps') || !D || !D.values) return;
+  var l = getList(D.listId), li = laserInfo(l); if (!li) return;
+  var ops = LZ_READ().filter(function (o) { return Object.keys(o.vals).length; });
+  li.per.forEach(function (f) { delete D.values[f.id]; });
+  if (ops.length > 1) D.values._ops = ops; else delete D.values._ops;
+}, true);
+/* ---------- Combine helper ---------- */
+var LZ_SUFFIX = /\s*[–—-]\s*(cut|score|engrave(\s*\((fill|line)\))?|bitmap(\s*image)?|photo engrave)\s*$/i;
+function laserGroups(l) {
+  var li = laserInfo(l); if (!li) return [];
+  var by = {};
+  listItems(l.id).filter(function (it) { return !it.deleted && LZ_SUFFIX.test(it.title || '') && laserOps(l, it).length <= 1; }).forEach(function (it) {
+    var base = String(it.title).replace(LZ_SUFFIX, '').trim(), k = base.toLowerCase();
+    (by[k] = by[k] || { base: base, items: [] }).items.push(it);
+  });
+  return Object.keys(by).map(function (k) { return by[k]; }).filter(function (g) { return g.items.length > 1; }).map(function (g) {
+    var order = function (it) { var n = (it.values || {})[li.op.id] || String(it.title).match(LZ_SUFFIX)[1]; var i = li.opNames.findIndex(function (o) { return o.toLowerCase().indexOf(String(n).toLowerCase().split(' ')[0]) === 0; }); return i < 0 ? 99 : i; };
+    g.items.sort(function (a, b) { return order(a) - order(b); });
+    g.conflicts = li.shared.filter(function (f) { var vs = g.items.map(function (it) { return (it.values || {})[f.id]; }).filter(function (x) { return x !== undefined && x !== ''; }).map(String); return vs.some(function (x) { return x !== vs[0]; }); }).map(function (f) { return f.name; });
+    return g;
+  }).sort(function (a, b) { return a.base.localeCompare(b.base); });
+}
+function laserMerged(l, g) {
+  var li = laserInfo(l), first = JSON.parse(JSON.stringify(g.items[0]));
+  first.title = g.base; first.values = first.values || {};
+  li.shared.forEach(function (f) { if (first.values[f.id] === undefined || first.values[f.id] === '') { var o = g.items.filter(function (it) { var x = (it.values || {})[f.id]; return x !== undefined && x !== ''; })[0]; if (o) first.values[f.id] = o.values[f.id]; } });
+  if (g.items.some(isFav)) first.values._fav = true;
+  first.values._ops = g.items.map(function (it) { var vals = {}; li.per.forEach(function (f) { var x = (it.values || {})[f.id]; if (x !== undefined && x !== '') vals[f.id] = x; }); if (!vals[li.op.id]) { var m = String(it.title).match(LZ_SUFFIX); if (m) { var nm = li.opNames.filter(function (o) { return o.toLowerCase().indexOf(m[1].toLowerCase().split(' ')[0]) === 0; })[0]; if (nm) vals[li.op.id] = nm; } } return { id: uid('op'), vals: vals }; });
+  li.per.forEach(function (f) { var x = first.values._ops[0].vals[f.id]; if (x !== undefined) first.values[f.id] = x; else delete first.values[f.id]; });   // first operation also in the normal fields
+  var seen = {}; first.attachments = [].concat.apply([], g.items.map(function (it) { return it.attachments || []; })).filter(function (a) { var k = a && (a.id || a.url); if (!k || seen[k]) return false; seen[k] = 1; return true; });
+  first.log = (first.log || []).concat([].concat.apply([], g.items.slice(1).map(function (it) { return (it.log || []).map(function (n) { var c = JSON.parse(JSON.stringify(n)); c.text = '(from "' + it.title + '") ' + c.text; return c; }); })))
+    .concat([{ id: uid('n'), at: new Date().toISOString(), text: 'Combined from ' + g.items.length + ' cards: ' + g.items.map(function (it) { return it.title; }).join(', ') + '. The other cards are in Trash.' }]);
+  return first;
+}
+function laserCombine(l, g) {
+  var merged = laserMerged(l, g), others = g.items.slice(1);
+  return save('ListItems', merged).then(function () {
+    return others.reduce(function (pr, it) {   // their photos/files now live on the combined card, so Trash never deletes them
+      return pr.then(function () { var c = JSON.parse(JSON.stringify(byId('ListItems', it.id) || it)); c.attachments = []; return save('ListItems', c); }).then(function () { return remove('ListItems', it.id); });
+    }, Promise.resolve());
+  });
+}
+function openLaserCombine(listId) {
+  var l = getList(listId); if (!l) return;
+  var gs = laserGroups(l), li = laserInfo(l);
+  openDrawer('Combine laser cards', gs.length ? '<p class="hint" style="margin-top:0">These cards are the same material with a different operation. Combining makes one card with each operation on it. ' +
+    'The first card keeps its place, star and history; the others\' photos and notes move onto it, then they go to Trash (you can restore them for 30 days). Nothing is combined until you tap Combine.</p>' +
+    gs.map(function (g, i) {
+      return '<div class="card card-pad lz-grp" data-lz-g="' + i + '"><div class="lz-grp-h"><b>' + esc(g.base) + '</b><button type="button" class="btn btn-primary btn-sm" data-lz-comb="' + i + '">Combine ' + g.items.length + '</button></div>' +
+        '<div class="sc-ops">' + g.items.map(function (it) { var o = laserOps(l, it)[0] || { vals: {} }; return '<div class="sc-op">' + fieldDisplay(li.op, o.vals[li.op.id] || String(it.title).match(LZ_SUFFIX)[1], it, l) + '<span class="sc-op-v">' + esc(laserOpLine(l, o)) + '</span></div>'; }).join('') + '</div>' +
+        (g.conflicts.length ? '<p class="muted small" style="margin:8px 0 0">Different on these cards: ' + esc(g.conflicts.join(', ')) + '. The combined card uses the first card\'s value (check it after).</p>' : '') + '</div>';
+    }).join('') : '<p class="empty">Nothing to combine: no cards with the same name and a different operation (e.g. "Birch 1/4 – Cut" and "Birch 1/4 – Engrave").</p>',
+    '<span class="spacer"></span><button class="btn btn-secondary" type="button" data-close>Close</button>');
+  $('#drawerBody').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-lz-comb]'); if (!b) return;
+    var g = gs[+b.getAttribute('data-lz-comb')]; busy(b, 'Combining…');
+    laserCombine(l, g).then(function () { toast('Combined into "' + g.base + '". The other ' + (g.items.length - 1) + ' card' + (g.items.length > 2 ? 's are' : ' is') + ' in Trash for 30 days.'); render(); openLaserCombine(listId); })
+      .catch(function (err) { unbusy(b); fail(err); render(); });
+  });
+}
+var _renderListViewLz = renderListView;
+renderListView = function () {
+  _renderListViewLz.apply(this, arguments);
+  var l = getList(String(S.view).slice(5)), n = l && laserInfo(l) ? laserGroups(l).length : 0;
+  if (n && $('#topActions') && !$('#lzCombineBtn')) $('#topActions').insertAdjacentHTML('afterbegin', '<button class="btn btn-secondary" id="lzCombineBtn" data-lz-open="' + esc(l.id) + '" title="Combine Cut / Engrave / Score cards of the same material">' + ico('sparkle') + '<span class="label">Combine cards (' + n + ')</span></button>');
+};
+document.addEventListener('click', function (e) { var b = e.target.closest('[data-lz-open]'); if (b) openLaserCombine(b.getAttribute('data-lz-open')); });
+/* ---------- laser settings on the product screen ---------- */
+function laserLists() { return (S.data.Lists || []).filter(function (l) { return !l.deleted && laserInfo(l); }); }
+function productLaserCards(p) {
+  var ids = Array.isArray(p && p.laserCards) ? p.laserCards : [], out = [];
+  laserLists().forEach(function (l) {
+    var li = laserInfo(l), used = (l.fields || []).filter(function (f) { return f.type === 'product'; });
+    listItems(l.id).filter(function (it) { return !it.deleted && (ids.indexOf(it.id) >= 0 || used.some(function (f) { return p && p.id && (it.values || {})[f.id] === p.id; })); })
+      .forEach(function (it) { out.push({ l: l, it: it, manual: ids.indexOf(it.id) >= 0 }); });
+  });
+  return out;
+}
+function productLaserFold() {
+  var body = $('#drawerBody'); if (!body || !D || !$('#pName') || $('#pLaser') || !laserLists().length) return;
+  D.laserCards = Array.isArray(D.laserCards) ? D.laserCards.slice() : [];
+  var sec = document.createElement('div'); sec.id = 'pLaser';
+  var draw = function () {
+    var cards = productLaserCards(D), linked = cards.map(function (c) { return c.it.id; });
+    sec.innerHTML = cards.length ? cards.map(function (c) {
+      return '<div class="lz-pc"><div class="lz-pc-h"><b>' + esc(c.it.title || 'Card') + '</b>' + (c.manual ? '<button type="button" class="link-btn" data-lz-unlink="' + esc(c.it.id) + '">Unlink</button>' : '<span class="muted small">linked by "Used for"</span>') + '</div>' + laserOpsHtml(c.l, c.it) + '</div>';
+    }).join('') : '<p class="muted small" style="margin:4px 0 10px">No laser settings linked to this product yet.</p>';
+    sec.innerHTML += '<label class="muted small" for="pLaserAdd">Link a laser card</label><select class="input" id="pLaserAdd"><option value="">Choose a card…</option>' +
+      laserLists().map(function (l) { return listItems(l.id).filter(function (it) { return !it.deleted && linked.indexOf(it.id) < 0; }).sort(function (a, b) { return String(a.title).localeCompare(String(b.title)); })
+        .map(function (it) { return '<option value="' + esc(it.id) + '">' + esc(it.title || 'Card') + '</option>'; }).join(''); }).join('') + '</select>';
+    fxSet('plaser', cards.length ? cards.length + (cards.length === 1 ? ' card: ' : ' cards: ') + cards.map(function (c) { return c.it.title; }).join(', ') : 'None linked');
+  };
+  var mats = body.querySelector('[data-fold="pmats"]');
+  (mats ? mats : body.querySelector('.extras') || body.lastChild).insertAdjacentElement('afterend', sec);
+  fxFold('plaser', 'Laser settings', [sec], fxWant('plaser'));
+  draw();
+  sec.addEventListener('change', function (e) { if (e.target.id === 'pLaserAdd' && e.target.value) { D.laserCards.push(e.target.value); draw(); } });
+  sec.addEventListener('click', function (e) { var u = e.target.closest('[data-lz-unlink]'); if (u) { var i = D.laserCards.indexOf(u.getAttribute('data-lz-unlink')); if (i >= 0) D.laserCards.splice(i, 1); draw(); } });
+}
+window.addEventListener('load', function () {
+  var _op = openProduct;
+  openProduct = function () { var r = _op.apply(this, arguments); try { productLaserFold(); } catch (e) { console.error(e); } return r; };
 });
 </script>
 
@@ -8545,6 +9054,7 @@ afterRender = function () {
   if (!FUN_SNAP._month) snapOrders();
   if (S.view === 'dashboard') { animateDashboard(); checkGoal(); }
   checkApprovals();
+  checkNewOrders();   // Batch (Nov 2026): website orders that came in since you last opened the app
 };
 
 /* ---------------- Effects: confetti + rose petals ---------------- */
@@ -8568,7 +9078,8 @@ function fxRun() {
       p.x += (p.vx + (p.sway ? Math.sin(p.life / 12 + p.phase) * p.sway : 0)) * dt; p.y += p.vy * dt; p.rot += p.vr * dt;
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.globalAlpha = Math.min(1, p.life / 30);
       ctx.fillStyle = p.color;
-      if (p.petal) { ctx.scale(1, Math.abs(Math.cos(p.rot * 1.3)) * 0.6 + 0.4); ctx.beginPath(); ctx.moveTo(0, -p.s); ctx.bezierCurveTo(p.s, -p.s, p.s, p.s * 0.6, 0, p.s); ctx.bezierCurveTo(-p.s, p.s * 0.6, -p.s, -p.s, 0, -p.s); ctx.fill(); }
+      if (p.emoji) { ctx.font = p.s + 'px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(p.emoji, 0, 0); }   // Batch (Nov 2026)
+      else if (p.petal) { ctx.scale(1, Math.abs(Math.cos(p.rot * 1.3)) * 0.6 + 0.4); ctx.beginPath(); ctx.moveTo(0, -p.s); ctx.bezierCurveTo(p.s, -p.s, p.s, p.s * 0.6, 0, p.s); ctx.bezierCurveTo(-p.s, p.s * 0.6, -p.s, -p.s, 0, -p.s); ctx.fill(); }
       else if (p.round) { ctx.beginPath(); ctx.arc(0, 0, p.s / 2, 0, 7); ctx.fill(); }
       else { ctx.scale(1, Math.cos(p.rot * 2)); ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); }
       ctx.restore();
@@ -8612,18 +9123,25 @@ function snapOrders() {
 var _saveFun = save;
 save = function (table, rec) {
   if (table !== 'Orders') return _saveFun(table, rec);
-  var prev = (rec.id && FUN_SNAP[rec.id]) || {};
+  var prev = (rec.id && FUN_SNAP[rec.id]) || {}, isNew = !rec.id;
   var key = monthKeyOf(new Date()), before = FUN_SNAP._month === key ? FUN_SNAP._sales : salesIn(key);
   return _saveFun(table, rec).then(function (saved) {
     var nowDone = saved.stage === DONE && prev.stage !== DONE;
     var nowPaid = saved.paid && !prev.paid;
+    if (isNew && saved && saved.id) {   // Batch (Nov 2026): a new order made in the app
+      FUN_MINE[saved.id] = 1; funSeenAdd([saved.id]);
+      var nm = newOrderMoment(saved);
+      setTimeout(function () { celebrate(nm.kind); }, 150);
+      save._cheer = nm.msg;
+    }
     if (nowDone || nowPaid) {
-      setTimeout(function () { confetti(); }, 150);
+      setTimeout(function () { celebrate(nowPaid && !nowDone ? 'money' : pick(['confetti', 'fireworks', 'theme'])); }, 150);   // Batch (Nov 2026): varied
       save._cheer = nowDone ? pick([saved.number + ' is on its way! 🎉', 'Another one done! 🌹 ' + saved.number + ' delivered', 'Woohoo! ' + saved.number + ' is finished']) :
         pick(['Cha-ching! ' + saved.number + ' is paid 💸', 'Paid in full! ' + saved.number + ' 🎉', 'Money in the bank! ' + saved.number + ' is paid']);
     }
     var after = salesIn(key), goal = monthGoal(); snapOrders();
-    if (before < goal && after >= goal) { lsSet('fun.goalDone', key); setTimeout(function () { petals(80); toast('You hit your ' + new Date().toLocaleDateString('en-CA', { month: 'long' }) + ' goal! 🌹 So proud of you!'); }, 600); }
+    if (before < goal && after >= goal) { lsSet('fun.goalDone', key); funMsMark(key, 100); setTimeout(function () { celebrate('goal'); toast('You hit your ' + new Date().toLocaleDateString('en-CA', { month: 'long' }) + ' goal! 🌹 So proud of you!'); }, 600); }
+    else setTimeout(function () { checkMilestones(true); }, 700);   // Batch (Nov 2026): halfway, 75%, past the goal, best month ever
     return saved;
   });
 };
@@ -8631,8 +9149,11 @@ function checkGoal() {
   var key = monthKeyOf(new Date());
   if (salesIn(key) >= monthGoal() && lsGet('fun.goalDone', '') !== key) {
     lsSet('fun.goalDone', key);
-    setTimeout(function () { petals(80); toast('You hit your ' + new Date().toLocaleDateString('en-CA', { month: 'long' }) + ' goal! 🌹 So proud of you!'); }, 900);
+    funMsMark(key, 100);
+    setTimeout(function () { celebrate('goal'); toast('You hit your ' + new Date().toLocaleDateString('en-CA', { month: 'long' }) + ' goal! 🌹 So proud of you!'); }, 900);
+    return;
   }
+  checkMilestones(false);
 }
 /* New proof approvals since last visit */
 function checkApprovals() {
@@ -8643,7 +9164,7 @@ function checkApprovals() {
   if (!fresh.length) return;
   lsSet('fun.approvals', ids);
   setTimeout(function () {
-    confetti({ n: 90 });
+    celebrate('hearts');
     toast(fresh.length === 1 ? String(fresh[0].customerName || 'Your customer').split(' ')[0] + ' approved their proof! 💚 ' + fresh[0].number : fresh.length + ' proofs were approved! 💚');
   }, 700);
 }
@@ -8690,6 +9211,97 @@ document.addEventListener('drop', function (e) {
     if (t) t.classList.add('just-moved');
   }, 60);
 }, true);
+
+/* =====================================================================
+   Batch (Nov 2026) E: more celebrations
+   celebrate(kind): confetti, fireworks, hearts/roses, money shower, theme (snow & stars at Christmas, bats at Halloween…),
+   goal (petals + theme). Theme picker → Celebrations: Full (default) / Calm (small) / Off (messages only).
+   ===================================================================== */
+var FUN_MINE = {};
+function fxLevel() { var v = ''; try { v = localStorage.getItem('os.fx') || ''; } catch (e) {} v = v === 'calm' || v === 'off' ? v : 'full'; return REDUCED && v === 'full' ? 'calm' : v; }
+function themeNow() { return document.documentElement.getAttribute('data-theme') || 'sage'; }
+var THEME_FX = { christmas: ['❄️', '⭐', '🎄', '❄️'], holiday: ['✨', '⭐', '🎁', '✨'], halloween: ['🦇', '🎃', '👻'], autumn: ['🍁', '🍂', '🌻'], rgb: ['💜', '💙', '⚡', '✨'], pastel: ['🫧', '🌈', '🦋', '💗'], rose: ['🌹', '💗', '🌸'], sage: ['🌿', '🌹', '✨'] };
+function emojiBurst(list, n, opts) {
+  opts = opts || {}; var ox = opts.x != null ? opts.x : innerWidth / 2, oy = opts.y != null ? opts.y : innerHeight * 0.4;
+  for (var i = 0; i < n; i++) {
+    var a = Math.random() * Math.PI * 2, sp = 3 + Math.random() * 8;
+    FX.parts.push({ x: ox, y: oy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 6, g: 0.22, drag: 0.975, rot: (Math.random() - 0.5) * 0.6, vr: (Math.random() - 0.5) * 0.12, s: 18 + Math.random() * 16, emoji: pick(list), life: 110 + Math.random() * 60 });
+  }
+  fxRun();
+}
+function emojiRain(list, n) {
+  for (var i = 0; i < n; i++) FX.parts.push({ x: Math.random() * innerWidth, y: -30 - Math.random() * innerHeight * 0.7, vx: (Math.random() - 0.5) * 0.8, vy: 2 + Math.random() * 2.5, g: 0.02, drag: 0.998, rot: (Math.random() - 0.5) * 0.4, vr: (Math.random() - 0.5) * 0.04, s: 20 + Math.random() * 14, emoji: pick(list), life: 320 + Math.random() * 120, sway: 0.6 + Math.random(), phase: Math.random() * 6 });
+  fxRun();
+}
+function fireworks(bursts) {
+  var cols = ['#E0B15A', '#F6D98B', '#D9798E', '#88C4A9', '#8C7AE6', '#FFFFFF'];
+  for (var b = 0; b < (bursts || 4); b++) (function (b) {
+    setTimeout(function () {
+      var x = innerWidth * (0.2 + Math.random() * 0.6), y = innerHeight * (0.18 + Math.random() * 0.3), col = pick(cols), n = 46;
+      for (var i = 0; i < n; i++) { var a = i / n * Math.PI * 2, sp = 3.5 + Math.random() * 2.5; FX.parts.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, g: 0.06, drag: 0.965, rot: 0, vr: 0, s: 5 + Math.random() * 3, color: Math.random() < 0.8 ? col : pick(cols), life: 70 + Math.random() * 30, round: true }); }
+      fxRun();
+    }, b * 380);
+  })(b);
+}
+function celebrate(kind) {
+  var lvl = fxLevel(); if (lvl === 'off') return;
+  var th = THEME_FX[themeNow()] || THEME_FX.sage;
+  if (lvl === 'calm') { if (kind === 'money') emojiBurst(['💸', '🪙'], 10); else emojiBurst(th, 10); return; }
+  if (kind === 'fireworks') fireworks(4);
+  else if (kind === 'money') { emojiRain(['💸', '💵', '🪙', '💰'], 46); confetti({ n: 40 }); }
+  else if (kind === 'hearts') emojiBurst(['💗', '💚', '🌹', '💖'], 34);
+  else if (kind === 'theme') { emojiBurst(th, 30); confetti({ n: 50 }); }
+  else if (kind === 'goal') { petals(80); fireworks(3); emojiRain(th, 24); }
+  else if (kind === 'big') { fireworks(5); emojiBurst(th, 36); confetti({ n: 90 }); }
+  else confetti();
+}
+/* new orders: made in the app, or arrived from the website since you last opened the app */
+function ordersCreatedOn(day) { return S.data.Orders.filter(function (o) { return !o.deleted && String(o.created || '').slice(0, 10) === day; }); }
+function localDay(iso) { var d = iso ? new Date(iso) : new Date(); return isNaN(d) ? '' : d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function newOrderMoment(o) {
+  var today = localDay(), month = today.slice(0, 7);
+  var inMonth = S.data.Orders.filter(function (x) { return !x.deleted && localDay(x.created).slice(0, 7) === month; }).length;
+  var inDay = S.data.Orders.filter(function (x) { return !x.deleted && localDay(x.created) === today; }).length;
+  var who = String(o.customerName || '').split(' ')[0];
+  if (inMonth === 1) return { kind: 'big', msg: 'First order of ' + new Date().toLocaleDateString('en-CA', { month: 'long' }) + '! 🎉 ' + o.number + (who ? ' for ' + who : '') };
+  if (inDay === 1) return { kind: 'theme', msg: 'First order of the day! ☀️ ' + o.number + (who ? ' for ' + who : '') };
+  return { kind: 'theme', msg: pick(['New order! 🎉 ' + o.number, 'Ooh, a new order! ' + o.number + (who ? ' for ' + who : '') + ' ✨', o.number + ' is in! Let\'s make something lovely 🌹']) };
+}
+function funSeenAdd(ids) { var seen = lsGet('fun.seenOrders', null); if (!Array.isArray(seen)) return; lsSet('fun.seenOrders', seen.concat(ids).slice(-1500)); }
+function checkNewOrders() {
+  if (!S.data || !Array.isArray(S.data.Orders) || !S.data.Orders.length) return;
+  var seen = lsGet('fun.seenOrders', null), all = S.data.Orders.filter(function (o) { return !o.deleted; }).map(function (o) { return o.id; });
+  if (!Array.isArray(seen)) { lsSet('fun.seenOrders', all); return; }   // first time on this device: nothing to celebrate yet
+  var fresh = S.data.Orders.filter(function (o) { return !o.deleted && seen.indexOf(o.id) < 0 && !FUN_MINE[o.id]; });
+  if (!fresh.length) return;
+  lsSet('fun.seenOrders', seen.concat(fresh.map(function (o) { return o.id; })).slice(-1500));
+  setTimeout(function () {
+    var one = fresh.length === 1 ? fresh[0] : null, mo = one ? newOrderMoment(one) : null;
+    celebrate(fresh.length > 2 ? 'big' : (mo ? mo.kind : 'theme'));
+    toast(one ? (/^New order! /.test(mo.msg) || /^Ooh/.test(mo.msg) || / is in! /.test(mo.msg) ? 'New order from your website! 🎉 ' + one.number + (one.customerName ? ' for ' + String(one.customerName).split(' ')[0] : '') : mo.msg) : 'You\'ve got ' + fresh.length + ' new orders! 🎉');
+  }, 900);
+}
+/* goal milestones (once each per month): halfway, 75%, 100% (above), 25% past the goal; best month ever */
+function funMsMark(key, m) { var ms = lsGet('fun.ms', {}); if (ms._k !== key) ms = { _k: key }; ms[m] = 1; lsSet('fun.ms', ms); }
+function checkMilestones(fromSave) {
+  var key = monthKeyOf(new Date()), sales = salesIn(key), goal = monthGoal(), ms = lsGet('fun.ms', {});
+  if (ms._k !== key) { ms = { _k: key }; if (!fromSave) { [50, 75, 100, 125].forEach(function (m) { if (sales >= goal * m / 100) ms[m] = 1; }); ms._best = bestMonthEver(key, sales) ? 1 : 0; lsSet('fun.ms', ms); return; } }   // first look this month: no catch-up fireworks
+  var hit = [125, 75, 50].filter(function (m) { return sales >= goal * m / 100 && !ms[m] && (m !== 125 || ms[100] || lsGet('fun.goalDone', '') === key); })[0];
+  var best = !ms._best && bestMonthEver(key, sales);
+  if (!hit && !best) return;
+  [50, 75, 100, 125].forEach(function (m) { if (sales >= goal * m / 100) ms[m] = 1; }); if (best) ms._best = 1; lsSet('fun.ms', ms);
+  var mon = new Date().toLocaleDateString('en-CA', { month: 'long' });
+  setTimeout(function () {
+    if (best) { celebrate('big'); toast('Best month ever! 🏆 ' + money(sales) + ' in ' + mon + ' so far'); return; }
+    celebrate(hit === 125 ? 'big' : 'theme');
+    toast(hit === 50 ? 'Halfway to your ' + mon + ' goal! 💪 ' + money(sales) + ' of ' + money(goal) : hit === 75 ? '75% of your ' + mon + ' goal! Almost there 🌟' : 'You\'re 25% past your ' + mon + ' goal! 🚀');
+  }, fromSave ? 300 : 900);
+}
+function bestMonthEver(key, sales) {
+  var by = {}; confirmedOrders().forEach(function (o) { var k = String(o.created || '').slice(0, 7); if (k && k < key) by[k] = (by[k] || 0) + num(o.total); });
+  var prev = Object.keys(by).map(function (k) { return by[k]; });
+  return prev.length >= 2 && sales > Math.max.apply(null, prev) && sales > 0;
+}
 </script>
 
   <style>
