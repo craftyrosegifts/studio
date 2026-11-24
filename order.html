@@ -259,8 +259,10 @@ function render() {
     $('#app').innerHTML = '<div class="state"><h2>Taking a little break</h2><p>The order form is closed right now. Please message me on Facebook or Instagram and I\'ll help you out!</p></div>';
     return;
   }
-  var cats = ['All'].concat(CAT.products.map(function (p) { return p.category; }).filter(function (c, i, a) { return c && a.indexOf(c) === i; }));
-  var list = CAT.products.filter(function (p) { return FILTER === 'All' || p.category === FILTER; });
+  var pcats = function (p) { return Array.isArray(p.categories) && p.categories.length ? p.categories : [p.category]; };   // a product can be in more than one category
+  var cats = ['All'].concat([].concat.apply([], CAT.products.map(pcats)).filter(function (c, i, a) { return c && a.indexOf(c) === i; }).sort(function (a, b) { return a.localeCompare(b); }));
+  if (cats.indexOf(FILTER) < 0) FILTER = 'All';
+  var list = CAT.products.filter(function (p) { return FILTER === 'All' || pcats(p).indexOf(FILTER) >= 0; });
   $('#app').innerHTML =
     '<section class="hero">' + (LINKINFO ? '<div class="olink" id="olink"><b>Choosing items for order ' + esc(LINKINFO.number) + '</b><br>Hi ' + esc(LINKINFO.firstName || 'there') +
       '! Pick your items below, then tap <b>Send my choices</b>. Your choices go straight onto your order, no new order is made.</div>' : '') +
