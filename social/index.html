@@ -56,18 +56,19 @@
     var STUDIO = 'https://script.google.com/macros/s/AKfycbxJD6pKwqLNXyNphf1NmXgIlIDe3TudZhJnWEnlnC4jZKDOry4BC-nFaE3iBtJRfwSI/exec';
     document.getElementById('openLink').href = STUDIO;
     document.getElementById('openLink2').href = STUDIO;
-    var adding = /[?&]add\b/.test(location.search);
-    if (adding) {
-      // Clean the address so the home screen shortcut opens the studio directly.
-      try { history.replaceState(null, '', location.pathname); } catch (e) { /* ignore */ }
+    // Home screen shortcut opens /social/?go and jumps straight into the studio.
+    // Any other visit (e.g. typing studio.craftyrosegifts.ca/social) shows this setup screen.
+    if (/[?&]go\b/.test(location.search)) {
+      location.replace(STUDIO);
+    } else {
+      // Save the shortcut address as ?go so the home screen icon opens the studio directly.
+      try { history.replaceState(null, '', location.pathname + '?go'); } catch (e) { /* ignore */ }
       var ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
       document.getElementById('steps').innerHTML = ios
-        ? '<li>Tap the <strong>Share</strong> button (square with an arrow).</li><li>Scroll down and tap <strong>Add to Home Screen</strong>.</li><li>Tap <strong>Add</strong>.</li>'
+        ? '<li>In <strong>Safari</strong>, tap the <strong>Share</strong> button (square with an arrow).</li><li>Scroll down and tap <strong>Add to Home Screen</strong>.</li><li>Check the icon shows the rose, then tap <strong>Add</strong>.</li>'
         : '<li>Tap the <strong>⋮</strong> menu (top right).</li><li>Tap <strong>Add to Home screen</strong>.</li><li>Tap <strong>Add</strong>.</li>';
       document.getElementById('opening').hidden = true;
       document.getElementById('install').hidden = false;
-    } else {
-      location.replace(STUDIO);
     }
   </script>
 </body>

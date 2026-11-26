@@ -1,7 +1,7 @@
 {
   "name": "Crafty Rose Social Studio",
   "short_name": "Social Studio",
-  "start_url": "/social/",
+  "start_url": "/social/?go",
   "scope": "/social/",
   "display": "browser",
   "background_color": "#FFFDF9",
