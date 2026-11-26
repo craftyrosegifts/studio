@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Social Studio</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#8BC4A9">
+  <meta name="apple-mobile-web-app-title" content="Social Studio">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@700&family=Plus+Jakarta+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root { --green: #8BC4A9; --forest: #4C6D5E; --ink: #2C3832; --muted: #74827A; --bg: #F4F8F5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--ink);
+      font-family: "Plus Jakarta Sans", system-ui, sans-serif; padding: 24px 16px; }
+    .card { background: #fff; border: 1px solid #E4ECE7; border-radius: 22px; padding: 30px 24px; max-width: 420px; width: 100%;
+      text-align: center; box-shadow: 0 12px 34px rgba(76,109,94,.10); }
+    .icon { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 6px 18px rgba(76,109,94,.18); }
+    h1 { font-family: "Amatic SC", cursive; font-size: 40px; color: var(--forest); margin: 14px 0 4px; letter-spacing: .5px; }
+    p { color: var(--muted); line-height: 1.55; margin: 0 0 16px; font-size: 15px; }
+    .btn { display: inline-block; background: var(--forest); color: #fff; text-decoration: none; font-weight: 600;
+      padding: 13px 22px; border-radius: 12px; font-size: 15px; }
+    ol { text-align: left; margin: 6px 0 20px; padding-left: 22px; line-height: 1.6; font-size: 15px; }
+    li { margin-bottom: 6px; }
+    .dots span { display: inline-block; width: 9px; height: 9px; margin: 0 4px; border-radius: 50%; background: var(--green);
+      animation: b 1s infinite ease-in-out; }
+    .dots span:nth-child(2) { animation-delay: .15s; } .dots span:nth-child(3) { animation-delay: .3s; }
+    @keyframes b { 0%, 80%, 100% { transform: scale(.6); opacity: .5; } 40% { transform: scale(1); opacity: 1; } }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <img class="icon" src="icon-180.png" alt="">
+    <h1>Social Studio</h1>
+
+    <div id="opening">
+      <p>Opening your studio…</p>
+      <div class="dots"><span></span><span></span><span></span></div>
+      <p style="margin-top:18px"><a class="btn" id="openLink" href="#">Open Social Studio</a></p>
+    </div>
+
+    <div id="install" hidden>
+      <p>Add this to your home screen so the studio opens with one tap:</p>
+      <ol id="steps"></ol>
+      <a class="btn" id="openLink2" href="#">Open Social Studio</a>
+    </div>
+  </div>
+
+  <script>
+    var STUDIO = 'https://script.google.com/macros/s/AKfycbxJD6pKwqLNXyNphf1NmXgIlIDe3TudZhJnWEnlnC4jZKDOry4BC-nFaE3iBtJRfwSI/exec';
+    document.getElementById('openLink').href = STUDIO;
+    document.getElementById('openLink2').href = STUDIO;
+    var adding = /[?&]add\b/.test(location.search);
+    if (adding) {
+      // Clean the address so the home screen shortcut opens the studio directly.
+      try { history.replaceState(null, '', location.pathname); } catch (e) { /* ignore */ }
+      var ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+      document.getElementById('steps').innerHTML = ios
+        ? '<li>Tap the <strong>Share</strong> button (square with an arrow).</li><li>Scroll down and tap <strong>Add to Home Screen</strong>.</li><li>Tap <strong>Add</strong>.</li>'
+        : '<li>Tap the <strong>⋮</strong> menu (top right).</li><li>Tap <strong>Add to Home screen</strong>.</li><li>Tap <strong>Add</strong>.</li>';
+      document.getElementById('opening').hidden = true;
+      document.getElementById('install').hidden = false;
+    } else {
+      location.replace(STUDIO);
+    }
+  </script>
+</body>
+</html>
